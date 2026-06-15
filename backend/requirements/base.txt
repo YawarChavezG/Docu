@@ -1,0 +1,55 @@
+# ════════════════════════════════════════════════════════════════
+# COFAR SGD — Dependencias base (compartidas dev + prod)
+# Versiones validadas el 2026-06-14 contra PyPI y Docker Hub
+# ════════════════════════════════════════════════════════════════
+
+# ─── Core ───
+fastapi==0.137.0
+uvicorn[standard]==0.49.0
+pydantic==2.13.4
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# ─── DB ───
+sqlalchemy[asyncio]==2.0.50
+asyncpg==0.31.0
+alembic==1.18.4
+psycopg2-binary==2.9.10
+
+# ─── Auth / Security ───
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.17
+
+# ─── LDAP (AD) ───
+ldap3==2.9.1
+
+# ─── HTTP clients ───
+httpx==0.27.2
+aiohttp==3.11.10
+
+# ─── MSAL (Microsoft Graph) ───
+msal==1.37.0
+
+# ─── Email ───
+aiosmtplib==3.0.1
+jinja2==3.1.4
+emails==0.6.0
+
+# ─── PDF (fases futuras) ───
+weasyprint==63.1
+pymupdf==1.25.1
+pikepdf==9.4.0
+
+# ─── Background tasks ───
+celery[redis]==5.6.3
+# NOTA: Celery 5.6 aún no soporta redis-py 8.x — usar 5.x
+redis==5.2.1
+
+# ─── IA / embeddings (fase futura, comentar hasta entonces) ───
+# sentence-transformers==3.2.1
+# torch==2.5.1
+
+# ─── Validation helpers ───
+email-validator==2.2.0
+python-slugify==8.0.4

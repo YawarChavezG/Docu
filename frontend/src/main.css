@@ -1,0 +1,335 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────
+   BASE LAYER — resets, global styles, scrollbar, selection
+───────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    height: 100%;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* ── Scrollbar (webkit) ── */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;  /* slate-300 */
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #1a5fb4;  /* brand-500 */
+  }
+
+  /* ── Text selection ── */
+  ::selection {
+    background-color: rgba(26,95,180,0.18);
+    color: #0f2244;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   COMPONENTS LAYER — reusable class abstractions
+───────────────────────────────────────────────────────────────── */
+@layer components {
+
+  /* ── Glassmorphism ─────────────────────────────────────────── */
+  .glass {
+    background: rgba(255,255,255,0.07);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    backdrop-filter: blur(16px) saturate(180%);
+    border: 1px solid rgba(255,255,255,0.13);
+  }
+  .glass-card {
+    background: rgba(255,255,255,0.97);
+    -webkit-backdrop-filter: blur(24px) saturate(200%);
+    backdrop-filter: blur(24px) saturate(200%);
+    border: 1px solid rgba(255,255,255,0.7);
+  }
+  .glass-dark {
+    background: rgba(7,17,30,0.55);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    backdrop-filter: blur(14px) saturate(150%);
+    border: 1px solid rgba(255,255,255,0.07);
+  }
+
+  /* ── Badges ────────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold leading-4 whitespace-nowrap;
+  }
+  .badge-green  { @apply bg-emerald-50  text-emerald-700  ring-1 ring-inset ring-emerald-200; }
+  .badge-amber  { @apply bg-amber-50    text-amber-700    ring-1 ring-inset ring-amber-200; }
+  .badge-blue   { @apply bg-blue-50     text-blue-700     ring-1 ring-inset ring-blue-200; }
+  .badge-red    { @apply bg-red-50      text-red-700      ring-1 ring-inset ring-red-200; }
+  .badge-gray   { @apply bg-slate-100   text-slate-600    ring-1 ring-inset ring-slate-200; }
+  .badge-purple { @apply bg-violet-50   text-violet-700   ring-1 ring-inset ring-violet-200; }
+  .badge-teal   { @apply bg-teal-50     text-teal-700     ring-1 ring-inset ring-teal-200; }
+
+  /* ── Buttons ───────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5
+           px-3.5 py-1.5 rounded-lg border border-slate-200
+           bg-white text-slate-700 text-[11.5px] font-medium
+           cursor-pointer transition-all duration-150 select-none
+           hover:bg-slate-50 hover:border-slate-300 hover:shadow-card
+           active:scale-[0.97]
+           focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:ring-offset-1
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none;
+  }
+  .btn-primary {
+    @apply bg-brand-500 text-white border-brand-500
+           hover:bg-brand-600 hover:border-brand-600 hover:shadow-none
+           focus:ring-brand-500/40;
+  }
+  .btn-danger {
+    @apply bg-red-50 text-red-700 border-red-200
+           hover:bg-red-100 hover:border-red-300;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent shadow-none
+           hover:bg-slate-100 hover:border-transparent hover:shadow-none;
+  }
+  .btn-sm  { @apply px-2.5 py-1 text-[11px] rounded-md; }
+  .btn-lg  { @apply px-5 py-2.5 text-[13px] rounded-xl; }
+  .btn-xl  { @apply px-6 py-3 text-sm rounded-xl; }
+
+  /* ── Form inputs ───────────────────────────────────────────── */
+  .form-input {
+    @apply w-full px-3 py-2 rounded-lg border border-slate-200 bg-white
+           text-slate-800 text-sm placeholder:text-slate-400
+           transition-all duration-150
+           focus:outline-none focus:ring-2 focus:ring-brand-500/25 focus:border-brand-500
+           disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed;
+  }
+  .form-input-icon {
+    @apply form-input pl-9;
+  }
+  .form-label {
+    @apply block text-xs font-semibold text-slate-600 mb-1.5;
+  }
+  .form-hint {
+    @apply text-[10.5px] text-slate-400 mt-1;
+  }
+  .form-error-msg {
+    @apply text-[11px] text-red-600 mt-1.5 flex items-center gap-1.5;
+  }
+
+  /* ── Section cards ─────────────────────────────────────────── */
+  .section-card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-card p-5 mb-4;
+  }
+  .section-header {
+    @apply flex items-center gap-2 text-[10.5px] font-bold text-slate-500
+           uppercase tracking-widest pb-3 mb-4 border-b border-slate-100;
+  }
+
+  /* ── Data tables ───────────────────────────────────────────── */
+  .data-table {
+    @apply w-full text-[11.5px] border-collapse;
+    min-width: 580px;
+  }
+  .data-table thead tr {
+    @apply border-b border-slate-200;
+  }
+  .data-table th {
+    @apply px-3 py-2.5 text-left font-semibold text-slate-500
+           text-[10px] uppercase tracking-wider bg-slate-50;
+  }
+  .data-table td {
+    @apply px-3 py-2.5 border-b border-slate-100 text-slate-700 align-middle;
+  }
+  .data-table tbody tr {
+    transition: background-color 100ms;
+  }
+  .data-table tbody tr:hover td {
+    @apply bg-blue-50/40;
+  }
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  /* Column filter inputs inside <th> */
+  .th-filter {
+    @apply w-full mt-1.5 px-2 py-1 text-[10.5px] border border-slate-200 rounded-md
+           bg-white text-slate-700 placeholder:text-slate-300 font-normal normal-case tracking-normal
+           focus:outline-none focus:ring-1 focus:ring-brand-500/30 focus:border-brand-400
+           transition-colors duration-150;
+  }
+
+  /* ── Navigation sidebar ────────────────────────────────────── */
+  .nav-section {
+    @apply px-4 pt-5 pb-1 text-white/30 text-[9px] font-bold uppercase tracking-[0.14em];
+  }
+  .nav-item {
+    @apply flex items-center gap-2.5 mx-2 px-3 py-2 rounded-lg
+           text-white/60 text-[11.5px] font-medium cursor-pointer
+           transition-all duration-150 select-none
+           border-l-2 border-transparent;
+  }
+  .nav-item:hover {
+    @apply bg-white/10 text-white/90;
+  }
+  .nav-item.is-active {
+    @apply bg-white/15 text-white border-l-brand-400;
+    border-left-color: #60a5fa;
+  }
+  .nav-badge {
+    @apply ml-auto bg-red-500 text-white rounded-full px-1.5 py-px
+           text-[9px] font-bold leading-none;
+  }
+  .nav-submenu {
+    @apply ml-3 border-l border-white/10 overflow-hidden
+           transition-all duration-200;
+  }
+  .nav-submenu .nav-item {
+    @apply pl-6 text-[11px];
+  }
+
+  /* ── Metric cards ──────────────────────────────────────────── */
+  .metric-card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-card p-4;
+  }
+  .metric-value { @apply text-[26px] font-bold leading-none; }
+  .metric-label { @apply text-[10.5px] text-slate-500 mt-1; }
+  .metric-sub   { @apply text-[10px] text-slate-400 mt-0.5; }
+
+  /* ── AI info box ───────────────────────────────────────────── */
+  .ai-box {
+    @apply bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4;
+  }
+  .ai-label {
+    @apply text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1;
+  }
+  .ai-text { @apply text-[11.5px] text-blue-800 leading-relaxed; }
+
+  /* ── Modal overlay ─────────────────────────────────────────── */
+  .modal-overlay {
+    @apply fixed inset-0 z-[3000] flex items-center justify-center p-4;
+    background: rgba(0,0,0,0.5);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.2s ease-out both;
+  }
+  .modal-box {
+    @apply bg-white rounded-2xl shadow-glass-lg p-6 w-full max-w-md;
+    animation: scaleIn 0.28s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .modal-box-sm {
+    @apply modal-box max-w-sm;
+  }
+  .modal-box-lg {
+    @apply modal-box max-w-2xl;
+  }
+
+  /* ── Toast ─────────────────────────────────────────────────── */
+  .toast {
+    @apply flex items-start gap-3 px-4 py-3 rounded-xl shadow-glass-lg
+           text-[12.5px] font-medium pointer-events-auto;
+    animation: toastIn 0.45s cubic-bezier(0.16,1,0.3,1) both;
+  }
+  .toast-success { @apply bg-emerald-900 text-emerald-50; }
+  .toast-error   { @apply bg-red-900     text-red-50; }
+  .toast-info    { @apply bg-brand-900   text-white; }
+  .toast-warn    { @apply bg-amber-900   text-amber-50; }
+
+  /* ── KPI Cards (Lista Maestra) ─────────────────────────────── */
+  .kpi-card {
+    @apply bg-white rounded-xl border border-slate-200 p-5 shadow-card;
+  }
+  .kpi-card-amber {
+    @apply bg-white rounded-xl border border-amber-200 p-5 shadow-card;
+  }
+  .kpi-card-red {
+    @apply bg-white rounded-xl border border-red-200 p-5 shadow-card;
+  }
+
+  /* ── Table cell helpers ────────────────────────────────────── */
+  .table-cell-mono {
+    @apply px-3 py-2.5 font-mono text-[11px] font-semibold text-slate-500;
+  }
+  .table-cell-badge {
+    @apply px-3 py-2.5;
+  }
+
+  /* ── Page header / subtitle ────────────────────────────────── */
+  .page-header {
+    @apply text-[15px] font-bold text-slate-800 mb-1 leading-tight;
+  }
+  .page-subtitle {
+    @apply text-[11px] text-slate-400 mt-1 leading-relaxed;
+  }
+
+  /* ── Form grids ────────────────────────────────────────────── */
+  .form-grid-2 {
+    @apply grid grid-cols-1 sm:grid-cols-2 gap-3;
+  }
+  .form-grid-3 {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3;
+  }
+
+  /* ── Card base (reemplazo del patrón inline más común) ─────── */
+  .card-base {
+    @apply bg-white rounded-xl border border-slate-200 p-5 shadow-card;
+  }
+
+  /* ── Fade-in de página (reemplaza animation:fadeIn inline) ─── */
+  .animate-fade-in-page {
+    animation: fadeIn 0.35s ease-out both;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   UTILITIES LAYER — single-purpose helpers
+───────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .gradient-text {
+    background: linear-gradient(135deg, #1a5fb4, #60a5fa);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Shimmer skeleton loading */
+  .skeleton {
+    background: linear-gradient(90deg, #f1f5f9 0%, #e2e8f0 50%, #f1f5f9 100%);
+    background-size: 400px 100%;
+    animation: shimmer 1.8s ease-in-out infinite;
+    border-radius: 6px;
+  }
+
+  /* Transition helpers */
+  .transition-fast  { @apply transition-all duration-100; }
+  .transition-base  { @apply transition-all duration-150; }
+  .transition-slow  { @apply transition-all duration-300; }
+
+  /* Text balance */
+  .text-balance {
+    text-wrap: balance;
+  }
+}
