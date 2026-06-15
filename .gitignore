@@ -53,3 +53,29 @@ logs/
 
 # OS
 .DS_Store
+
+# ─── Dev artifacts (outputs de procesos locales, NO se commitean) ───
+# Outputs del backend nativo (.bat) cuando se corre fuera de Docker
+backend.err
+backend.out
+backend.pid
+bg.err
+bg.out
+
+# Cookies de sesiones (curl + tests manuales)
+cookies.txt
+cookies_local.txt
+cookies_*.txt
+
+# JSONs de prueba manual (login, test_*, etc.)
+login_*.json
+login_*_local.json
+test_*.json
+test_imp_*.json
+*_local.json
+trash*.json
+
+# Outputs de procesos en background (nohup, start /B, etc.)
+*.pid
+nohup.out
+*.nohup
