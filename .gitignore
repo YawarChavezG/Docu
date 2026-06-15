@@ -79,3 +79,5 @@ trash*.json
 *.pid
 nohup.out
 *.nohup
+*.pdf
+*.xlsx
