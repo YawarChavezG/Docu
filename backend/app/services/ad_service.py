@@ -251,10 +251,18 @@ def _es_usuario_real_cofar(entry_attrs: dict, excluded_cns: List[str], excluded_
             return False
 
     # Filtro 2: userAccountControl deshabilitado
+    # IMPORTANTE: usar bit-mask (int(uac) & 2) != 0 para detectar
+    # ACCOUNTDISABLE. NO comparar contra valores literales ("514", "66050")
+    # porque en el AD de COFAR hay cuentas deshabilitadas con uAC 4098,
+    # 8194, 32774, etc. que pasan el filtro de literales.
+    # Ref: scripts/sync_ad_oficial.py:_es_cuenta_deshabilitada
     uac = _primero(entry_attrs.get("userAccountControl"))
     if uac:
-        if uac in ("514", "66050"):
-            return False
+        try:
+            if (int(uac) & 2) != 0:
+                return False
+        except (ValueError, TypeError):
+            pass  # uAC no parseable → no excluimos por esto
 
     # Filtro 3: sAMAccountName en lista excluida
     sam = _primero(entry_attrs.get("sAMAccountName")).lower()
@@ -432,7 +440,11 @@ def ldap_search_users(
             search_filter=search_filter,
             search_scope=SUBTREE,
             attributes=USER_ATTRIBUTES,
-            size_limit=2000,  # límite duro para no traer todo el AD
+            size_limit=5000,  # 2026-06-15: subido de 2000 a 5000 para
+                              # no truncar el sync. En COFAR hay ~750
+                              # usuarios reales; con 2000 nos quedaban
+                              # cortos. 5000 es seguro (el size_limit solo
+                              # limita, no trae "basura").
         )
 
         excluded_cns = _get_excluded_cns()
@@ -485,7 +497,18 @@ def ldap_search_users(
                 continue
 
             uac_check = _primero(attrs.get("userAccountControl"))
-            if uac_check in ("514", "66050"):
+            # IMPORTANTE: bit-mask para detectar ACCOUNTDISABLE (bit 1 = valor 2).
+            # NO comparar contra valores literales ("514", "66050") porque el
+            # AD de COFAR tiene cuentas deshabilitadas con uAC 4098, 8194,
+            # 32774, etc. que pasarian el filtro de literales.
+            # Ref: scripts/sync_ad_oficial.py:_es_cuenta_deshabilitada
+            cuenta_deshabilitada = False
+            if uac_check:
+                try:
+                    cuenta_deshabilitada = (int(uac_check) & 2) != 0
+                except (ValueError, TypeError):
+                    pass
+            if cuenta_deshabilitada:
                 excl_contadores["uac_deshabilitado"] += 1
                 continue
 
@@ -494,12 +517,18 @@ def ldap_search_users(
                 excl_contadores["cn_excluido"] += 1
                 continue
 
-            # Si llego aca, pasa todos los filtros
+            # Si llego aca, pasa los filtros de OU/uAC/CN.
+            # Filtro adicional: usuarios SIN codigo SAP (postalCode vacio)
+            # se EXCLUYEN del listado, igual que en scripts/sync_ad_oficial.py
+            # (no se importan a la BD porque no son empleados activos
+            # codificables en SAP).
             user = _normalizar_usuario_ad(attrs)
-
-            # Warning si no tiene codigo SAP (postalCode vacío)
             if not user["tiene_codigo_sap"]:
+                # Warning visible en la respuesta (para debug), pero NO se
+                # incluye en all_users → se excluye del sync.
                 user["warning"] = "⚠️ Sin código SAP (postalCode vacío en AD)"
+                excl_contadores["postal_vacio"] = excl_contadores.get("postal_vacio", 0) + 1
+                continue
 
             all_users.append(user)
 

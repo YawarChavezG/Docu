@@ -78,7 +78,10 @@ class UsuariosListResponse(BaseModel):
 
 
 class SyncAdRequest(BaseModel):
-    max_results: int = 750
+    # 2026-06-15: subido de 750 a 5000. El script validado
+    # scripts/sync_ad_oficial.py trae 759 usuarios; con max_results=750
+    # se truncaba el sync a 750 incluso si el AD tenia mas.
+    max_results: int = 5000
 
 
 class SyncAdResponse(BaseModel):
