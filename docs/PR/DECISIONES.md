@@ -201,39 +201,90 @@ Ejemplo: `CC-5-001 v01`, `PRO-9-001 v00` (PRO = Producción, 9 = Protocolo, v00 
 
 ---
 
-## ADR-013: Backend fuera de Docker en DES (2026-06-15)
+## ADR-013: Backend DENTRO de Docker en DES (con DNS COFAR + VPN FortiClient) — INVALIDADO Y REESCRITO 2026-06-15
 
-**Contexto:** El backend FastAPI se levanta con `scripts/dev-backend.bat` (uvicorn nativo en Windows) en lugar de como contenedor en el stack Docker Compose. Esto rompe el principio de "toda la stack en compose" que defendimos en ADR-003. Se intentó diagnosticar y resolver en varias sesiones, sin éxito. La raíz del problema es la **VPN FortiClient** que usa COFAR para acceder a su intranet.
+### Estado actual (post-validación)
 
-**Diagnóstico del problema (verificado):**
-- FortiClient VPN corre como aplicación en el host Windows (no como servicio de red).
-- Cuando se activa, crea una interfaz de red virtual y rutea el tráfico corporativo (incluyendo `rodc.cofar.com.bo` y `dc3-cofar` = 172.16.10.17).
-- Docker Desktop sobre WSL2 crea una VM Linux aislada con su propio stack de red. Las interfaces de red del host Windows (incluida la de FortiClient) **no son visibles** dentro de los contenedores Docker por defecto.
-- Opciones evaluadas y descartadas:
-  - `network_mode: "host"` en Docker Compose: solo aplica a Docker Engine sobre Linux nativo, **no a Docker Desktop sobre WSL2**. No funciona.
-  - `extra_hosts: ["host.docker.internal:host-gateway"]`: hace que el contenedor pueda resolver `host.docker.internal` al gateway del host, pero ese gateway es WSL2, no Windows. La VPN sigue sin ser visible.
-  - `networkingMode: "mirrored"` en Docker Desktop: en teoría comparte la red del host, pero FortiClient está en la capa de aplicación y enruta por nombre de proceso, no por interfaz. No resuelve el caso.
-  - Mover el backend a WSL2 directamente: WSL2 tampoco ve la VPN porque está en la capa de Windows.
-- Conclusión técnica: **no es viable** correr el backend dentro de Docker en DES mientras la VPN FortiClient esté activa y el backend necesite llegar al RODC.
+**REEMPLAZA el texto provisional escrito más abajo.** La realidad validada en sesión 4 contradice el diagnóstico inicial. El backend **SÍ PUEDE** correr dentro de Docker en DES con la configuración correcta.
 
-**Decisión:**
-1. **En DES (Windows 10 + FortiClient VPN):** el backend corre nativo con `scripts/dev-backend.bat` (uvicorn). El resto de la stack (postgres, redis, mailhog, nginx, frontend, celery) sí corre en Docker. La conectividad nativa ↔ Docker se hace vía `127.0.0.1:25432` (postgres) y `127.0.0.1:26379` (redis), que son los puertos host mapeados en `.env`.
-2. **En QAS (VM Debian dentro de la red COFAR):** la VPN no es un problema porque la VM ya está en la red corporativa. Todo el stack corre en Docker, incluyendo el backend. Se usa el `docker-compose.prod.yml` o el mismo `.yml` de DES sin cambios.
-3. **En PRD (servidor de producción):** ídem QAS.
-4. **Punto único de entrada:** se crea `scripts/start-stack-des.bat` (orquestador) que en una sola acción: (a) verifica que el `.env` existe y tiene `LDAP_ENABLED` coherente, (b) hace `docker compose up -d` para los 7 servicios de Docker, (c) activa el venv de Python, (d) lanza uvicorn nativo. El orquestador documenta el contrato de "cómo arrancar el proyecto" sin tener que recordar 2 comandos separados.
-5. **No se intenta más** meter el backend a Docker en DES. Es deuda técnica aceptada y documentada.
+### Validación end-to-end (sesión 4, 2026-06-15)
 
-**Implicaciones operativas:**
-- El backend en DES tiene acceso directo a la VPN → puede hacer bind LDAP real cuando `LDAP_ENABLED=true`.
-- El backend en DES NO está aislado en un contenedor → tiene acceso al filesystem completo de Windows. Mitigación: solo el dev de confianza lo corre, y `.env` ya está en `.gitignore`.
-- Los logs del backend nativo van a `backend.out` y `backend.err` (ya en `.gitignore`). El orquestador puede redirigirlos a un directorio `logs/` versionado-solo-local.
-- Las migraciones Alembic se deben aplicar DOS veces si los modelos cambian: (a) `alembic upgrade head` desde el venv nativo para que la BD se actualice, (b) `alembic upgrade head` dentro del contenedor del backend cuando se rebuildee la imagen Docker. Para evitarlo, **la migración se corre solo en el venv nativo** y la imagen Docker no incluye el comando `alembic` (lo saca para que sea responsabilidad del orquestador).
+Con la red corporativa activa (VPN FortiClient en el host Windows, IP `10.0.116.4`, DNS `172.16.10.50/51`) y `.wslconfig` con `networkingMode=mirrored`:
 
-**Consecuencia:**
-- ✅ El dev puede trabajar con LDAP real (validación contra `dc3-cofar`) sin pelearse con Docker.
-- ✅ El resto de la stack sigue siendo "infraestructura como código" via Docker Compose.
-- ✅ El contrato operacional es claro: un solo script arranca todo (`start-stack-des.bat`).
-- ✅ QAS y PRD no sufren esta limitación, así que el resto del diseño (todo-en-Docker) sigue siendo válido.
-- ❌ El backend en DES NO es reproducible por terceros sin el script `start-stack-des.bat` y el `.env` correcto. Aceptable: es DES, no se distribuye.
-- ❌ Si en el futuro COFAR cambia FortiClient por otra VPN o sale del entorno corporativo, hay que re-evaluar.
-- ❌ El backend nativo ocupa un puerto de Windows (18000) que podría colisionar con otra app. Mitigación: configurado en `.env` con `HOST_PORT_BACKEND`.
+| Test | Resultado |
+|---|---|
+| `ping 172.16.10.17` desde contenedor Alpine | ✅ 0% packet loss, ~3ms |
+| `nc -zv 172.16.10.17 389` desde contenedor | ✅ open |
+| DNS `rodc.cofar.com.bo` desde contenedor | ❌ NXDOMAIN (no resuelve por nombre) |
+| DNS `dc3-cofar.com` desde contenedor | ❌ NXDOMAIN (idem) |
+| `GET /api/v1/health` desde host (con backend en Docker) | ✅ 200 OK, DB OK |
+| `POST /api/v1/login` con `auth_source: "local"` | ✅ 200 OK, usuario aromero completo |
+| `POST /api/v1/login` con `auth_source: "cofar"` + LDAP real | ✅ Bind LDAP exitoso contra `172.16.10.17` (logs: "LDAP bind exitoso para soporteglpi") |
+| `POST /api/v1/login` modo `auto` (sin auth_source) | ✅ 200 OK, usuario creado on-demand en BD local con datos del AD |
+
+### Configuración necesaria (la que funciona)
+
+**`~/.wslconfig`** (host Windows):
+```ini
+[wsl2]
+networkingMode=mirrored
+```
+
+**`deploy/docker-compose.yml`** — servicio `backend`:
+```yaml
+backend:
+  ...
+  dns:
+    - 172.16.10.50   # DC COFAR #1 (DNS primario de la VPN)
+    - 172.16.10.51   # DC COFAR #2 (DNS secundario)
+    - 8.8.8.8        # Google DNS (fallback para internet)
+  dns_search:
+    - cofar.com
+    - .
+  ...
+```
+
+**`.env`** (raíz, no commiteado):
+```env
+LDAP_ENABLED=true
+LDAP_SERVER=172.16.10.17    # IP directa, NO hostname (no resuelve)
+LDAP_PORT=389
+LDAP_BIND_USER=soporteglpi@cofar.com
+LDAP_BIND_PASSWORD=glpi.1T.C0f4r   # solo en .env local
+LDAP_USER_SEARCH_BASE=OU=Oficina Central,DC=cofar,DC=com
+LDAP_BASE_DN=OU=Oficina Central,DC=COFAR,DC=COM
+```
+
+### Decisión final
+
+1. **El backend CORRE DENTRO de Docker en DES** con la config de arriba. La VPN FortiClient es visible para el contenedor gracias a `networkingMode=mirrored` + DNS custom.
+2. **El `scripts/dev-backend.bat` se mantiene como plan B** (rollback), no como flujo normal. Si por alguna razón Docker no levanta (Docker Desktop caído, WSL2 corrupto, DNS roto), se puede arrancar el backend nativo con `dev-backend.bat` y el resto de la stack sigue en Docker.
+3. **El `scripts/start-stack-des.bat` ahora levanta TODO** con `docker compose up -d` (incluido el backend). Espera health-checks de postgres y backend, luego imprime URLs.
+4. **El `scripts/stop-stack-des.bat`** apaga todo limpio (mata uvicorn nativo si quedó, baja contenedores).
+5. **La IP directa `172.16.10.17`** se usa en `LDAP_SERVER` porque el DNS de COFAR no resuelve `dc3-cofar.com` desde el contenedor (aunque sí desde el host). La causa: Docker usa el DNS configurado explícitamente en `dns:`, no el del host. La búsqueda `dns_search: cofar.com` solo aplica si el DNS conoce ese dominio.
+6. **En QAS (Debian VM dentro de la red COFAR):** `LDAP_SERVER=dc3-cofar.com` debería resolver sin problema (la VM tiene la red corporativa completa). Ajustar al pasar a QAS.
+7. **En PRD:** ídem QAS.
+
+### Implicaciones operativas
+
+- ✅ Stack completa reproducible con un solo comando: `scripts\start-stack-des.bat` (o `docker compose -f deploy/docker-compose.yml up -d`).
+- ✅ LDAP real funciona desde el primer login (con sync on-demand a la BD local).
+- ✅ El `.bat` nativo queda como red de seguridad, no como flujo principal.
+- ✅ El contrato operacional es claro: "todo en Docker; si falla, .bat nativo".
+- ❌ Si la VPN FortiClient cae, el bind LDAP falla → el frontend puede usar `auth_source: "local"` con los stubs de DES (`aromero / cofar.2026`).
+- ❌ El usuario debe mantener `.wslconfig` con `networkingMode=mirrored`. Si Docker Desktop lo resetea, se rompe.
+- ❌ El puerto host `18000` puede colisionar con otra app Windows. Mitigación: cambiar `HOST_PORT_BACKEND` en `.env`.
+
+---
+
+## ADR-013 (BORRADOR PROVISIONAL, INVALIDADO) — se conserva para historia
+
+**Contexto original (mantenido por trazabilidad, ya no aplica):** El backend FastAPI se levantaba con `scripts/dev-backend.bat` (uvicorn nativo) en lugar de como contenedor, porque se creía que Docker Desktop sobre WSL2 no podía ver la VPN FortiClient del host.
+
+**Diagnóstico que NOS ENGAÑÓ:**
+- `network_mode: "host"` no funciona en Docker Desktop sobre WSL2 (solo Linux nativo).
+- `extra_hosts: host.docker.internal:host-gateway` solo resuelve el gateway de WSL2, no de Windows.
+- Asumimos incorrectamente que `networkingMode: "mirrored"` no funcionaba con FortiClient porque FortiClient es "capa de aplicación". **Incorrecto**: FortiClient registra rutas en la tabla de ruteo del host, y `mirrored` SÍ las propaga a WSL2.
+- Asumimos que la resolución DNS del contenedor no podía alcanzar los DNS de COFAR. **Incorrecto**: con `dns: [172.16.10.50, ...]` explícito, sí los alcanza.
+
+**Lo que aprendimos:** el ping-test rápido desde un contenedor Alpine (`docker run --rm alpine ping 172.16.10.17`) en 30 segundos demostró que el problema NO existía. **Lección para futuras sesiones: testear la asunción antes de aceptarla como verdad.**
