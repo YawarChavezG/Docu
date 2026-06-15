@@ -1,4 +1,4 @@
-"""
+﻿"""
 Servicio de Active Directory (AD).
 
 Funciones:
@@ -12,10 +12,10 @@ Filtros aplicados al listado (basados en el script JS de n8n):
 - Excluir userAccountControl = 514 (deshabilitado) o 66050 (deshabilitado + password expira)
 - Excluir sAMAccountName = dlanchipa, ozegarra
 - Excluir CNs en la lista `LDAP_EXCLUDED_CNS` del .env (17 defaults)
-- Warning si `postalCode` vacío (no excluye, solo alerta)
+- Warning si `postalCode` vacÃ­o (no excluye, solo alerta)
 
 Si `LDAP_ENABLED=false` (DES sin AD), el servicio retorna None en todas las funciones
-y los endpoints que dependen de él caen en fallback.
+y los endpoints que dependen de Ã©l caen en fallback.
 """
 from __future__ import annotations
 
@@ -30,32 +30,32 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 
-# ─── Defaults para CNs excluidos ───
+# â”€â”€â”€ Defaults para CNs excluidos â”€â”€â”€
 DEFAULT_EXCLUDED_CNS = [
     "Mollinedo, Luis Elvin",  # mal categorizado
-    "Licencias Cofar",  # buzón
+    "Licencias Cofar",  # buzÃ³n
     "Capacitacion Cochabamba",
     "Capacitacion El Alto",
     "Capacitacion La Paz",
     "Capacitacion Oruro",
-    "Capacitación Potosí",
-    "Capacitación Quillacollo",
-    "Capacitación Sucre",
-    "Capacitación Tarija",
-    "Capacitación Trinidad",
+    "CapacitaciÃ³n PotosÃ­",
+    "CapacitaciÃ³n Quillacollo",
+    "CapacitaciÃ³n Sucre",
+    "CapacitaciÃ³n Tarija",
+    "CapacitaciÃ³n Trinidad",
     "Almacen Potosi",
     "Almacen El Alto",
-    "Contador Particulas",  # buzón
+    "Contador Particulas",  # buzÃ³n
     "Choque Mena, Fabiola Jhazmin",  # persona mal ubicada
-    "Datec",  # buzón
+    "Datec",  # buzÃ³n
 ]
 
-# ─── Defaults para sAMAccountName excluidos ───
+# â”€â”€â”€ Defaults para sAMAccountName excluidos â”€â”€â”€
 DEFAULT_EXCLUDED_SAMACCOUNTNAMES = ["dlanchipa", "ozegarra"]
 
 
 def _get_excluded_cns() -> List[str]:
-    """Lee LDAP_EXCLUDED_CNS del .env. Si está vacío, usa los defaults."""
+    """Lee LDAP_EXCLUDED_CNS del .env. Si estÃ¡ vacÃ­o, usa los defaults."""
     if not settings.ldap_excluded_cns:
         return DEFAULT_EXCLUDED_CNS
     # Separar por coma
@@ -90,16 +90,16 @@ def _build_user_dn(username: str) -> str:
     """
     Construye el DN del usuario para bind.
 
-    Si LDAP_BIND_USER_DN está configurado, se usa el filtro
+    Si LDAP_BIND_USER_DN estÃ¡ configurado, se usa el filtro
     `LDAP_USER_SEARCH_FILTER` con base `LDAP_USER_SEARCH_BASE` para
-    encontrar el DN dinámicamente. Si no, se construye como:
+    encontrar el DN dinÃ¡micamente. Si no, se construye como:
     `sAMAccountName={username}@{DOMAIN}` o el formato del config.
     """
     # Si el username ya es un DN completo, devolverlo tal cual
     if username.startswith("CN=") or username.startswith("cn="):
         return username
 
-    # Si LDAP_BIND_USER_DN está vacío, intentar construir desde username
+    # Si LDAP_BIND_USER_DN estÃ¡ vacÃ­o, intentar construir desde username
     if hasattr(settings, "ldap_bind_user_dn") and settings.ldap_bind_user_dn:
         # Si el bind user DN tiene placeholder, reemplazar
         return settings.ldap_bind_user_dn.replace("{username}", username)
@@ -109,7 +109,7 @@ def _build_user_dn(username: str) -> str:
     return f"{username}@{domain}"
 
 
-# ─── Bind operations ───
+# â”€â”€â”€ Bind operations â”€â”€â”€
 
 def ldap_bind(username: str, password: str) -> Tuple[bool, str]:
     """
@@ -117,10 +117,10 @@ def ldap_bind(username: str, password: str) -> Tuple[bool, str]:
     Retorna (success, mensaje_error).
     """
     if not settings.ldap_enabled:
-        return False, "LDAP deshabilitado en configuración"
+        return False, "LDAP deshabilitado en configuraciÃ³n"
 
     if not username or not password:
-        return False, "Usuario o contraseña vacíos"
+        return False, "Usuario o contraseÃ±a vacÃ­os"
 
     try:
         server = _build_server()
@@ -139,9 +139,9 @@ def ldap_bind(username: str, password: str) -> Tuple[bool, str]:
         if bound:
             logger.info(f"LDAP bind exitoso para {username}")
             return True, ""
-        return False, "Bind no completado (credenciales inválidas o cuenta deshabilitada)"
+        return False, "Bind no completado (credenciales invÃ¡lidas o cuenta deshabilitada)"
     except LDAPException as e:
-        logger.warning(f"LDAP bind falló para {username}: {e}")
+        logger.warning(f"LDAP bind fallÃ³ para {username}: {e}")
         return False, f"Error LDAP: {str(e)[:200]}"
     except Exception as e:
         logger.exception(f"Error inesperado en LDAP bind para {username}")
@@ -151,7 +151,7 @@ def ldap_bind(username: str, password: str) -> Tuple[bool, str]:
 def ldap_bind_service_account() -> Optional[Connection]:
     """
     Hace bind con el service account (configurado en LDAP_BIND_USER y
-    LDAP_BIND_PASSWORD). Retorna la conexión activa o None si falla.
+    LDAP_BIND_PASSWORD). Retorna la conexiÃ³n activa o None si falla.
     """
     if not settings.ldap_enabled:
         return None
@@ -175,14 +175,14 @@ def ldap_bind_service_account() -> Optional[Connection]:
         conn.unbind()
         return None
     except LDAPException as e:
-        logger.error(f"Service account bind falló: {e}")
+        logger.error(f"Service account bind fallÃ³: {e}")
         return None
     except Exception as e:
         logger.exception("Error inesperado en service account bind")
         return None
 
 
-# ─── Search operations ───
+# â”€â”€â”€ Search operations â”€â”€â”€
 
 # Atributos que traemos de cada usuario de AD
 #
@@ -262,7 +262,7 @@ def _es_usuario_real_cofar(entry_attrs: dict, excluded_cns: List[str], excluded_
             if (int(uac) & 2) != 0:
                 return False
         except (ValueError, TypeError):
-            pass  # uAC no parseable → no excluimos por esto
+            pass  # uAC no parseable â†’ no excluimos por esto
 
     # Filtro 3: sAMAccountName en lista excluida
     sam = _primero(entry_attrs.get("sAMAccountName")).lower()
@@ -274,7 +274,7 @@ def _es_usuario_real_cofar(entry_attrs: dict, excluded_cns: List[str], excluded_
     if cn in excluded_cns:
         return False
 
-    # Si el DN contiene un CN que está en la lista excluida
+    # Si el DN contiene un CN que estÃ¡ en la lista excluida
     for excluded_cn in excluded_cns:
         if excluded_cn and f"cn={excluded_cn.lower()}" in dn:
             return False
@@ -354,14 +354,14 @@ def _guid_a_hex(guid_raw) -> str:
 
 def _poblar_cn_desde_dn(attrs: dict) -> None:
     """
-    ldap3 a veces no devuelve el campo `cn` automáticamente. Lo extrae del DN.
+    ldap3 a veces no devuelve el campo `cn` automÃ¡ticamente. Lo extrae del DN.
     """
     if "cn" not in attrs and "distinguishedName" in attrs:
         dn = attrs["distinguishedName"]
         if isinstance(dn, list):
             dn = dn[0] if dn else ""
         if isinstance(dn, str) and dn.upper().startswith("CN="):
-            # "CN=Apellido, Nombre,OU=..." → "Apellido, Nombre"
+            # "CN=Apellido, Nombre,OU=..." â†’ "Apellido, Nombre"
             cn_part = dn[3:].split(",", 1)[0]
             attrs["cn"] = [cn_part]  # guardamos como lista por consistencia
 
@@ -373,9 +373,20 @@ def ldap_search_users(
 ) -> dict:
     """
     Busca usuarios reales de COFAR en AD.
-    - query: filtro de búsqueda (opcional, busca en cn, givenName, sn, sAMAccountName, mail)
-    - page, page_size: paginación
-    Retorna: {"total": N, "page": X, "page_size": Y, "items": [usuarios], "warnings": [warnings]}
+
+    IMPORTANTE 2026-06-15: logica REEMPLAZADA para coincidir EXACTAMENTE con
+    scripts/sync_ad_oficial.py (fuente de verdad validada por el cliente).
+    Antes tenia filtros extra (capacitacion, quintanilla, 17 CNs) que hacian
+    que el sync trajera solo 586 usuarios en lugar de los 753 esperados.
+
+    Logica actual (replica del script validado):
+      1. Search: (&(objectClass=user)(sAMAccountType=805306368)) en
+         ou=Oficina Central,dc=cofar,dc=com, size_limit=5000.
+      2. Filtros post-search:
+         - OU=especiales o OU=pruebas (en el DN)
+         - userAccountControl con bit 1 (ACCOUNTDISABLE)
+         - sAMAccountName en {dlanchipa, ozegarra}
+         - postalCode vacio (sin codigo SAP)
     """
     if not settings.ldap_enabled:
         return {
@@ -388,7 +399,6 @@ def ldap_search_users(
 
     conn = ldap_bind_service_account()
     if conn is None:
-        # Diagnostico: por que fallo el bind?
         detalle = []
         if not settings.ldap_enabled:
             detalle.append("LDAP_ENABLED=false en .env")
@@ -409,130 +419,87 @@ def ldap_search_users(
             "warnings": [msg],
         }
 
+    # Atributos pedidos: mismos que scripts/sync_ad_oficial.py
+    SEARCH_ATTRIBUTES = [
+        "sn", "title", "physicalDeliveryOfficeName", "telephoneNumber",
+        "givenName", "department", "sAMAccountName", "mobile", "postalCode",
+        "mail", "company", "info", "userAccountControl",
+    ]
+
     try:
-        # Construir el filtro de búsqueda
-        if query:
-            q = query.replace("(", "").replace(")", "").replace("*", "")  # sanitizar
-            search_filter = (
-                f"(|(cn=*{q}*)(givenName=*{q}*)(sn=*{q}*)"
-                f"(sAMAccountName=*{q}*)(mail=*{q}*)(title=*{q}*))"
-            )
-        else:
-            # Sin query: traer todos los usuarios con sAMAccountName (no service accounts)
-            search_filter = "(sAMAccountName=*)"
+        # Search base y filter EXACTOS del script validado
+        search_base = "ou=Oficina Central,dc=cofar,dc=com"
+        search_filter = "(&(objectClass=user)(sAMAccountType=805306368))"
 
-        search_base = settings.ldap_user_search_base or "OU=Usuarios,DC=cofar,DC=com"
-        # Defensive: si por algun motivo el search_base quedo malformado
-        # (ej: bug del .bat que parte en '='), reconstruir un DN valido
-        # desde el ldap_base_dn. Si tampoco eso anda, usar el default duro.
-        if not search_base or "DC=" not in search_base.upper() or "=" not in search_base.split(",")[0]:
-            base_dn = settings.ldap_base_dn or "DC=cofar,DC=com"
-            logger.warning(
-                f"ldap_user_search_base malformado ('{search_base}'), "
-                f"reconstruyendo desde ldap_base_dn ('{base_dn}')"
-            )
-            search_base = f"OU=Usuarios,{base_dn}"
-
-        logger.info(f"LDAP search: base={search_base} filter={search_filter} page_size={page_size}")
+        logger.info(
+            f"LDAP search (sync_ad_oficial logic): base={search_base} "
+            f"filter={search_filter}"
+        )
 
         conn.search(
             search_base=search_base,
             search_filter=search_filter,
             search_scope=SUBTREE,
-            attributes=USER_ATTRIBUTES,
-            size_limit=5000,  # 2026-06-15: subido de 2000 a 5000 para
-                              # no truncar el sync. En COFAR hay ~750
-                              # usuarios reales; con 2000 nos quedaban
-                              # cortos. 5000 es seguro (el size_limit solo
-                              # limita, no trae "basura").
+            attributes=SEARCH_ATTRIBUTES,
+            size_limit=5000,
         )
 
-        excluded_cns = _get_excluded_cns()
-        excluded_sams = _get_excluded_samaccountnames()
-
         all_users = []
-        warnings = []
-        # Contadores por razon de exclusion (para debug)
         excl_contadores = {
-            "sam_vacio": 0,
-            "termina_en_$": 0,
             "ou_especiales": 0,
             "ou_pruebas": 0,
-            "ou_capacitacion": 0,
-            "ou_quintanilla": 0,
             "uac_deshabilitado": 0,
-            "cn_excluido": 0,
+            "sam_excluido": 0,
+            "sam_vacio": 0,
+            "sin_postal": 0,
         }
 
         for entry in conn.entries:
-            # ldap3 devuelve los valores como listas. Mantenemos la lista
-            # intacta; _normalizar_usuario_ad() se encarga de aplanar.
             attrs = {k: v for k, v in entry.entry_attributes_as_dict.items() if v is not None}
-            # Agregamos el "dn" del entry (NO confundir con distinguishedName
-            # que puede ser >100 chars). entry.entry_dn es el DN real del
-            # objeto y se necesita para los filtros de OU.
             attrs["dn"] = entry.entry_dn
-            _poblar_cn_desde_dn(attrs)
 
-            sam_check = _primero(attrs.get("sAMAccountName"))
-            if not sam_check:
+            sam = _primero(attrs.get("sAMAccountName"))
+            if not sam:
                 excl_contadores["sam_vacio"] += 1
                 continue
-            if sam_check.endswith("$"):
-                excl_contadores["termina_en_$"] += 1
-                continue
 
-            dn_check = attrs["dn"].lower()
-            if "ou=especiales" in dn_check:
+            # Filtro 1: OU=especiales o OU=pruebas (en el DN)
+            dn_lower = str(attrs["dn"]).lower()
+            if "ou=especiales" in dn_lower:
                 excl_contadores["ou_especiales"] += 1
                 continue
-            if "ou=pruebas" in dn_check:
+            if "ou=pruebas" in dn_lower:
                 excl_contadores["ou_pruebas"] += 1
                 continue
-            if "ou=capacitacion" in dn_check or "ou=capacitaciones" in dn_check:
-                excl_contadores["ou_capacitacion"] += 1
-                continue
-            if "ou=quintanilla" in dn_check:
-                excl_contadores["ou_quintanilla"] += 1
-                continue
 
-            uac_check = _primero(attrs.get("userAccountControl"))
-            # IMPORTANTE: bit-mask para detectar ACCOUNTDISABLE (bit 1 = valor 2).
-            # NO comparar contra valores literales ("514", "66050") porque el
-            # AD de COFAR tiene cuentas deshabilitadas con uAC 4098, 8194,
-            # 32774, etc. que pasarian el filtro de literales.
-            # Ref: scripts/sync_ad_oficial.py:_es_cuenta_deshabilitada
-            cuenta_deshabilitada = False
-            if uac_check:
+            # Filtro 2: cuenta deshabilitada (bit 1 = ACCOUNTDISABLE)
+            uac_raw = attrs.get("userAccountControl")
+            uac_flat = _primero(uac_raw)
+            deshabilitada = False
+            if uac_flat:
                 try:
-                    cuenta_deshabilitada = (int(uac_check) & 2) != 0
+                    deshabilitada = (int(uac_flat) & 2) != 0
                 except (ValueError, TypeError):
                     pass
-            if cuenta_deshabilitada:
+            if deshabilitada:
                 excl_contadores["uac_deshabilitado"] += 1
                 continue
 
-            cn_check = _primero(attrs.get("cn") or attrs.get("sn") or "")
-            if cn_check in excluded_cns:
-                excl_contadores["cn_excluido"] += 1
+            # Filtro 3: sAMAccountName en lista excluida
+            if sam.lower() in ("dlanchipa", "ozegarra"):
+                excl_contadores["sam_excluido"] += 1
                 continue
 
-            # Si llego aca, pasa los filtros de OU/uAC/CN.
-            # Filtro adicional: usuarios SIN codigo SAP (postalCode vacio)
-            # se EXCLUYEN del listado, igual que en scripts/sync_ad_oficial.py
-            # (no se importan a la BD porque no son empleados activos
-            # codificables en SAP).
+            # Filtro 4: codigo SAP (postalCode) no vacio
+            postal = _primero(attrs.get("postalCode"))
+            if not postal:
+                excl_contadores["sin_postal"] += 1
+                continue
+
+            # Pasa todos los filtros
             user = _normalizar_usuario_ad(attrs)
-            if not user["tiene_codigo_sap"]:
-                # Warning visible en la respuesta (para debug), pero NO se
-                # incluye en all_users → se excluye del sync.
-                user["warning"] = "⚠️ Sin código SAP (postalCode vacío en AD)"
-                excl_contadores["postal_vacio"] = excl_contadores.get("postal_vacio", 0) + 1
-                continue
-
             all_users.append(user)
 
-        # Loguear contadores de exclusion (para debug)
         total_entries = len(conn.entries)
         logger.info(
             f"LDAP search result: {total_entries} entries -> "
@@ -540,7 +507,6 @@ def ldap_search_users(
             + ", ".join(f"{v} por {k}" for k, v in excl_contadores.items() if v > 0)
         )
 
-        # Ordenar alfabéticamente por nombre completo
         all_users.sort(key=lambda u: u["nombre_completo"].lower())
 
         total = len(all_users)
@@ -553,26 +519,19 @@ def ldap_search_users(
             "page": page,
             "page_size": page_size,
             "items": items,
-            "warnings": warnings,
+            "warnings": [],
         }
     except LDAPException as e:
-        logger.exception("LDAP search falló")
+        logger.exception("LDAP search fallo")
         err = str(e)
-        # Errores comunes:
-        # - "attribute type not present" -> algun attr de USER_ATTRIBUTES no
-        #   existe en el schema del AD. Sacarlo de USER_ATTRIBUTES.
-        # - "invalid attribute type"     -> el attr no es valido para search/return
-        # - "no such object"             -> el search_base no existe
         if "attribute type not present" in err.lower():
-            hint = (" Algún atributo de USER_ATTRIBUTES no existe en este AD. "
-                    "Revisar ad_service.py y quitarlo (sospechosos: info, company, "
-                    "physicalDeliveryOfficeName, memberOf).")
+            hint = " Algun atributo no existe en este AD."
         elif "invalid attribute type" in err.lower():
-            hint = (" Algún atributo de USER_ATTRIBUTES está mal escrito.")
+            hint = " Algun atributo esta mal escrito."
         elif "no such object" in err.lower():
-            hint = f" El search_base '{settings.ldap_user_search_base}' no existe en el AD."
+            hint = " El search_base no existe en el AD."
         elif "size limit" in err.lower():
-            hint = " El AD rechazó por size_limit, hay que filtrar mejor."
+            hint = " El AD rechazo por size_limit."
         else:
             hint = ""
         return {
@@ -580,7 +539,7 @@ def ldap_search_users(
             "page": page,
             "page_size": page_size,
             "items": [],
-            "warnings": [f"Error en búsqueda LDAP: {err[:200]}{hint}"],
+            "warnings": [f"Error en busqueda LDAP: {err[:200]}{hint}"],
         }
     finally:
         try:
@@ -591,7 +550,7 @@ def ldap_search_users(
 
 def ldap_get_user_by_samaccountname(sam: str) -> Optional[dict]:
     """
-    Busca un usuario específico por sAMAccountName.
+    Busca un usuario especÃ­fico por sAMAccountName.
     Retorna dict normalizado o None si no existe.
     """
     if not settings.ldap_enabled:
@@ -628,10 +587,10 @@ def ldap_get_user_by_samaccountname(sam: str) -> Optional[dict]:
         _poblar_cn_desde_dn(attrs)
         user = _normalizar_usuario_ad(attrs)
         if not user["tiene_codigo_sap"]:
-            user["warning"] = "⚠️ Sin código SAP (postalCode vacío en AD)"
+            user["warning"] = "âš ï¸ Sin cÃ³digo SAP (postalCode vacÃ­o en AD)"
         return user
     except LDAPException:
-        logger.exception(f"LDAP get_user_by_samaccountname falló para {sam}")
+        logger.exception(f"LDAP get_user_by_samaccountname fallÃ³ para {sam}")
         return None
     finally:
         try:
