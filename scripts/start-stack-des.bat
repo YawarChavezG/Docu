@@ -64,30 +64,24 @@ if not exist "%VENV_PY%" (
 echo       OK: .env existe, Docker up, venv presente
 echo.
 
-REM ─── 2. Stack Docker (sin backend) ───
-echo [2/4] Levantando servicios Docker (sin backend)...
-echo       Servicios: postgres, redis, mailhog, frontend, nginx, celery-worker, celery-beat
+REM ─── 2. Stack Docker (incluye backend) ───
+echo [2/4] Levantando servicios Docker (incluye backend)...
+echo       Servicios: postgres, redis, mailhog, frontend, backend, nginx, celery-worker, celery-beat
 echo.
 
 cd /d "%REPO_ROOT%"
-docker compose -f deploy/docker-compose.yml --env-file .env up -d postgres redis mailhog frontend celery-worker celery-beat nginx
+docker compose -f deploy/docker-compose.yml --env-file .env up -d
 if errorlevel 1 (
     echo [ERROR] Fallo `docker compose up`. Revisa los logs.
     exit /b 1
 )
 
-echo       OK: 7 contenedores iniciandose
+echo       OK: 8 contenedores iniciandose
 echo.
 
-REM ─── 3. Backend nativo ───
-echo [3/4] Iniciando backend nativo (uvicorn)...
-echo       Host: http://localhost:18000
-echo       Health: http://localhost:18000/api/v1/health
-echo       Ctrl+C para detenerlo
-echo.
-
-REM Esperar a que postgres este healthy antes de levantar el backend
-echo       Esperando a PostgreSQL (puerto 25432)...
+REM ─── 3. Esperar health-checks ───
+echo [3/4] Esperando health-checks (postgres + backend)...
+echo       PostgreSQL (puerto 25432)...
 :wait_pg
 timeout /t 2 /nobreak >nul
 docker exec sgd-postgres pg_isready -U sgd >nul 2>&1
@@ -95,5 +89,29 @@ if errorlevel 1 goto wait_pg
 echo       OK: PostgreSQL ready
 echo.
 
-REM Cargar .env y arrancar uvicorn
-call "%SCRIPTS_DIR%dev-backend.bat"
+echo       Backend (puerto 18000)...
+:wait_backend
+timeout /t 2 /nobreak >nul
+curl.exe -fsS http://localhost:18000/api/v1/health >nul 2>&1
+if errorlevel 1 goto wait_backend
+echo       OK: Backend ready
+echo.
+
+REM ─── 4. URLs finales ───
+echo [4/4] Stack completo.
+echo.
+echo   ╔════════════════════════════════════════════════════════╗
+echo   ║  App           http://localhost:8080                    ║
+echo   ║  Frontend      http://localhost:5173                    ║
+echo   ║  Backend       http://localhost:18000                   ║
+echo   ║  Backend docs  http://localhost:18000/docs              ║
+echo   ║  MailHog UI    http://localhost:8025                    ║
+echo   ║  Postgres      127.0.0.1:25432 (user: sgd)              ║
+echo   ║  Redis         127.0.0.1:26379                         ║
+echo   ╚════════════════════════════════════════════════════════╝
+echo.
+echo   Para detener todo: scripts\stop-stack-des.bat
+echo.
+echo   Monitoreo (en otra terminal):
+echo     docker compose -f deploy/docker-compose.yml logs -f backend
+echo.

@@ -90,6 +90,19 @@ services:
       dockerfile: Dockerfile
     container_name: sgd-backend
     restart: unless-stopped
+    # DNS custom: los DCs de COFAR primero (para resolver nombres
+    # internos de la red corporativa), Google DNS como fallback.
+    # El contenedor en modo 'mirrored' ve la VPN del host, pero
+    # sin DNS explicito las queries usan el DNS del daemon de
+    # Docker (a veces 8.8.8.8 o el del router) y fallan al
+    # resolver dc3-cofar.com o cualquier nombre de COFAR.
+    dns:
+      - 172.16.10.50   # DC COFAR #1 (DNS primario de la VPN)
+      - 172.16.10.51   # DC COFAR #2 (DNS secundario)
+      - 8.8.8.8        # Google DNS (fallback para internet)
+    dns_search:
+      - cofar.com
+      - .
     command: >
       sh -c "
         echo 'Esperando a PostgreSQL...' &&
@@ -153,6 +166,10 @@ services:
     volumes:
       - ../backend:/app
       - backend_storage:/app/storage
+    # En DES: el contenedor ve la VPN del host (mirrored mode).
+    # En QAS/PRD: el contenedor está en la red de COFAR directamente.
+    # En ambos casos LDAP funciona. Sin extra_hosts porque el DNS
+    # de arriba resuelve los nombres de COFAR.
     depends_on:
       postgres:
         condition: service_healthy
