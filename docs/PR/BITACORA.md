@@ -154,3 +154,61 @@ Orden:
 3. Generar la migración Alembic.
 4. Aplicar la migración.
 5. Validar con queries.
+
+---
+
+## Sesión 4 — 2026-06-15 (lunes)
+
+### Contexto
+El proyecto quedó en pausa tras la sesión 3. Hoy se retomó con dos objetivos principales:
+1. Auditoría del estado real del repo (los `ESTADO.md` y `BITACORA.md` quedaron en sesión 1 y se sabía que estaban desactualizados).
+2. Instalación del plugin ECC (`ecc-universal` v2.0.0) en opencode y validación del flujo agentivo.
+
+### Auditoría: lo que en realidad hay en el repo
+- **Backend:** 12 endpoints REST implementados, 11 modelos SQLAlchemy con 16 clases, 2 servicios (`ad_service.py` de 620 líneas con LDAP real, `impersonate_service.py`), workers de Celery listos.
+- **Frontend:** 28 pages, 20 componentes, 4 stores, 16 archivos de datos hardcoded. Las 3 pages tocadas en sesión 3 (Login, Parametrizacion, auth store) están actualizadas al 15/6. El resto usa `data/*.js` legacy.
+- **Docker:** 7 contenedores Up (nginx, frontend, postgres, redis, mailhog, celery-W, celery-B). 2 unhealthy (celery-W/B por falta de Alembic). **Backend NO está en Docker** — corre como `python.exe` nativo por la VPN FortiClient.
+- **Alembic:** carpeta existe pero VACÍA. Los modelos se cargan en runtime. **BLOQUEANTE** para R2+.
+
+### Limpieza de raíz
+20 archivos basura sacados del tracking (preservados en disco):
+- `backend.{err,out,pid}`, `bg.{err,out}` — outputs del proceso uvicorn
+- `cookies.txt`, `cookies_local.txt` — cookies de pruebas manuales
+- `login_*.json` (6 archivos), `test_*.json` (5), `trash_args.json` — payloads de prueba
+
+`.gitignore` reforzado con bloque "Dev artifacts" para evitar que vuelvan a aparecer.
+
+Commit: `c27a766 chore(repo): limpiar archivos basura de raíz y reforzar .gitignore`
+
+### Plugin ECC (ecc-universal v2.0.0)
+- 26 commands slash (`/plan`, `/tdd`, `/code-review`, `/security`, `/build-fix`, `/e2e`, `/refactor-clean`, `/orchestrate`, `/learn`, `/checkpoint`, `/verify`, `/eval`, `/update-docs`, `/update-codemaps`, `/test-coverage`, `/setup-pm`, etc.)
+- 26 agents especializados (`python-reviewer`, `database-reviewer`, `code-reviewer`, `security-reviewer`, `tdd-guide`, `e2e-runner`, `doc-updater`, `harness-optimizer`, etc.)
+- 7 custom tools (`run-tests`, `check-coverage`, `security-audit`, `format-code`, `lint-check`, `git-summary`, `changed-files`, `dependency-analyzer`)
+- Hooks configurables via `ECC_HOOK_PROFILE=minimal|standard|strict`
+
+Para este proyecto (Python/FastAPI) se recomienda **perfil minimal** + desactivar hooks de JS/TS que no aplican.
+
+### Decisiones tomadas en esta sesión
+- **ADR-013 (en draft):** Backend fuera de Docker en DES. Razón: FortiClient VPN corre en el host Windows, no en WSL2/Docker. El backend nativo puede alcanzar `172.16.10.17 = dc3-cofar` (RODC); un contenedor Docker no. En QAS (VM Debian) esto no aplica — todo corre en Docker.
+- Estrategia de avance: **un orquestador `scripts/start-stack-des.bat`** que levante Docker compose (postgres, redis, mailhog, nginx, frontend, celery) + backend nativo en una sola acción. Documenta el contrato de "cómo arrancar el proyecto" sin tener que recordar los 2 comandos separados.
+
+### Estado al cierre
+- ✅ `ESTADO.md` reescrito con la realidad (43% R1, 0% R2, 14/48 tareas totales)
+- ✅ `BITACORA.md` actualizada (este log)
+- ✅ Raíz limpia (commit `c27a766`)
+- ⏳ ADR-013, orquestador y ECC hooks (siguiente paso inmediato)
+
+### Próxima sesión (sesión 5)
+**Prioridad #1 — NO NEGOCIABLE:**
+1. Generar migración Alembic inicial (tarea #8). Sin esto, el modelo no es durable. El seed actual se pierde cada vez que se reinicia.
+2. Crear `frontend/src/utils/api.js` (tarea #15). Wrapper `apiFetch` con manejo de cookies CSRF, errores y 401.
+3. Tests mínimos con `pytest + httpx` (tarea #22) para los 12 endpoints actuales.
+
+**Prioridad #2:**
+4. Endpoints restantes de R1: organigrama, gerencias, áreas, delegado, ausencia.
+5. CSP, DOMPurify, rate limit (`slowapi`).
+
+**Lo que NO se debe hacer todavía:**
+- R2 (#23+) — depende de cerrar R1 con Alembic.
+- Refactor de pages no tocadas (Bandeja, Liberacion, ListaMaestra) — depende de utils/api.js.
+
