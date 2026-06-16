@@ -212,6 +212,31 @@ Después procedé con git add -A && git commit -m '...' "
 
 ---
 
+## 🔧 PRE-FLIGHT CHECKS (5 min, ANTES de la tarea #1)
+
+> Estos checks son OBLIGATORIOS antes de arrancar Sesión A. El agente los hace una sola vez al inicio.
+
+1. **Crear helper `_require_eto_or_admin`** en `backend/app/api/v1/auth.py` (reutilizable para todos los routers nuevos; el patrón es el mismo que `_require_admin` pero acepta ETO o ADMIN).
+
+2. **Verificar cómo se inicializan las tablas en la BD** (`create_all()` o init SQL). Si las tablas `gerencias`/`areas` NO existen, el seed falla. Documentar el mecanismo en un comentario.
+
+3. **Ajustar `cascade="all, delete-orphan"`** en `gerencia.py` a `"save-update, merge"` para que el borrado lógico funcione (no queremos delete físico en cascada).
+
+4. **Verificar el middleware CSRF**: leer `auth.py` y `core/` para confirmar cómo se emite/valida el token. Si NO existe, agregarlo en la tarea #1.
+
+5. **Crear los 6 modelos faltantes como archivos vacíos** (solo la clase con `__tablename__`) para que el import no rompa. Después cada tarea los va completando:
+   - `backend/app/models/configuracion_global.py`
+   - `backend/app/models/feriado.py`
+   - `backend/app/models/email_template.py`
+   - `backend/app/models/matriz_enrutamiento_eto.py`
+   - `backend/app/models/tipo_documento.py`
+   - `backend/app/models/estado.py`
+   - + registrarlos en `models/__init__.py`
+
+**NO empezar con Alembic** (no es R1, queda para sesión 5). **NO hacer tests pytest** (queda para Sesión B). **NO tocar Parametrizacion.js** (queda para Sesión B).
+
+---
+
 ## 🎯 Prompts maestros (copiar y pegar)
 
 > Los prompts completos están en **`docs/PR/PROMPTS-MAESTROS.md`** (separados para fácil copia).
