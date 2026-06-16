@@ -212,3 +212,62 @@ Para este proyecto (Python/FastAPI) se recomienda **perfil minimal** + desactiva
 - R2 (#23+) — depende de cerrar R1 con Alembic.
 - Refactor de pages no tocadas (Bandeja, Liberacion, ListaMaestra) — depende de utils/api.js.
 
+---
+
+## Sesión 5 — 2026-06-15 (lunes) — en curso
+
+> Sesión dedicada a cerrar el **backend de la ÉPICA 9 al 100%** (10 tareas).
+> NO se toca frontend (excepto api.js), NO tests pytest, NO asignación masiva desde la matriz.
+> Esas son Sesión B.
+
+### Tarea #1 — `frontend/src/utils/api.js` ✅ (15-jun)
+
+**Commit:** `bd7d423` — `feat(frontend): add apiFetch wrapper with CSRF, retry, timeout and error handling`
+**Commit docs:** `4525281` — `docs(pr): update ESTADO + BITACORA after tarea 1 (sesion A)`
+
+**Archivos creados:**
+- `frontend/src/utils/api.js` (290 líneas) — wrapper `apiFetch` + 6 atajos (`apiGet`, `apiPost`, `apiPut`, `apiPatch`, `apiDelete`, `apiDownload`)
+- `frontend/src/utils/config.js` (16 líneas) — `API_BASE` + `ROLES` extraídos de `auth.js` para reuso
+
+**Features del wrapper:**
+- `credentials: 'include'` para cookies HttpOnly (`session`, `user_id`)
+- CSRF automático: lee cookie `csrf_token` y la envía en `X-CSRF-Token` en métodos no seguros
+- 401 → redirige a `#/login` (sin loop si ya estamos ahí)
+- 403 → toast + loggeo (NO redirige)
+- 5xx + network errors → retry exponencial (400ms, 800ms) max 2 reintentos
+- AbortController → timeout 30s (configurable)
+- Body: JSON salvo FormData/Blob
+- Errores normalizados: `{ok:false, status, code, message, detail}`
+- Expuesto en `window.*` para uso inline desde Alpine templates
+
+**Validación empírica:**
+- `curl.exe -X POST /api/v1/login` con aromero + cofar.2026 → 200 OK + 3 cookies
+- Cookies: `user_id=1` (HttpOnly), `session=dev-session-1` (HttpOnly), `csrf_token=dev-csrf-aromero-1` (NO HttpOnly)
+- `curl.exe /api/v1/me` con cookies → 200 + `{authenticated: true, roles: ["ETO"], modulos: ["TODOS"]}`
+- Vite dev server (HMR) sirve `api.js` y `config.js` (HTTP 200)
+
+**Hallazgos del pre-flight (importantes para el resto de la sesión):**
+- ✅ Alembic YA está aplicado en BD (tabla `alembic_version` existe) — el GAP reportado en sesión 4 es incorrecto
+- ✅ BD ya tiene: 10 gerencias, 23 áreas (de 49 posibles), 763 usuarios, 5 roles, 11 módulos
+- ✅ Schemas de `gerencias` y `areas` en BD coinciden 100% con modelos SQLAlchemy
+- ❌ NO hay middleware CSRF en backend (solo cookie en `/login`) — `api.js` envía header `X-CSRF-Token` aunque no se valide (preparado para futuro)
+- ❌ `app/schemas/` está VACÍO — se debe poblar con cada tarea nueva
+- ⚠️ Skills `git-workflow` y `python-reviewer` (plugin ECC) no disponibles en este opencode — reemplazadas por auto-revisión + scan secretos
+
+**Pendiente sesión A (9 tareas restantes):**
+- #2 seed_organizacion.py (10 gerencias, 49 áreas, 5 roles, 10 módulos)
+- #3 CRUD `/api/v1/gerencias`
+- #4 CRUD `/api/v1/areas`
+- #5 CRUD `/api/v1/configuracion-global`
+- #6 CRUD `/api/v1/feriados`
+- #7 CRUD `/api/v1/email-templates` (6 plantillas)
+- #8 CRUD `/api/v1/matriz-enrutamiento-eto`
+- #9b CRUD `/api/v1/tipos-documento` (13 tipos)
+- #9c CRUD `/api/v1/estados` (5 estados)
+
+**Notas para la IA (próximas tareas):**
+- `aromero` es rol ETO (no ADMIN) — endpoints de parametrización deben aceptar ETO **o** ADMIN. Crear helper `_require_eto_or_admin` reutilizable
+- `gerencia.py` tiene `cascade="all, delete-orphan"` en `areas` — incompatible con borrado lógico, ajustar antes de la tarea #3
+- Modelos faltantes a crear: `configuracion_global`, `feriado`, `email_template`, `matriz_enrutamiento_eto`, `tipo_documento`, `estado`
+- Build de Vite falla por config preexistente (`manualChunks` con objeto en `vite.config.js`) — no es por mi cambio. Dev server (HMR) sí funciona
+
