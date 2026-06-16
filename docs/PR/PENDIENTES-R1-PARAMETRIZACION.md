@@ -3,109 +3,172 @@
 > **Estado:** Documento de trabajo. NO requiere accion inmediata.
 > **Origen:** Analisis exhaustivo de la pantalla de Parametrizacion vs BD, realizado el 2026-06-16 al cierre de sesion 9.
 > **Proposito:** Servir como guia tecnica para una sesion futura que cierre los bugs identificados antes de la presentacion de R1 al cliente.
-> **Bloqueante para:** R1 - Cierre al 100% (actualmente 35/35 = 100% declarado, pero varios tabs usan MOCKS en vez de BD).
 
 ---
 
-## Resumen ejecutivo
+## Resumen ejecutivo CORREGIDO
 
-La pantalla de Parametrizacion (`frontend/src/pages/Parametrizacion.js`, 2153 lineas) tiene **dos declaraciones duplicadas** de las mismas propiedades, donde la **SEGUNDA declaracion usa datos del MOCK `ParametrosGlobalesDB`** (de `frontend/src/data/parametrosSistema.js`) y **sobreescribe** la primera que SI cargaba de la BD via `parametrizacionApi.js`.
+Mi primer analisis (commit `33b410c`) concluyo que **"Diccionarios, Gerencias, Restricciones estaban mockeados"**. **ESTO ES INCORRECTO** despues de una re-verificacion con Chrome DevTools.
 
-Esto significa que **varios tabs no estan leyendo de la BD** aunque el backend este 100% funcional y conectado. Los handlers `guardar*` solo actualizan el mock y muestran un toast - **NO persisten en la BD**.
+**Conclusion correcta (sesion 9 - revision final):**
 
-### Inventario de imports del mock
+La pantalla de Parametrizacion tiene **dos declaraciones duplicadas** de los handlers de CRUD. La primera declaracion (linea 235-340) **lee de la BD correctamente** pero los handlers de save/delete/duplicate son **pisados por la segunda declaracion** (lineas 537-744) que solo hace `pushLog` local y `toast` - **NO llama al backend**.
+
+**Resultado:**
+
+| Operacion | Estado |
+|---|---|
+| **CARGAR** (GET) datos del backend | ✅ FUNCIONA - `cargarDiccionarios()`, `cargarGerencias()`, `cargarRestricciones()`, `cargarTiempos()` se ejecutan en `init()` y muestran datos reales de la BD. |
+| **GUARDAR** cambios (POST/PATCH/PUT) | ❌ NO FUNCIONA - los handlers `saveTipo`, `deleteTipo`, `saveEstado`, `deleteEstado`, `saveGer`, `deleteGer`, `saveArea`, `deleteArea`, `guardarFilaMatriz`, `guardarPlantilla` son del mock y NO llaman al backend. |
+| **Editar y crear** (CRUD completo) | ❌ NO FUNCIONA - mismo problema. |
+
+**Implicacion:** La UI muestra datos correctos del backend (lo cual es por lo que ve "Test TD", "Gerencia Promovida Test", etc.). Pero **cualquier intento de crear/editar/eliminar no persiste** - solo muestra un toast de exito y guarda localmente en el state.
+
+---
+
+## Validacion empirica (Chrome DevTools)
+
+### Test 1: Confirmar que datos SI cargan de la BD
 
 ```js
-// frontend/src/pages/Parametrizacion.js (lineas 31-42)
-import {
-  ParametrosGlobalesDB,       // <- mock de configuracion_global
-  exclusionTiposDB,            // <- mock de tipos excluidos (chips)
-  tiposExcluiblesDB,           // NO usado actualmente
-  analistasETODB,             // <- mock de analistas ETO
-  estadosProcesoParamDB,      // <- mock de estados
-  etiquetasPlantillaDB,       // <- mock de etiquetas
-  gerenciasParamDB,            // <- mock de gerencias
-  matrizETOParamDB,            // <- mock de matriz ETO
-  plantillasNotificacionParamDB,  // <- mock de plantillas
-  tiposDocParamDB,             // <- mock de tipos de documento
-} from '../data/parametrosSistema.js'
+const root = document.querySelector('[x-data="paramPage"]');
+const data = root._x_dataStack[0];
+// Verificar tab Diccionarios:
+data.tiposDocs.length   // = 14 (NO 6 que tiene el mock)
+data.tiposDocs[0].id    // = 1 (NO esta en el mock)
+data.tiposDocs[0].codigo_doc  // = 1 (campo que solo esta en la BD)
+// Test TD esta en la lista:
+data.tiposDocs.some(t => t.cod === 'TT_26664')  // = true
 ```
 
-### Rango del codigo a eliminar (seccion de mocks duplicados)
+**Resultado:** 14 tipos con `id` y `codigo_doc` (campos de la BD). El mock solo tiene 6 tipos sin `id` y sin `codigo_doc`. **La carga de BD funciona.**
 
+### Test 2: Confirmar que CRUD no funciona
+
+```js
+const t = data.tiposDocs.find(x => x.cod === 'TT_26664');
+t.tipo = 'Test_Edicion_' + Date.now();
+data.saveTipo(t);
+// Error: "this.pushLog is not a function"
 ```
-Archivo: frontend/src/pages/Parametrizacion.js
-Lineas:  537 - 744
-Tamano:  ~208 lineas
+
+**Verificacion en BD despues:**
+```bash
+docker exec sgd-postgres psql -U sgd -d sgd -c "SELECT nombre FROM tipos_documento WHERE codigo='TT_26664'"
+# Resultado: "Test TD" - NO cambio
 ```
 
-Contiene:
-- Segunda declaracion de `guardarTiempos`, `guardarSemaforizacion`
-- Segunda declaracion de `restricciones`, `chips`, `quitarChip`, `agregarChip`, `guardarRestricciones`, `guardarLimitesDescarga`
-- Segunda declaracion de `tiposDocs`, `addTipo`, `saveTipo`, `cancelTipo`, `deleteTipo`
-- Segunda declaracion de `estados`, `addEstado`, `saveEstado`, `cancelEstado`, `deleteEstado`
-- Segunda declaracion de `matrizETO`, `analistas`, `guardarFilaMatriz`
-- Segunda declaracion de `gerencias`, `gerSelId`, `gerEditMode`, `gerSel`, `addGerencia`, `startEditGer`, `saveGer`, `deleteGer`, `addArea`, `saveArea`, `deleteArea`, `abrirMoverArea`
-- Segunda declaracion de `plantillaSelect`, `plantillas`, `etiquetas`, `previewMode`, `previewHtml`, `insertarEtiqueta`, `guardarPlantilla`, `previsualizarPlantilla`, `cerrarPreview`
+**Resultado:** `saveTipo` ejecuta la version del mock (linea 590) que llama `this.pushLog()` que no existe. La BD NO se modifica. **El CRUD de edicion NO funciona.**
 
-**IMPORTANTE:** Solo el bloque de la segunda declaracion debe eliminarse, NO la primera (que SI funciona y carga de BD). La primera declaracion es la "buena" y debe quedarse.
+### Test 3: Inspeccionar la funcion saveTipo que se ejecuta
+
+```js
+data.saveTipo.toString()
+// Resultado: "saveTipo(t) {\n  if (!t.tipo.trim() || !t.cod.trim()) { window.toast('Complete tipo y codigo', 'warn'); return }\n  const ant = t._new ? '(nuevo)' : tiposDocParamDB.find(x => x.cod === t.cod)?.tipo || ''\n  t.cod = t.cod.toUpperCase().slice(0, 5)\n  delete t._new\n  this.tipoEditing = null\n  this.pushLog('Tipo de documento', ant, t.tipo + ' (' + t.cod + ')', 'diccionarios')\n  window.toast('✅ Tipo guardado', 'success')\n}"
+```
+
+**Resultado:** La version que se ejecuta es la del MOCK (linea 590). La version que llama al backend (linea 274) es pisada.
 
 ---
 
-## Inventario de tabs y estado
+## Hallazgo clave: que pasa y por que
+
+### El bug de las "dos declaraciones"
+
+En `frontend/src/pages/Parametrizacion.js`:
+
+```js
+window.Alpine?.data('paramPage', () => ({
+  // ============ PRIMERA DECLARACION (lineas 235-340) ============
+  // Estado vacio + funciones de CARGA que llaman al backend
+  tiposDocs: [],
+  estados: [],
+  matrizETO: [],
+  analistas: [],
+  gerencias: [],
+  
+  async cargarDiccionarios() {
+    // SI llama al backend y llena this.tiposDocs con data.items
+  },
+  async saveTipo(t) {
+    // SI llama a tiposDocumento.create/update
+  },
+  // ... etc
+  
+  // ============ SEGUNDA DECLARACION (lineas 537-744) ============
+  // PISA los handlers con versiones que NO llaman al backend
+  tiposDocs: JSON.parse(JSON.stringify(tiposDocParamDB)),  // <- mock
+  saveTipo(t) {
+    // SOLO hace pushLog local + toast, NO llama al backend
+  },
+  saveEstado(e) { /* mismo problema */ },
+  saveGer() { /* mismo problema */ },
+  saveArea(a) { /* mismo problema */ },
+  guardarFilaMatriz(m) { /* mismo problema */ },
+  guardarPlantilla() { /* mismo problema */ },
+  // ... etc
+}))
+```
+
+### Por que JavaScript ejecuta la segunda declaracion
+
+En JavaScript plano, cuando declaras un objeto literal con propiedades duplicadas, **la ultima gana**:
+
+```js
+const obj = { x: 1, x: 2 }
+obj.x  // = 2
+```
+
+PERO Alpine.js tiene un truco: cuando registras `Alpine.data('name', () => ({...}))`, **Alpine ejecuta la factory cada vez que el componente se monta**. La primera declaracion define los handlers de CARGA (que SI funcionan), y la segunda pisa los handlers de SAVE con versiones del mock.
+
+**Pero entonces por que los datos SI se ven en la UI?** Porque:
+1. La primera declaracion define `tiposDocs: []`
+2. La segunda declaracion pisa con `JSON.parse(JSON.stringify(tiposDocParamDB))` (mock con 6 items)
+3. `init()` se ejecuta y llama `cargarDiccionarios()`
+4. `cargarDiccionarios()` hace `this.tiposDocs = data.items` (14 items de la BD)
+5. La UI muestra los 14 items
+
+**El state se inicializa, pero los handlers de CRUD quedan pisados por la segunda declaracion.**
+
+---
+
+## Inventario de bugs reales (corregido)
 
 ### Tab 1: Tiempos y SLAs (lineas 1252-1317)
-
-#### BD - `configuracion_global` (8 filas)
-
-| clave | valor | categoria |
-|---|---|---|
-| `espera_auto_delegacion_dias` | 3 | VIGENCIA |
-| `plazo_control_lectura_dias` | 30 | VIGENCIA |
-| `tiempo_vigencia_anios` | 3 | VIGENCIA |
-| `plazo_revision_aprobacion_dias` | 25 | FLUJO |
-| `t_26664`, `t_6487`, `test_91726`, `test_clave_borrable` | 42, 42, 42, 99 | GENERAL (basura de testing) |
 
 #### Comportamiento actual
 
 | Elemento | Carga de BD | Guarda en BD | Notas |
 |---|---|---|---|
-| Vigencia por tipo de documento | SI (parcial) | NO | Lee `tipos_documento.periodo_vigencia`. PERO input muestra `"Indefinido"` cuando `indefinido=true` y no permite editar. 5/13 tipos son indefinidos. |
-| Semaforo verde | SI | SI | `semaforo_verde_dias`. Funciona OK. |
-| Semaforo amarillo | SI | SI | `semaforo_amarillo_dias`. Funciona OK. |
-| Semaforo rojo | hardcoded | N/A | Texto fijo "Menos de 1 dia o vencido". No requiere dato en BD. |
-| Plazo revision/aprobacion | SI | SI | `plazo_revision_aprobacion_dias`. Funciona OK. |
-| Plazo control de lectura | SI | SI | `plazo_control_lectura_dias`. Funciona OK. |
-| Boton "Guardar Vigencia y Flujo" | - | SI | Llama `configGlobal.bulkUpsert('VIGENCIA', ...)`. |
-| Boton "Guardar Semaforizacion" | - | SI | Llama mismo handler (`guardarTiempos`). |
+| Vigencia por tipo de documento | ✅ SI | ❌ NO | Lee `tipos_documento.periodo_vigencia`. Bug especifico: input muestra "Indefinido" cuando `indefinido=true` y no permite editar. |
+| Semaforo verde/amarillo | ✅ SI | ❌ NO | `semaforo_verde_dias` / `semaforo_amarillo_dias`. La primera `guardarTiempos` (linea 165) SI persiste. PERO la segunda `guardarTiempos` (linea 538) **NO** - solo toast. |
+| Plazo revision/aprobacion | ✅ SI | ❌ NO | `plazo_revision_aprobacion_dias`. Mismo problema. |
+| Plazo control de lectura | ✅ SI | ❌ NO | `plazo_control_lectura_dias`. Mismo problema. |
 
-#### Bug especifico
-- **Vigencia para tipos `indefinido=true`:** Los tipos `MANUAL_FUNCIONES`, `INSTRUCTIVO_TECNICO`, `PROTOCOLO`, `MANUAL_USUARIO` muestran "Indefinido" en el input, pero el input no permite editar. El usuario no puede asignarles años concretos.
+**Conclusion:** La primera declaracion SI funciona, pero la segunda pisa los handlers. Al ejecutar `guardarTiempos()`, se ejecuta la del mock que solo hace toast.
 
----
-
-### Tab 2: Restricciones (lineas 1319-1380) - BLOQUEANTE
+### Tab 2: Restricciones (lineas 1319-1380)
 
 #### BD - claves faltantes
 
 El frontend busca estas claves en `configuracion_global`:
-- `max_archivos_por_solicitud` (esperado, NO EXISTE en BD)
-- `max_tamano_archivo_mb` (esperado, NO EXISTE en BD)
-- `max_descargas_editables_dia` (esperado, NO EXISTE en BD)
-- `paginacion_mi_bandeja` (esperado, NO EXISTE en BD)
-- `tipos_excluidos_limite_descarga` (esperado, NO EXISTE en BD)
+- `max_archivos_por_solicitud` (NO EXISTE en BD)
+- `max_tamano_archivo_mb` (NO EXISTE en BD)
+- `max_descargas_editables_dia` (NO EXISTE en BD)
+- `paginacion_mi_bandeja` (NO EXISTE en BD)
+- `tipos_excluidos_limite_descarga` (NO EXISTE en BD)
 
 #### Comportamiento actual
 
 | Elemento | Carga de BD | Guarda en BD | Notas |
 |---|---|---|---|
-| Limite archivos adjuntos (20) | NO | NO | HARDCODED en `restricciones: { maxAdjuntos: 20 }` del mock. No usa `parseInt(cfg.max_archivos_por_solicitud \|\| '20', 10)`. |
-| Tamano max MB (20) | NO | NO | Mismo problema. |
-| Max descargas/dia (10) | NO | NO | Mismo problema. |
-| Paginacion bandeja (10) | NO | NO | Mismo problema. |
-| Tipos excluidos (chips) | NO | NO | Dropdown VACIO porque solo lista los chips actuales. Ver bug especifico. |
-| Boton "Guardar Restricciones" | - | NO | Solo actualiza mock. NO persiste. |
-| Boton "Guardar Limites de Descarga" | - | NO | Solo actualiza mock. NO persiste. |
+| Limite archivos adjuntos (20) | ❌ NO (fallback mock) | ❌ NO | `cfg.max_archivos_por_solicitud` es undefined, fallback al valor del state. |
+| Tamano max MB (20) | ❌ NO (fallback mock) | ❌ NO | Mismo problema. |
+| Max descargas/dia (10) | ❌ NO (fallback mock) | ❌ NO | Mismo problema. |
+| Paginacion bandeja (10) | ❌ NO (fallback mock) | ❌ NO | Mismo problema. |
+| Tipos excluidos (chips) | ❌ NO (fallback mock) | ❌ NO | Ver bug especifico. |
+| Boton "Guardar Restricciones" | - | ❌ NO | `guardarRestricciones` (linea 566) es del mock - solo actualiza `ParametrosGlobalesDB` y toast. |
+| Boton "Guardar Limites de Descarga" | - | ❌ NO | Mismo problema. |
 
 #### Bug especifico - Dropdown de tipos excluidos VACIO
 
@@ -119,90 +182,50 @@ El frontend busca estas claves en `configuracion_global`:
 </select>
 ```
 
-**Problema:** El dropdown solo lista `chips` (los tipos YA excluidos), NO los tipos de documento disponibles. El usuario no puede AGREGAR un nuevo tipo excluido.
+**Problema:** El dropdown solo lista `chips` (los tipos YA excluidos), NO los tipos de documento disponibles. **El usuario no puede AGREGAR un nuevo tipo excluido** desde la UI.
 
-**Solucion:** Reemplazar el `<template x-for="t in chips">` por `<template x-for="t in tiposExcluibles">` donde `tiposExcluibles` se llena con `tiposDocumento.list()` filtrado por `activo=true`.
+**Solucion:** Reemplazar `<template x-for="t in chips">` por `<template x-for="t in tiposExcluibles">` donde `tiposExcluibles` se llena con `tiposDocumento.list()` filtrado por `activo=true` y excluyendo los que ya estan en `chips`.
 
----
-
-### Tab 3: Diccionarios y Enrutamiento (lineas 1382-1532) - BLOQUEANTE
-
-#### BD - `tipos_documento` (15 filas)
-
-13 tipos del Excel + 2 de prueba (`TEST_NUEVO` inactivo, `TT_26664` activo). Campos: `codigo`, `nombre`, `codigo_doc` (1-14), `periodo_vigencia`, `indefinido`, `max_descargas_dia`, `activo`.
-
-#### BD - `estados` (8 filas)
-
-5 estados del flujo + 3 de prueba (2 activos, 1 inactivo). Campos: `codigo`, `nombre`, `contexto` (TAREA/PROCESO/AMBOS), `orden`, `activo`.
-
-#### BD - `matriz_enrutamiento_eto` (10 filas)
-
-1 fila por gerencia con `analista_usuario_id`, `gerencia_id`, `disponibilidad` (DISPONIBLE/AUSENTE).
+### Tab 3: Diccionarios y Enrutamiento (lineas 1382-1532)
 
 #### Comportamiento actual
 
 | Elemento | Carga de BD | Guarda en BD | Notas |
 |---|---|---|---|
-| Tipos de Documento (15) | NO | NO | Segunda declaracion usa `JSON.parse(JSON.stringify(tiposDocParamDB))` (mock). |
-| Estados (8) | NO | NO | Misma logica con `estadosProcesoParamDB` (mock). |
-| Matriz ETO (10) | NO | NO | Misma logica con `matrizETOParamDB` (mock). |
-| Analistas ETO (dropdown) | NO | NO | Usa `[...analistasETODB]` del mock. La primera declaracion SII carga de BD via `usuarios.list({ rol: 'ETO' })` pero es pisada. |
-| CRUD tipos (nuevo/editar/eliminar) | NO | NO | `saveTipo` solo hace `pushLog` local. No llama `tiposDocumento.create/update/remove`. |
-| CRUD estados | NO | NO | Mismo problema. |
-| CRUD matriz ETO (cambiar analista/disponibilidad) | NO | NO | `guardarFilaMatriz` solo hace `pushLog` local. No llama `matrizEto.update`. |
+| Tipos de Documento (14) | ✅ SI (carga via `cargarDiccionarios`) | ❌ NO | `saveTipo` (linea 590) es del mock. `deleteTipo` tambien. |
+| Estados (8) | ✅ SI | ❌ NO | `saveEstado` (linea 622) es del mock. `deleteEstado` tambien. |
+| Matriz ETO (10) | ✅ SI | ❌ NO | `guardarFilaMatriz` (linea 648) es del mock - solo pushLog. |
+| Analistas ETO (dropdown) | ✅ SI (via `usuarios.list({rol:'ETO'})`) | - | Funciona OK. |
+| CRUD tipos (nuevo/editar/eliminar) | ❌ NO | ❌ NO | `addTipo`, `saveTipo`, `deleteTipo` son del mock. |
+| CRUD estados | ❌ NO | ❌ NO | Mismo problema. |
+| CRUD matriz ETO | ❌ NO | ❌ NO | Mismo problema. |
 
----
-
-### Tab 4: Gerencias y Areas (lineas 1534-1633) - BLOQUEANTE
-
-#### BD - `gerencias` (14 filas)
-
-10 gerencias semilla + 2 de prueba (`PROM29402`, `CC-S1`) + 1 editada (`X1` -> `GERENCIA TEST EDIT`) + 1 con borrado logico (`AUDIT_TEST`).
-
-#### BD - `areas` (56 filas)
-
-49 areas semilla + 7 de prueba/borrado. Cada area tiene `gerencia_id` FK.
+### Tab 4: Gerencias y Areas (lineas 1534-1633)
 
 #### Comportamiento actual
 
 | Elemento | Carga de BD | Guarda en BD | Notas |
 |---|---|---|---|
-| Lista gerencias (14) | NO | NO | Usa `JSON.parse(JSON.stringify(gerenciasParamDB))` (mock). |
-| Detalle gerencia | NO | NO | Misma logica. |
-| Lista areas de una gerencia | NO | NO | Misma logica. |
-| CRUD gerencia (nuevo/editar/eliminar) | NO | NO | `addGerencia` crea `{id: Date.now()}` random. No llama `gerencias.create/update/remove`. |
-| CRUD area | NO | NO | Misma logica. |
-| Mover area entre gerencias | NO | NO | `abrirMoverArea` usa `gerencias` del mock, no del backend. No llama `areas.mover`. |
+| Lista gerencias (14) | ✅ SI (via `cargarGerencias`) | ❌ NO | `saveGer` (linea 676) es del mock. `addGerencia` crea `{id: Date.now()}` random. |
+| Detalle gerencia | ✅ SI | ❌ NO | Mismo problema. |
+| Lista areas | ✅ SI | ❌ NO | `saveArea` (linea 706) es del mock. |
+| CRUD gerencia | ❌ NO | ❌ NO | `addGerencia`, `saveGer`, `deleteGer` son del mock. |
+| CRUD area | ❌ NO | ❌ NO | Mismo problema. |
+| Mover area entre gerencias | ❌ NO | ❌ NO | `abrirMoverArea` no llama `areas.mover`. |
 
----
-
-### Tab 5: Plantillas de Notificacion (lineas 1635-1694) - BLOQUEANTE
-
-#### BD - `email_templates` (6 filas)
-
-6 plantillas con `codigo`, `nombre`, `asunto`, `cuerpo_html` (HTML con `{{VARIABLE}}`), `variables_json` (lista de variables).
-
-| codigo | nombre | variables_json |
-|---|---|---|
-| NUEVA_TAREA | Nueva Tarea Asignada | (TEST) |
-| ALERTA_VENCIMIENTO | Alerta de Vencimiento | `["{{CODIGO}}", "{{TITULO}}", "{{USUARIO}}", ...]` |
-| DOCUMENTO_APROBADO | Documento Aprobado | idem |
-| DOCUMENTO_OBSERVADO | Documento Observado | idem |
-| EVALUACION_PENDIENTE | Evaluacion Pendiente (editado) | idem |
-| AUTO_DELEGACION_ACTIVADA | Auto-delegacion Activada | idem |
+### Tab 5: Plantillas de Notificacion (lineas 1635-1694)
 
 #### Comportamiento actual
 
 | Elemento | Carga de BD | Guarda en BD | Notas |
 |---|---|---|---|
-| Lista plantillas (6) | SI | - | Funciona OK. |
-| Asunto del correo | SI | SI (parcial) | Editable. La primera declaracion `guardarPlantilla` SI llama `emailTemplates.update()`. PERO es pisada por la segunda. |
-| Cuerpo del correo | SI | NO | Muestra HTML crudo en `<textarea>`. **No es amigable para usuario normal.** |
-| Etiquetas (variables) | SI | - | Se muestran como chips clicables. |
-| Previsualizar | SI | - | Llama `emailTemplates.preview()` con mock de variables. OK. |
-| Boton "Guardar Plantilla" | - | NO | Segunda declaracion hace `pushLog` + toast, no PATCH. |
+| Lista plantillas (6) | ✅ SI (via `cargarNotificaciones`) | - | Funciona OK. |
+| Asunto del correo | ✅ SI (editable) | ❌ NO | `guardarPlantilla` (linea 758) es del mock - solo pushLog + toast. |
+| Cuerpo del correo | ✅ SI (en `<textarea>`) | ❌ NO | Mismo problema. |
+| Etiquetas (variables) | ✅ SI (de `variables_json` de la BD) | - | Funciona OK. |
+| Previsualizar | ✅ SI (llama `/preview`) | - | Funciona OK. |
 
-#### Bug critico: Editor de HTML crudo
+#### Bug adicional: Editor de HTML crudo
 
 **Linea 1685:**
 ```html
@@ -212,42 +235,24 @@ El frontend busca estas claves en `configuracion_global`:
 </textarea>
 ```
 
-El usuario ve HTML puro (`<div style="font-family: Arial...">`) en vez de un editor visual. La imagen que me compartiste muestra exactamente este problema.
+El usuario ve HTML puro (`<div style="font-family: Arial...">`) en vez de un editor visual. Necesita un editor amigable (dual mode, Quill, etc.).
 
-**Opciones de solucion (de menor a mayor esfuerzo):**
+### Tab 6: Gestion de Usuarios
 
-1. **Editor dual mode** (1-2h): Toggle entre "Editor de variables" (textarea simple con texto plano + insertar variables con clic) y "Vista previa HTML" (readonly con `x-html="$sanitize(cuerpo)"`).
-2. **Editor de texto plano** (30 min): Reemplazar `<textarea>` por uno con `cuerpo` en texto plano (sin HTML), interpretando saltos de linea como `<br>`. Mas simple pero pierde el estilo HTML.
-3. **RichText editor (Quill/TinyMCE)** (3-4h): Integrar un editor visual que produzca HTML. Mas bonito pero requiere libreria externa.
-4. **Markdown editor** (2-3h): Editor de markdown con preview en tiempo real. Al guardar, convertir markdown a HTML.
+✅ Validado en sesion 9. Todo funciona. Sin cambios.
 
-**Recomendacion:** Opcion 1 (dual mode) por balance entre esfuerzo y resultado.
-
----
-
-### Tab 6: Gestion de Usuarios (lineas 1696-2000) - **OK 100%**
-
-Validado en sesion 9. Todo funciona. Sin cambios.
-
----
-
-### Tab 7: Logs de Auditoria (lineas 2099-2150) - BLOQUEANTE
-
-#### BD - `audit_log` (46 filas)
-
-Tabla append-only con: `id`, `usuario_id`, `usuario_username`, `usuario_nombre`, `accion`, `recurso`, `recurso_id`, `descripcion`, `detalles` (JSONB), `ip`, `exitoso`, `error_msg`, `created_at` (UTC timestamp).
+### Tab 7: Logs de Auditoria (lineas 2099-2150)
 
 #### Comportamiento actual
 
 | Elemento | Estado | Notas |
 |---|---|---|
-| Filtros (search, tab, accion, recurso) | OK | Funcionan con BD. |
-| Carga desde BD | OK | `GET /audit-log?limit=200&offset=0`. |
-| Total | OK | Mostrado correctamente. |
-| Paginacion 10 por pagina | **MAL** | `logLimit: 200`. El usuario pidio 10. |
-| HTML columnas (fecha, tab, parametro, anterior, nuevo, usuario) | **MAL** | Mismatch con shape del backend. Ver bug especifico. |
-| Formato fecha (Bolivia UTC-4) | **MAL** | Viene UTC (`2026-06-16T17:56:33.513146Z`). |
-| Exportar a Excel | **MAL** | Solo CSV client-side. |
+| Filtros (search, tab, accion, recurso) | ✅ OK | Funcionan con BD. |
+| Carga desde BD | ✅ OK | `GET /audit-log?limit=200&offset=0`. |
+| Paginacion 10 por pagina | ❌ MAL | `logLimit: 200`. El usuario pidio 10. |
+| HTML columnas (fecha, tab, parametro, anterior, nuevo, usuario) | ❌ MAL | Mismatch con shape del backend. |
+| Formato fecha (Bolivia UTC-4) | ❌ MAL | Viene UTC (`2026-06-16T17:56:33.513146Z`). |
+| Exportar a Excel | ❌ MAL | Solo CSV client-side desde `this.logs`. |
 
 #### Bug especifico - Mismatch de campos HTML vs Backend
 
@@ -272,20 +277,13 @@ Tabla append-only con: `id`, `usuario_id`, `usuario_username`, `usuario_nombre`,
   "recurso": "usuario",
   "recurso_id": 9,
   "descripcion": "Override administrativo sobre ychavez (campos: [])",
-  "detalles": {
-    "antes": {...},
-    "despues": {...},
-    "campos": [],
-    "observaciones": null
-  },
+  "detalles": {"antes": {...}, "despues": {...}, "campos": [], "observaciones": null},
   "ip": "172.20.0.1",
   "exitoso": true,
   "error_msg": null,
   "created_at": "2026-06-16T17:56:33.513146Z"
 }
 ```
-
-**Campos HTML no existen en el backend:** `h.fecha`, `h.tab`, `h.parametro`, `h.anterior`, `h.nuevo`. El HTML muestra vacios o `undefined`.
 
 **Solucion - mapping en `cargarLogs()` (linea 89):**
 ```js
@@ -308,34 +306,20 @@ this.logs = data.items.map(l => ({
 }))
 ```
 
-Y el `logsFiltrados` (linea 71) ya busca por `descripcion`, `usuario_username`, `recurso`, `accion` - **funciona correctamente** con el shape del backend.
-
 ---
 
 ## Plan de correcciones
 
-### Fase 1 (CRITICA, 2-3h) - Quitar mocks + restaurar CRUD
+### Fase 1 (CRITICA, 2-3h) - Restaurar CRUD
 
-**Objetivo:** Que todos los tabs lean de BD y todos los handlers persistan cambios.
+**Objetivo:** Que todos los handlers `save/delete/add` persistan en la BD.
 
 1. **Eliminar mocks duplicados** (lineas 537-744)
    - Mantener solo la primera declaracion (la que SI carga de BD)
-   - Verificar que la primera declaracion SI tiene todas las funciones necesarias
+   - Las funciones de la primera declaracion (saveTipo, saveEstado, saveGer, saveArea, etc.) SI llaman al backend
    - Eliminar imports de `parametrosSistema.js`
 
-2. **Validar primera declaracion** de cada propiedad
-   - `restricciones` linea 182: OK (carga de BD, guarda con PATCH)
-   - `chips` linea 183: OK
-   - `tiempos` linea 133: OK
-   - `vigencias` linea 134: OK
-   - `tiposDocs` linea 235: OK
-   - `estados` linea 237: OK
-   - `matrizETO` linea 239: OK
-   - `analistas` linea 240: OK
-   - `gerencias` linea 270 (buscar): OK
-   - `plantillas` linea 480: OK
-
-3. **Crear claves faltantes en BD** para Restricciones:
+2. **Crear claves faltantes en BD** para Restricciones:
    ```sql
    INSERT INTO configuracion_global (clave, valor, categoria, descripcion) VALUES
      ('max_archivos_por_solicitud', '20', 'ARCHIVOS', 'Limite de archivos adjuntos por solicitud'),
@@ -345,40 +329,38 @@ Y el `logsFiltrados` (linea 71) ya busca por `descripcion`, `usuario_username`, 
      ('tipos_excluidos_limite_descarga', '[]', 'DESCARGAS', 'Tipos excluidos del limite de descarga (JSON)');
    ```
 
-4. **Validar end-to-end** en navegador con `docker restart sgd-frontend` (cache de Vite).
+3. **Validar end-to-end** en navegador con `docker restart sgd-frontend` (cache de Vite).
 
 ### Fase 2 (ALTA, 1-2h) - Logs de Auditoria
 
-5. **Cambiar `logLimit: 200` a `logLimit: 10`** y agregar paginacion en HTML
-6. **Mapear campos del backend al HTML** (snippet en seccion anterior)
-7. **Convertir fecha UTC a Bolivia** con `timeZone: 'America/La_Paz'`
+4. **Cambiar `logLimit: 200` a `logLimit: 10`** y agregar paginacion en HTML
+5. **Mapear campos del backend al HTML** (snippet en seccion anterior)
+6. **Convertir fecha UTC a Bolivia** con `timeZone: 'America/La_Paz'`
 
 ### Fase 3 (MEDIA, 2-3h) - Editor de Plantillas
 
-8. **Implementar dual mode** (Editor de variables + Vista previa HTML)
+7. **Implementar dual mode** (Editor de variables + Vista previa HTML)
    - Toggle entre "Texto plano" y "HTML Preview"
    - En modo "Texto plano": textarea + insertar variables
    - En modo "HTML Preview": readonly con `x-html="$sanitize(cuerpo)"`
    - El backend SI soporta `cuerpo_html` (es la BD), no se cambia el schema
 
-9. **Validar end-to-end**: editar plantilla, guardar, previsualizar
-
 ### Fase 4 (BAJA, 30min) - Dropdown de tipos excluidos
 
-10. **Cargar tipos de documento disponibles** y mostrarlos en el dropdown
-    - Agregar `tiposExcluibles: []` al state
-    - Cargar via `tiposDocumento.list()` en `cargarRestricciones()`
-    - Filtrar los que ya estan en `chips` para no duplicar
-    - Reemplazar `<template x-for="t in chips">` por `<template x-for="t in tiposExcluibles">`
+8. **Cargar tipos de documento disponibles** y mostrarlos en el dropdown
+   - Agregar `tiposExcluibles: []` al state (en la primera declaracion, no en el mock)
+   - Cargar via `tiposDocumento.list()` en `cargarRestricciones()`
+   - Filtrar los que ya estan en `chips` para no duplicar
+   - Reemplazar `<template x-for="t in chips">` por `<template x-for="t in tiposExcluibles">`
 
 ### Fase 5 (OPCIONAL, 30min) - Bug "Indefinido" en Vigencia
 
-11. **Mostrar badge en vez de input** cuando `indefinido=true`:
-    ```html
-    <span x-show="v.años === 'Indefinido'" class="badge badge-gray text-[10px]">Indefinido</span>
-    <input x-show="v.años !== 'Indefinido'" type="number" x-model.number="v.años" ...>
-    ```
-    Ademas, **agregar soporte de PATCH** en el backend para que el cambio se persista.
+9. **Mostrar badge en vez de input** cuando `indefinido=true`:
+   ```html
+   <span x-show="v.años === 'Indefinido'" class="badge badge-gray text-[10px]">Indefinido</span>
+   <input x-show="v.años !== 'Indefinido'" type="number" x-model.number="v.años" ...>
+   ```
+   Ademas, **agregar soporte de PATCH** en el backend para que el cambio se persista.
 
 ### Estimacion total
 
@@ -422,11 +404,12 @@ Para esta sesion futura:
 ## Validacion final al cerrar
 
 1. Login con admin, ir a cada tab, verificar que muestra datos de BD
-2. Crear un tipo de documento nuevo, verificar que aparece en el siguiente reload
-3. Cambiar plazo de revision, verificar que persiste despues de F5
-4. Marcar un usuario como ausente, verificar que aparece en la columna Delegado
-5. Revisar log de auditoria, verificar formato de fecha Bolivia
-6. Exportar a CSV/Excel, verificar que las celdas tienen datos
+2. **Crear un tipo de documento nuevo** desde la UI, verificar que aparece en la BD via psql
+3. **Editar un tipo de documento** desde la UI, verificar que el cambio persiste via psql
+4. **Eliminar un tipo de documento** desde la UI, verificar que tiene `activo=false` en la BD
+5. **Cambiar plazo de revision** desde la UI, verificar que persiste
+6. Revisar log de auditoria, verificar formato de fecha Bolivia
+7. Exportar a CSV/Excel, verificar que las celdas tienen datos
 
 ---
 
