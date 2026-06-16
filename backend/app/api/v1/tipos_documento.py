@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.tipo_documento import TipoDocumento
 from app.schemas.tipo_documento import (
     TipoDocumentoCreate,
@@ -85,7 +86,7 @@ async def create_tipo(
     db: AsyncSession = Depends(get_db),
 ):
     """Crea un tipo. Requiere ETO o ADMIN. 409 si codigo duplicado."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     # Validacion: periodo_vigencia e indefinido no pueden ser ambos True
     if payload.indefinido and payload.periodo_vigencia is not None:
@@ -116,6 +117,13 @@ async def create_tipo(
     db.add(t)
     await db.commit()
     await db.refresh(t)
+    await write_audit(
+        db, request, user,
+        accion="CREATE", recurso="tipo_documento", recurso_id=t.id,
+        descripcion=f"TipoDocumento {t.codigo} (cod_doc={t.codigo_doc}) creado",
+        detalles={"despues": {"codigo": t.codigo, "nombre": t.nombre, "codigo_doc": t.codigo_doc, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}},
+    )
+    await db.commit()
     logger.info(f"TipoDocumento creado: {t.codigo} (cod_doc={t.codigo_doc})")
     return TipoDocumentoOut.model_validate(t)
 
@@ -128,7 +136,7 @@ async def update_tipo(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualiza un tipo. Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     t = (await db.execute(
         select(TipoDocumento).where(TipoDocumento.id == tipo_id)
     )).scalar_one_or_none()
@@ -138,6 +146,8 @@ async def update_tipo(
     data = payload.model_dump(exclude_unset=True)
     if not data:
         return TipoDocumentoOut.model_validate(t)
+
+    antes = {"codigo": t.codigo, "nombre": t.nombre, "codigo_doc": t.codigo_doc, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}
 
     for field, value in data.items():
         setattr(t, field, value)
@@ -151,6 +161,14 @@ async def update_tipo(
 
     await db.commit()
     await db.refresh(t)
+    despues = {"codigo": t.codigo, "nombre": t.nombre, "codigo_doc": t.codigo_doc, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="tipo_documento", recurso_id=t.id,
+        descripcion=f"TipoDocumento {t.codigo} actualizado (campos={list(data.keys())})",
+        detalles={"antes": antes, "despues": despues, "campos": list(data.keys())},
+    )
+    await db.commit()
     logger.info(f"TipoDocumento actualizado: {t.codigo} (campos={list(data.keys())})")
     return TipoDocumentoOut.model_validate(t)
 
@@ -162,7 +180,7 @@ async def delete_tipo(
     db: AsyncSession = Depends(get_db),
 ):
     """Borrado logico (activo=false). Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     t = (await db.execute(
         select(TipoDocumento).where(TipoDocumento.id == tipo_id)
     )).scalar_one_or_none()
@@ -173,5 +191,12 @@ async def delete_tipo(
     t.activo = False
     await db.commit()
     await db.refresh(t)
+    await write_audit(
+        db, request, user,
+        accion="DELETE", recurso="tipo_documento", recurso_id=t.id,
+        descripcion=f"TipoDocumento {t.codigo} borrado (logico)",
+        detalles={"codigo": t.codigo, "codigo_doc": t.codigo_doc},
+    )
+    await db.commit()
     logger.info(f"TipoDocumento borrado (logico): {t.codigo}")
     return TipoDocumentoOut.model_validate(t)

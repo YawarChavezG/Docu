@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.configuracion_global import (
     ConfiguracionGlobal,
     CategoriaConfiguracion,
@@ -123,9 +124,17 @@ async def upsert_configuracion(
         db.add(cfg)
         await db.commit()
         await db.refresh(cfg)
+        await write_audit(
+            db, request, user,
+            accion="CREATE", recurso="configuracion_global", recurso_id=None,
+            descripcion=f"Config {cfg.clave} creada con valor {cfg.valor!r}",
+            detalles={"clave": cfg.clave, "despues": {"valor": cfg.valor, "tipo": cfg.tipo.value, "categoria": cfg.categoria.value}},
+        )
+        await db.commit()
         logger.info(f"Config creada: {cfg.clave} = {cfg.valor!r} (tipo={cfg.tipo.value})")
         return ConfiguracionGlobalOut.model_validate(cfg)
     else:
+        antes = {"valor": existing.valor, "tipo": existing.tipo.value, "categoria": existing.categoria.value}
         existing.valor = payload.valor
         existing.tipo = payload.tipo
         existing.categoria = payload.categoria
@@ -134,6 +143,14 @@ async def upsert_configuracion(
         existing.updated_by_id = user.id
         await db.commit()
         await db.refresh(existing)
+        despues = {"valor": existing.valor, "tipo": existing.tipo.value, "categoria": existing.categoria.value}
+        await write_audit(
+            db, request, user,
+            accion="UPDATE", recurso="configuracion_global", recurso_id=None,
+            descripcion=f"Config {existing.clave} actualizada via upsert (valor={existing.valor!r})",
+            detalles={"clave": existing.clave, "antes": antes, "despues": despues},
+        )
+        await db.commit()
         logger.info(
             f"Config actualizada: {existing.clave} = {existing.valor!r} "
             f"(por user_id={user.id})"
@@ -152,12 +169,21 @@ async def update_configuracion(
     user = await require_eto_or_admin(request, db)
     cfg = await _get_by_clave(db, clave)
 
+    antes = {"valor": cfg.valor, "descripcion": cfg.descripcion}
     cfg.valor = payload.valor
     if payload.descripcion is not None:
         cfg.descripcion = payload.descripcion
     cfg.updated_by_id = user.id
     await db.commit()
     await db.refresh(cfg)
+    despues = {"valor": cfg.valor, "descripcion": cfg.descripcion}
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="configuracion_global", recurso_id=None,
+        descripcion=f"Config {cfg.clave} modificada (valor={cfg.valor!r})",
+        detalles={"clave": cfg.clave, "antes": antes, "despues": despues},
+    )
+    await db.commit()
     logger.info(
         f"Config PATCH: {cfg.clave} = {cfg.valor!r} (por user_id={user.id})"
     )
@@ -208,6 +234,13 @@ async def bulk_upsert_configuracion(
         await db.flush()
 
     await db.commit()
+    await write_audit(
+        db, request, user,
+        accion="BULK_UPDATE", recurso="configuracion_global", recurso_id=None,
+        descripcion=f"Config bulk: categoria={payload.categoria.value} creadas={creadas} actualizadas={actualizadas}",
+        detalles={"categoria": payload.categoria.value, "creadas": creadas, "actualizadas": actualizadas, "claves": claves_procesadas},
+    )
+    await db.commit()
     logger.info(
         f"Config bulk: categoria={payload.categoria.value} "
         f"creadas={creadas} actualizadas={actualizadas} "
@@ -230,7 +263,7 @@ async def delete_configuracion(
     Borrado logico (activo=false). Requiere ETO o ADMIN.
     404 si no existe, 409 si ya estaba inactiva.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     cfg = await _get_by_clave(db, clave)
     if not cfg.activo:
         raise HTTPException(
@@ -240,5 +273,12 @@ async def delete_configuracion(
     cfg.activo = False
     await db.commit()
     await db.refresh(cfg)
+    await write_audit(
+        db, request, user,
+        accion="DELETE", recurso="configuracion_global", recurso_id=None,
+        descripcion=f"Config {clave} borrada (logico)",
+        detalles={"clave": clave},
+    )
+    await db.commit()
     logger.info(f"Config borrada (logico): {clave}")
     return ConfiguracionGlobalOut.model_validate(cfg)

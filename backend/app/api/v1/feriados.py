@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.feriado import Feriado, TipoFeriado
 from app.schemas.feriado import (
     FeriadoCreate,
@@ -104,7 +105,7 @@ async def create_feriado(
     Crea un feriado. Requiere ETO o ADMIN.
     409 si la fecha ya existe. 422 si tipo=DEPARTAMENTAL sin departamento.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     # Validacion logica
     if payload.tipo == TipoFeriado.DEPARTAMENTAL and not payload.departamento:
@@ -138,6 +139,13 @@ async def create_feriado(
     db.add(f)
     await db.commit()
     await db.refresh(f)
+    await write_audit(
+        db, request, user,
+        accion="CREATE", recurso="feriado", recurso_id=f.id,
+        descripcion=f"Feriado {f.fecha} {f.nombre!r} ({f.tipo.value}) creado",
+        detalles={"despues": {"fecha": str(f.fecha), "nombre": f.nombre, "tipo": f.tipo.value, "departamento": f.departamento, "activo": f.activo}},
+    )
+    await db.commit()
     logger.info(f"Feriado creado: {f.fecha} {f.nombre!r} ({f.tipo.value})")
     return FeriadoOut.model_validate(f)
 
@@ -150,12 +158,14 @@ async def update_feriado(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualiza un feriado. Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     f = await _get_or_404(db, feriado_id)
 
     data = payload.model_dump(exclude_unset=True)
     if not data:
         return FeriadoOut.model_validate(f)
+
+    antes = {"fecha": str(f.fecha), "nombre": f.nombre, "tipo": f.tipo.value, "departamento": f.departamento, "activo": f.activo}
 
     # Si cambia fecha, validar que no choque
     if "fecha" in data and data["fecha"] != f.fecha:
@@ -183,6 +193,14 @@ async def update_feriado(
 
     await db.commit()
     await db.refresh(f)
+    despues = {"fecha": str(f.fecha), "nombre": f.nombre, "tipo": f.tipo.value, "departamento": f.departamento, "activo": f.activo}
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="feriado", recurso_id=f.id,
+        descripcion=f"Feriado {f.fecha} actualizado (campos={list(data.keys())})",
+        detalles={"antes": antes, "despues": despues, "campos": list(data.keys())},
+    )
+    await db.commit()
     logger.info(f"Feriado actualizado: {f.fecha} {f.nombre!r} (campos={list(data.keys())})")
     return FeriadoOut.model_validate(f)
 
@@ -194,7 +212,7 @@ async def delete_feriado(
     db: AsyncSession = Depends(get_db),
 ):
     """Borrado logico (activo=false). Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     f = await _get_or_404(db, feriado_id)
     if not f.activo:
         raise HTTPException(
@@ -204,5 +222,12 @@ async def delete_feriado(
     f.activo = False
     await db.commit()
     await db.refresh(f)
+    await write_audit(
+        db, request, user,
+        accion="DELETE", recurso="feriado", recurso_id=f.id,
+        descripcion=f"Feriado {f.fecha} {f.nombre!r} borrado (logico)",
+        detalles={"fecha": str(f.fecha), "nombre": f.nombre, "tipo": f.tipo.value},
+    )
+    await db.commit()
     logger.info(f"Feriado borrado (logico): {f.fecha} {f.nombre!r}")
     return FeriadoOut.model_validate(f)

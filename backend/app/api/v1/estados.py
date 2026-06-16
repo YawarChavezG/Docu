@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.estado import Estado, ContextoEstado
 from app.schemas.estado import (
     EstadoCreate,
@@ -90,7 +91,7 @@ async def create_estado(
     db: AsyncSession = Depends(get_db),
 ):
     """Crea un estado. Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     existing = (await db.execute(
         select(Estado).where(Estado.codigo == payload.codigo)
@@ -109,6 +110,13 @@ async def create_estado(
     db.add(e)
     await db.commit()
     await db.refresh(e)
+    await write_audit(
+        db, request, user,
+        accion="CREATE", recurso="estado", recurso_id=e.id,
+        descripcion=f"Estado {e.codigo} ({e.contexto.value}) creado",
+        detalles={"despues": {"codigo": e.codigo, "nombre": e.nombre, "contexto": e.contexto.value, "orden": e.orden, "activo": e.activo}},
+    )
+    await db.commit()
     logger.info(f"Estado creado: {e.codigo} ({e.contexto.value})")
     return EstadoOut.model_validate(e)
 
@@ -121,7 +129,7 @@ async def update_estado(
     db: AsyncSession = Depends(get_db),
 ):
     """Actualiza un estado. Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     e = (await db.execute(
         select(Estado).where(Estado.id == estado_id)
     )).scalar_one_or_none()
@@ -132,10 +140,20 @@ async def update_estado(
     if not data:
         return EstadoOut.model_validate(e)
 
+    antes = {"codigo": e.codigo, "nombre": e.nombre, "contexto": e.contexto.value, "orden": e.orden, "activo": e.activo}
+
     for field, value in data.items():
         setattr(e, field, value)
     await db.commit()
     await db.refresh(e)
+    despues = {"codigo": e.codigo, "nombre": e.nombre, "contexto": e.contexto.value, "orden": e.orden, "activo": e.activo}
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="estado", recurso_id=e.id,
+        descripcion=f"Estado {e.codigo} actualizado (campos={list(data.keys())})",
+        detalles={"antes": antes, "despues": despues, "campos": list(data.keys())},
+    )
+    await db.commit()
     logger.info(f"Estado actualizado: {e.codigo} (campos={list(data.keys())})")
     return EstadoOut.model_validate(e)
 
@@ -147,7 +165,7 @@ async def delete_estado(
     db: AsyncSession = Depends(get_db),
 ):
     """Borrado logico. Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     e = (await db.execute(
         select(Estado).where(Estado.id == estado_id)
     )).scalar_one_or_none()
@@ -158,5 +176,12 @@ async def delete_estado(
     e.activo = False
     await db.commit()
     await db.refresh(e)
+    await write_audit(
+        db, request, user,
+        accion="DELETE", recurso="estado", recurso_id=e.id,
+        descripcion=f"Estado {e.codigo} borrado (logico)",
+        detalles={"codigo": e.codigo, "contexto": e.contexto.value},
+    )
+    await db.commit()
     logger.info(f"Estado borrado (logico): {e.codigo}")
     return EstadoOut.model_validate(e)

@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.email_template import EmailTemplate, CodigoPlantilla
 from app.schemas.email_template import (
     EmailTemplateListResponse,
@@ -136,7 +137,7 @@ async def update_email_template(
     Edita una plantilla (asunto, cuerpo, variables, activo). Requiere ETO o ADMIN.
     NO se puede cambiar el codigo (es PK logica del catalogo cerrado).
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     enum_val = _parse_codigo(codigo)
     t = await _get_by_codigo(db, enum_val)
 
@@ -144,11 +145,20 @@ async def update_email_template(
     if not data:
         return EmailTemplateOut.model_validate(t)
 
+    antes = {"asunto": t.asunto, "activo": t.activo, "variables_json": t.variables_json}
+
     for field, value in data.items():
         setattr(t, field, value)
 
     await db.commit()
     await db.refresh(t)
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="email_template", recurso_id=t.id,
+        descripcion=f"Plantilla {t.codigo.value} editada (campos={list(data.keys())})",
+        detalles={"antes": antes, "campos": list(data.keys()), "codigo": t.codigo.value},
+    )
+    await db.commit()
     logger.info(f"Plantilla editada: {t.codigo.value} (campos={list(data.keys())})")
     return EmailTemplateOut.model_validate(t)
 

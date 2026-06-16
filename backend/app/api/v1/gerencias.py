@@ -24,6 +24,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.gerencia import Gerencia
 from app.models.area import Area
 from app.schemas.gerencia import (
@@ -164,6 +165,14 @@ async def create_gerencia(
     db.add(g)
     await db.commit()
     await db.refresh(g)
+    user = await require_eto_or_admin(request, db)
+    await write_audit(
+        db, request, user,
+        accion="CREATE", recurso="gerencia", recurso_id=g.id,
+        descripcion=f"Gerencia {g.sigla} creada",
+        detalles={"despues": {"sigla": g.sigla, "nombre": g.nombre, "orden": g.orden, "activo": g.activo}},
+    )
+    await db.commit()
     logger.info(f"Gerencia creada: {g.sigla} (id={g.id})")
     return _to_out(g, areas_count=0)
 
@@ -179,7 +188,7 @@ async def update_gerencia(
     Actualiza parcialmente una gerencia. Requiere rol ETO o ADMIN.
     404 si no existe, 409 si cambia sigla y ya esta en uso.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     g = (await db.execute(
         select(Gerencia).where(Gerencia.id == gerencia_id)
@@ -192,6 +201,9 @@ async def update_gerencia(
         # PATCH sin campos: devolver el recurso sin cambios
         _, count = await _get_gerencia_with_count(db, gerencia_id)
         return _to_out(g, count)
+
+    # Snapshot del estado anterior para el audit
+    antes = {"sigla": g.sigla, "nombre": g.nombre, "orden": g.orden, "activo": g.activo}
 
     if "sigla" in data and data["sigla"] != g.sigla:
         dup = (await db.execute(
@@ -211,6 +223,14 @@ async def update_gerencia(
 
     await db.commit()
     await db.refresh(g)
+    despues = {"sigla": g.sigla, "nombre": g.nombre, "orden": g.orden, "activo": g.activo}
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="gerencia", recurso_id=g.id,
+        descripcion=f"Gerencia {g.sigla} actualizada (campos: {list(data.keys())})",
+        detalles={"antes": antes, "despues": despues, "campos": list(data.keys())},
+    )
+    await db.commit()
     logger.info(f"Gerencia actualizada: {g.sigla} (id={g.id}, campos={list(data.keys())})")
     _, count = await _get_gerencia_with_count(db, g.id)
     return _to_out(g, count)
@@ -229,7 +249,7 @@ async def delete_gerencia(
 
     Requiere rol ETO o ADMIN.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     g, _ = await _get_gerencia_with_count(db, gerencia_id)
 
@@ -249,6 +269,13 @@ async def delete_gerencia(
     g.activo = False
     await db.commit()
     await db.refresh(g)
+    await write_audit(
+        db, request, user,
+        accion="DELETE", recurso="gerencia", recurso_id=g.id,
+        descripcion=f"Gerencia {g.sigla} borrada (logico, areas desactivadas: {len(areas)})",
+        detalles={"sigla": g.sigla, "areas_desactivadas": [a.id for a in areas]},
+    )
+    await db.commit()
     logger.info(
         f"Gerencia borrada (logico): {g.sigla} (id={g.id}, "
         f"areas desactivadas: {len(areas)})"

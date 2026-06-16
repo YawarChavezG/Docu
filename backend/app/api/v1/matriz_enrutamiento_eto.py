@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.gerencia import Gerencia
 from app.models.matriz_enrutamiento_eto import (
     MatrizEnrutamientoEto, DisponibilidadEto,
@@ -212,6 +213,13 @@ async def create_matriz(
     db.add(m)
     await db.commit()
     await db.refresh(m)
+    await write_audit(
+        db, request, user,
+        accion="CREATE", recurso="matriz_eto", recurso_id=m.id,
+        descripcion=f"Matriz ETO creada: gerencia_id={m.gerencia_id} analista={m.analista_usuario_id}",
+        detalles={"despues": {"gerencia_id": m.gerencia_id, "analista_usuario_id": m.analista_usuario_id, "delegado_usuario_id": m.delegado_usuario_id, "disponibilidad": m.disponibilidad.value if hasattr(m.disponibilidad, 'value') else m.disponibilidad}},
+    )
+    await db.commit()
     logger.info(
         f"Matriz ETO creada: gerencia_id={m.gerencia_id} "
         f"analista={m.analista_usuario_id} (por user_id={user.id})"
@@ -251,11 +259,20 @@ async def update_matriz(
         if data["delegado_usuario_id"] == target_analista:
             raise HTTPException(422, "El delegado no puede ser el mismo analista")
 
+    antes = {"gerencia_id": m.gerencia_id, "analista_usuario_id": m.analista_usuario_id, "delegado_usuario_id": m.delegado_usuario_id, "disponibilidad": m.disponibilidad.value if hasattr(m.disponibilidad, 'value') else m.disponibilidad}
     for field, value in data.items():
         setattr(m, field, value)
     m.updated_by_id = user.id
     await db.commit()
     await db.refresh(m)
+    despues = {"gerencia_id": m.gerencia_id, "analista_usuario_id": m.analista_usuario_id, "delegado_usuario_id": m.delegado_usuario_id, "disponibilidad": m.disponibilidad.value if hasattr(m.disponibilidad, 'value') else m.disponibilidad}
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="matriz_eto", recurso_id=m.id,
+        descripcion=f"Matriz ETO {m.id} actualizada (campos={list(data.keys())})",
+        detalles={"antes": antes, "despues": despues, "campos": list(data.keys())},
+    )
+    await db.commit()
     logger.info(f"Matriz ETO actualizada: id={m.id} (campos={list(data.keys())})")
     return await _build_out(db, m)
 
@@ -270,13 +287,21 @@ async def delete_matriz(
     Elimina una fila (fisico, no logico). El seed permite re-crear.
     Requiere ETO o ADMIN.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     m = (await db.execute(
         select(MatrizEnrutamientoEto).where(MatrizEnrutamientoEto.id == matriz_id)
     )).scalar_one_or_none()
     if m is None:
         raise HTTPException(404, f"Matriz ETO {matriz_id} no existe")
+    snapshot = {"gerencia_id": m.gerencia_id, "analista_usuario_id": m.analista_usuario_id, "delegado_usuario_id": m.delegado_usuario_id}
     await db.delete(m)
+    await db.commit()
+    await write_audit(
+        db, request, user,
+        accion="DELETE", recurso="matriz_eto", recurso_id=matriz_id,
+        descripcion=f"Matriz ETO {matriz_id} eliminada (fisico)",
+        detalles=snapshot,
+    )
     await db.commit()
     logger.info(f"Matriz ETO eliminada: id={matriz_id}")
     return None

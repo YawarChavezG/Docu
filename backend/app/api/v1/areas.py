@@ -23,6 +23,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.permissions import require_eto_or_admin
+from app.core.audit import write_audit
 from app.models.area import Area
 from app.models.gerencia import Gerencia
 from app.models.usuario import Usuario
@@ -193,7 +194,7 @@ async def create_area(
     sigla despues de borrarla, primero renombrala (PATCH con sigla nueva)
     o espera a Sesion B para que se libere la sigla en el schema.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     # Validar gerencia existe
     await _resolve_gerencia(db, payload.gerencia_id)
@@ -218,6 +219,13 @@ async def create_area(
     db.add(a)
     await db.commit()
     await db.refresh(a)
+    await write_audit(
+        db, request, user,
+        accion="CREATE", recurso="area", recurso_id=a.id,
+        descripcion=f"Area {a.sigla} creada en gerencia {a.gerencia_id}",
+        detalles={"despues": {"sigla": a.sigla, "nombre": a.nombre, "gerencia_id": a.gerencia_id, "orden": a.orden, "activo": a.activo}},
+    )
+    await db.commit()
 
     logger.info(
         f"Area creada: {a.sigla} (id={a.id}, gerencia_id={a.gerencia_id})"
@@ -237,7 +245,7 @@ async def update_area(
     Actualiza parcialmente un area. Requiere rol ETO o ADMIN.
     404 si area/gerencia no existen, 409 si sigla choca con otra area.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     a = (await db.execute(
         select(Area).where(Area.id == area_id)
@@ -249,6 +257,8 @@ async def update_area(
     if not data:
         _, sigla, nombre, users_count = await _get_area_with_relations(db, a.id)
         return _to_out(a, sigla, nombre, users_count)
+
+    antes = {"sigla": a.sigla, "nombre": a.nombre, "gerencia_id": a.gerencia_id, "orden": a.orden, "activo": a.activo, "jefe_id": a.jefe_id}
 
     if "gerencia_id" in data and data["gerencia_id"] != a.gerencia_id:
         await _resolve_gerencia(db, data["gerencia_id"])
@@ -271,6 +281,14 @@ async def update_area(
 
     await db.commit()
     await db.refresh(a)
+    despues = {"sigla": a.sigla, "nombre": a.nombre, "gerencia_id": a.gerencia_id, "orden": a.orden, "activo": a.activo, "jefe_id": a.jefe_id}
+    await write_audit(
+        db, request, user,
+        accion="UPDATE", recurso="area", recurso_id=a.id,
+        descripcion=f"Area {a.sigla} actualizada (campos: {list(data.keys())})",
+        detalles={"antes": antes, "despues": despues, "campos": list(data.keys())},
+    )
+    await db.commit()
     logger.info(f"Area actualizada: {a.sigla} (id={a.id}, campos={list(data.keys())})")
     _, sigla, nombre, users_count = await _get_area_with_relations(db, a.id)
     return _to_out(a, sigla, nombre, users_count)
@@ -290,7 +308,7 @@ async def delete_area(
 
     Requiere rol ETO o ADMIN.
     """
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
 
     a, sigla, nombre, users_count = await _get_area_with_relations(db, area_id)
 
@@ -303,6 +321,13 @@ async def delete_area(
     a.activo = False
     await db.commit()
     await db.refresh(a)
+    await write_audit(
+        db, request, user,
+        accion="DELETE", recurso="area", recurso_id=a.id,
+        descripcion=f"Area {a.sigla} borrada (logico, usuarios vinculados: {users_count})",
+        detalles={"sigla": a.sigla, "usuarios_vinculados": users_count},
+    )
+    await db.commit()
     logger.info(
         f"Area borrada (logico): {a.sigla} (id={a.id}, usuarios vinculados: {users_count})"
     )
