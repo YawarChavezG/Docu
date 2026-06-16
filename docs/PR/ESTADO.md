@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-15 (sesión 4 — agente opencode/M3)
+> Última actualización: 2026-06-15 (sesión 5 — tarea 1/10 backend ÉPICA 9)
 
 ## Versión actual
 **v0.2.0-dev**
@@ -32,7 +32,7 @@
 | 12 | Endpoints /gerencias + /areas (CRUD) | ❌ | — | (no iniciadas) |
 | 13 | Endpoints /usuarios/{id}/delegado + /ausencia | ❌ | — | (no iniciadas) |
 | 14 | Endpoints POST /admin/sync-ad (manual) + job 00:05 | 🟡 | 15-jun | `POST /usuarios/sync-ad` listo; falta el job Celery Beat (carpeta `workers/` existe con `celery_app.py` pero no se ven tareas de sync programadas) |
-| 15 | Frontend src/utils/api.js con apiFetch | ❌ | — | **NO EXISTE**. `frontend/src/utils/` solo tiene `exportExcel.js` y `icons.js` |
+| 15 | Frontend src/utils/api.js con apiFetch | ✅ | 15-jun | `frontend/src/utils/api.js` (290 líneas) + `config.js` — CSRF auto, retry 5xx, timeout 30s, 401→login, 6 atajos (apiGet/Post/Put/Patch/Delete/Download) |
 | 16 | Refactorizar auth.js para API real | ✅ | 15-jun | `frontend/src/store/auth.js` modificado 15/6/2026 |
 | 17 | Refactorizar Login.js para API real | ✅ | 15-jun | `frontend/src/pages/Login.js` modificado 15/6/2026 |
 | 18 | Integrar Parametrizacion.js con API usuarios + boton sync AD | 🟡 | 15-jun | `Parametrizacion.js` modificado 15/6/2026 (65KB). Vista incluye boton sync-AD. Falta verificar uso de `apiFetch` (depende de tarea 15) |
@@ -79,7 +79,7 @@
 ---
 
 ## Progreso R1
-**10/23 tareas completadas** (43%) — falta crítico: Alembic, tests, utils/api.js, rate limit, CSP
+**11/23 tareas completadas** (48%) — falta crítico: tests, rate limit, CSP
 
 ## Progreso R2
 **0/21 tareas pendientes** (bloqueado por R1)
