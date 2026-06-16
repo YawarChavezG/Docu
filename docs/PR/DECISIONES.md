@@ -392,3 +392,50 @@ MODULO_NORMALIZATION: Dict[str, str] = {
 - ❌ El usuario `aromero` (ETO) tiene `delegado_id=NULL` después del import (ya estaba así pre-import).
 - ❌ Los flujos R3/R4 que dependen de delegado se romperán hasta resolver #13.
 - 🔴 **BLOQUEANTE para R3** (aprobación paralela) — pero no para R2 (creación de documentos no requiere delegado).
+
+---
+
+## ADR-026: `start-stack-qas.sh` es el punto único de entrada para QAS (2026-06-16, sesión 11)
+
+**Contexto:** El deploy QAS en sesión 10 requirió ~15 pasos manuales: configurar `.env.qas`, copiar código, rebuild imágenes, levantar containers, esperar health, correr 7 seeds, correr `sync_ad_oficial.py`, validar. Esto NO es repetible, NO es testeable, y NO escala. Un admin nuevo necesitaría 30+ minutos para reproducir el deploy.
+
+**Decisión:** **`scripts/start-stack-qas.sh`** es el punto único de entrada para levantar QAS. Es un script bash idempotente que ejecuta 8 pasos en orden:
+1. Validar prerequisitos (Docker, `.env.qas`, 8 archivos de seed).
+2. Provisionar `/opt/sgd/backend/storage/` (eliminar archivos corruptos).
+3. `docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas up -d`.
+4. Esperar health-checks de PostgreSQL y backend (timeout 60s cada uno).
+5. Aplicar permisos correctos a `/app/storage/` dentro del container (chown 1000:1000 + chmod 755/644).
+6. Aplicar 7 seeds en orden de dependencias FK (seed_data → seed_organizacion → seed_tipos_documento → seed_estados → seed_feriados → seed_email_templates → seed_matriz_eto).
+7. Si `LDAP_ENABLED=true`, ejecutar `sync_ad_oficial.py` con `--env-file` y validar el CSV generado.
+8. Resumen con conteos de BD + servicios + URLs.
+
+`scripts/deploy-qas.bat` (en la laptop) invoca este script automáticamente vía SSH después del `docker compose up -d`. Flags disponibles: `--no-restart`, `--no-seed`.
+
+**Consecuencia:**
+- ✅ Deploy QAS 1-click: `bash /opt/sgd/scripts/start-stack-qas.sh` desde el server, o `scripts\deploy-qas.bat` desde la laptop.
+- ✅ Idempotente: se puede correr múltiples veces sin efectos colaterales.
+- ✅ Validación de archivos al inicio (no falla a mitad de camino).
+- ✅ Colores ANSI para output legible.
+- ✅ Orden de seeds correcto según FKs (verificado contra `app/models/__init__.py`).
+- ✅ Aplica permisos correctos sin chmod 777 (forma "production-ready").
+- ❌ El script solo funciona en QAS (en DES se usa `start-stack-des.bat`, en backup `start-stack-backup.bat`).
+- ❌ El sync AD solo genera el CSV — NO lo carga a la BD automáticamente. El carguío a BD sigue siendo via `run_matriz_import.py` (decisión separada, no automatizada por ahora).
+- 📝 Aplicable a PRD con mínimos cambios (mismas 8 fases, diferentes paths y `docker-compose.prd.yml`).
+
+---
+
+## ADR-027: Sync AD output path = `/app/storage/` (no `/app/scripts/`) (2026-06-16, sesión 11)
+
+**Contexto:** `sync_ad_oficial.py` escribe el CSV de usuarios extraídos del AD a `BACKEND_DIR / "scripts" / "usuarios_sap_FINAL2026.csv"` (i.e., `/app/scripts/` dentro del container). En QAS, este path NO es escribible por `sgduser` (uid 1000) porque es propiedad de root (uid 1001 en host) via bind mount. Resultado: `PermissionError: [Errno 13] Permission denied`.
+
+**Decisión:** Cambiar el path default a `/app/storage/usuarios_sap_FINAL2026.csv` (`/app/storage/` es el volume named `sgd-qas_backend_storage`, escribible por sgduser). Configurable via `SYNC_AD_OUTPUT_DIR` env var para mantener compatibilidad con DES.
+
+Adicionalmente, `start-stack-qas.sh` copia el CSV del container al host via `docker cp` para auditoría (`/opt/sgd/backend/scripts/usuarios_sap_FINAL2026.csv` en el server).
+
+**Consecuencia:**
+- ✅ Funciona out-of-the-box en QAS sin chmod 777 ni workarounds.
+- ✅ El CSV se preserva aunque el container se destruya (porque está en un named volume + copia al host).
+- ✅ Configurable: si en algún entorno `/app/scripts/` es escribible, se puede override con `SYNC_AD_OUTPUT_DIR=/app/scripts`.
+- ❌ El CSV "legacy" en `/opt/sgd/scripts/usuarios_sap_FINAL2026.csv` queda obsoleto (era el output de una versión anterior del script). Mantenerlo solo para referencia histórica.
+- 📝 El mismo principio aplica a cualquier script que genere archivos: deben escribirse en `/app/storage/` o `/tmp/`, nunca en `/app/scripts/` o `/app/`.
+

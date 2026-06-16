@@ -707,3 +707,378 @@ Opciones:
 4. **#19-21 - Security hardening pre-QAS**: CSP, DOMPurify, rate limit. Backlog R1.
 
 Recomendacion: cerrar #13 y #14 (deudas chicas) antes de R2.
+
+---
+
+## Sesion 10 — 2026-06-16 (martes PM) — BACKUP paralelo + discrepancia en ESTADO detectada
+
+> Sesion dedicada a 2 cosas:
+> 1. Diagnosticar discrepancia en ESTADO.md (tarea #8 marcada ❌ cuando Alembic ya tiene 10 migraciones aplicadas).
+> 2. **Crear stack BACKUP paralelo en puertos 8081/5174/18001** para mostrar el estado actual en una
+>    reunion sin riesgo de romper la demo, y poder seguir desarrollando en el original (8080/5173/18000).
+
+### Hallazgo de inicio (importante para futuras sesiones)
+
+**Discrepancia detectada en ESTADO.md:**
+- Tarea #8 "Migracion Alembic inicial" esta marcada como ❌ con nota "alembic/ existe pero VACIO".
+- Realidad verificada: 10 migraciones aplicadas (001-010), head = `b397cd9bfb91` (Fix B1).
+- Esto se origino en sesion 4 (auditoria inicial, antes de las migraciones de sesiones 5 y 6) y nunca se actualizo.
+- BITACORA sesion 5 ya documentaba "Alembic YA esta aplicado (tabla alembic_version existe)" pero ESTADO.md no se corrigio.
+
+**Pendiente de cleanup (post-reunion):** sincronizar ESTADO.md contra la realidad (tarea #8 ✅, conteo de tablas 25/28, etc.).
+
+### Backup paralelo: resultado
+
+**8 archivos nuevos** + 0 modificaciones al stack original:
+
+| Archivo | Funcion |
+|---|---|
+| `.env.backup` | Vars de entorno del backup (puertos +1, DB=sgd_backup) |
+| `deploy/docker-compose.backup.yml` | Compose del backup (container_name sgd-bk-*, volume sgd-bk_*, network sgd-bk-net) |
+| `deploy/nginx/conf.d.bk/sgd-backup.conf` | Server block nginx aislado del original (carpeta distinta) |
+| `scripts/start-stack-backup.bat` | Orquestador: up pg/redis → cp dump → pg_restore → up resto → wait health → URLs |
+| `scripts/stop-stack-backup.bat` | Apaga backup (opcional `--purge` borra volumenes) |
+| `docs/PR/BACKUP-PARALELO.md` | Doc completa con URLs, troubleshooting, limitaciones |
+| `backups/20260616_150015/sgd_pre_refactor.dump` | Dump pg_dump -Fc (119KB) del estado pre-refactor |
+| `backups/20260616_150015/src/` | Copia del working tree (393 archivos, 31.82MB) |
+
+### URLs resultantes (verificadas con curl + login)
+
+| Recurso | Original | Backup |
+|---|---|---|
+| App (Nginx) | http://localhost:8080 | http://localhost:8081 |
+| Frontend | http://localhost:5173 | http://localhost:5174 |
+| Backend | http://localhost:18000 | http://localhost:18001 |
+| MailHog | http://localhost:8025 | http://localhost:8026 |
+| Postgres | 25432 (db: sgd) | 25433 (db: sgd_backup) |
+| Redis | 26379 | 26380 |
+
+### Validacion end-to-end del backup
+
+| Verificacion | Resultado |
+|---|---|
+| `GET /api/v1/health` (directo 18001) | 200 OK, db OK |
+| `GET /health` (via nginx 8081) | 200 OK |
+| Login `aromero / cofar.2026` via 8081 | 200 OK + 3 cookies (csrf, session, user_id) + user JSON completo |
+| Frontend 5174 | 200 OK, HTML identico al 5173 |
+| Datos backup vs original | IDENTICOS: 764 usuarios, 14 gerencias, 56 areas, 15 tipos, 8 estados, 23 feriados, 6 email_templates, 10 matriz_eto, 8 config_global, 46 audit_log, alembic=b397cd9bfb91 |
+| 16 contenedores activos | OK (8 original + 8 backup, sin conflictos) |
+
+### Logros tecnicos
+
+1. **Stack 100% aislado** del original — comparte codigo fuente pero no volumenes, redes, ni nombres de container.
+2. **0 modificaciones al stack original** — la reunion puede seguir mostrando el estado actual sin riesgo de rotura.
+3. **Restauracion automatica del dump** — el script hace pg_restore con `--no-owner --role=sgd --clean --if-exists`, tolera re-runs.
+4. **Documentacion completa** en `docs/PR/BACKUP-PARALELO.md` con troubleshooting (4 escenarios: container name conflict, nginx no arranca, role does not exist, datos no esperados).
+
+### Riesgos identificados y mitigaciones aplicadas
+
+1. **Nginx "conflicting server name"** si ambos stacks compartian `conf.d/` → mitigado con `conf.d.bk/` separado.
+2. **Vite HMR viendo codigo de ambos** → documentado como INTENTIONAL (backup es espejo, no sandbox). Si se quiere aislar, apagar backup antes de editar.
+3. **CORS_ORIGINS restrictivo del backup** → .env.backup incluye ambos stacks (8080+8081).
+4. **Memoria Docker** (16 contenedores) → documentado en limitaciones; opcion de bajar celery-W/B si hace falta.
+
+### Decisiones tecnicas (ADRs candidatos para sesion 11)
+
+- **ADR-021 (en draft)**: Stack backup paralelo con puertos +1, container_name prefix `sgd-bk-`, volume prefix `sgd-bk_`, network `sgd-bk-net`, DB `sgd_backup`. Permite demo en paralelo al desarrollo sin riesgo de rotura.
+- **ADR-022 (en draft)**: nginx config del backup en `conf.d.bk/` (NO `conf.d/`) para evitar warnings de conflicting server name en el nginx del original.
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + import matriz + Editar Usuario + Mi Perfil**: 35/35 (100%). Sin cambios.
+- **Sesion 10 (BACKUP paralelo)**: 100% completo. 8 archivos nuevos, 0 regresiones en original.
+- **Pendiente limpieza**: sincronizar ESTADO.md con realidad (tarea #8 ya esta ✅, conteo de tablas 25/28, etc.). Backlog para sesion post-reunion.
+
+### Proxima sesion (sesion 11) — TBD
+
+Opciones (mismas que antes, no hubo cambios):
+1. **Fase 1 del refactor Parametrizacion.js** (CRITICA, 2-3h): eliminar mocks duplicados, restaurar CRUD real, seed claves de Restricciones.
+2. **#13 - Deuda delegado** (pequeno).
+3. **#14 - Cargos a areas** (mediano).
+4. **Sincronizar ESTADO.md** (limpieza, 15 min) — recomendado hacer primero.
+
+Recomendacion: empezar por la limpieza de ESTADO.md (rapida) y luego Fase 1 del refactor.
+
+---
+
+## Sesion 10 (CONTINUACION) — 2026-06-16 (martes PM) — Deploy QAS en sgdqas.cofar.com.bo
+
+> Continuacion de la sesion 10. Despues del backup paralelo, el usuario solicito
+> migrar el sistema al servidor QAS (Debian 12, 2vCPU, 16GB RAM, 250GB disco).
+> Server: SRVQAS-SIGDOC (10.11.0.11). Acceso SSH: sistemas / [PASSWORD].
+
+### Tareas ejecutadas (orden)
+
+| # | Tarea | Resultado |
+|---|---|---|
+| 10.1 | TUTORIAL-BACKUP-PARALELO.md | Documento con 9 secciones: encender, verificar, browser, apagar, actualizar dump, troubleshooting, URLs, archivos, cuando dejar de usar |
+| 10.2 | Conectividad SSH (plink -pw + key) | OpenSSH Windows + plink disponibles. Conectado. SSH key instalada en `/home/sistemas/.ssh/authorized_keys` |
+| 10.3 | NOPASSWD sudo para sistemas | `/etc/sudoers.d/sistemas-nopasswd` con `sistemas ALL=(ALL) NOPASSWD: ALL` |
+| 10.4 | Instalar Docker | Docker 29.5.3 + Compose v5.1.4. Script `qas-setup-docker.sh` reutilizable |
+| 10.5 | DNS COFAR en QAS | `/etc/resolv.conf` con 172.16.10.50, 172.16.10.51 + Google/Cloudflare fallback |
+| 10.6 | Copiar codigo a /opt/sgd | 369 archivos. **Trampa encontrada**: Compress-Archive usa `\` Windows; Python `shutil.make_archive` usa `/` Linux. Usar Python para zip |
+| 10.7 | Cert autofirmado | `deploy/nginx/ssl/sgdqas.{crt,key}` con SAN: sgdqas.cofar.com.bo, localhost, 10.11.0.11, 127.0.0.1. 365 dias |
+| 10.8 | .env.qas con secrets unicos | JWT random 32 bytes, PG password random 16 chars. chmod 600. NO en git |
+| 10.9 | docker-compose.qas.yml + sgd-qas.conf | 8 servicios, HTTPS, red `sgd-qas-net`, volumenes `sgd-qas_*`, port mapping 80+443 |
+| 10.10 | Levantar stack + fix celery-beat | 8/8 Up. **Bug fix**: `celery -A app.workers.celery_app beat -s /app/storage/celerybeat-schedule` (original fallaba con Permission denied en CWD) |
+| 10.11 | Correr 7 seeds | seed_data + 6 mas: 5 users, 10 gerencias, 50 areas, 13 tipos, 5 estados, 20 feriados, 6 emails, 10 matriz_eto |
+| 10.12 | Validacion end-to-end | HTTPS 200 OK, login 200 OK desde local + desde corp, redirect HTTP->HTTPS 301, BD consistente, alembic=b397cd9bfb91 |
+| 10.13 | scripts/deploy-qas.bat | Empaqueta + scp + extract + rebuild + restart en 1 solo comando desde la laptop. Preserva .env.qas y ssl/. Flags: --no-restart, --migrate |
+| 10.14 | docs/PR/DEPLOY-QAS.md | 11 secciones: setup, arquitectura, workflow migracion, cheat sheet, troubleshooting, seguridad, backup, PROD, archivos, comandos reunion, recordar |
+
+### URLs y accesos QAS (validados)
+
+| Recurso | URL | Verificado |
+|---|---|---|
+| App (HTTPS) | https://sgdqas.cofar.com.bo | 200 OK, login funcional |
+| Health | https://sgdqas.cofar.com.bo/health | 200 OK via nginx + backend |
+| HTTP → HTTPS | http://sgdqas.cofar.com.bo | 301 redirect correcto |
+| SSH | sistemas@sgdqas.cofar.com.bo | OK con key |
+| PostgreSQL (interno) | postgres:5432 (container name) | NO expuesto al host (security) |
+| MailHog (interno) | mailhog:1025/8025 | NO expuesto al host |
+
+### Validacion BD QAS post-seeds
+
+```
+usuarios: 5 (4 stubs + 1 de seed_data)
+gerencias: 10
+areas: 50
+tipos_documento: 13
+estados: 5
+feriados: 20
+email_templates: 6
+matriz_enrutamiento_eto: 10
+configuracion_global: 0   (pendiente, ver PENDIENTES-R1)
+roles: 5
+modulos: 11
+audit_log: 0
+alembic: b397cd9bfb91
+```
+
+### Decisiones tecnicas (ADRs candidatos para sesion 11)
+
+- **ADR-023 (en draft)**: QAS deploy usa Docker stack completo con cert autofirmado. Network `sgd-qas-net` y volumenes `sgd-qas_*` aislados del DES local y del backup paralelo.
+- **ADR-024 (en draft)**: celery-beat usa `-s /app/storage/celerybeat-schedule` para evitar Permission denied en CWD `/app` (usuario sgduser no puede escribir ahi). Aplicable tambien al stack DES.
+- **ADR-025 (en draft)**: Workflow de migracion es `scripts/deploy-qas.bat` desde laptop -> tar+scp+extract -> docker compose build+up. Sin git remote (no hay). Para QAS es aceptable; para PROD considerar git remote + CI/CD.
+
+### Trampas/ensenanzas para futuras sesiones
+
+1. **PowerShell `char[]` syntax no funciona en `$(...)`**: usar `[char]$_` despues de un pipe, o usar `Get-Random` con `char[]` en un subexpression.
+2. **Compress-Archive usa `\` Windows en entries**: extraido por Linux trata `name\path\file` como filename, no como dirs. Usar Python `shutil.make_archive` que usa `/`.
+3. **Tar Windows tiene bugs con algunos archivos** ("Couldn't open ... Permission denied" para xlsx locked, celerybeat-schedule). Robocopy + Python zip es mas confiable.
+4. **plink -batch no asigna TTY**: para `sudo` que pide password, usar `echo $pw | sudo -S command` (lee de stdin).
+5. **OpenSSH Windows ssh-keygen genera 4096-bit RSA por default**: bien para QAS, sin passphrase para unattended.
+6. **Cert autofirmado debe incluir SAN** (no solo CN): browsers modernos ignoran CN si hay SAN. Usar `-addext 'subjectAltName=...'`.
+7. **Alpine base image crea user `sgduser` con uid 1000**: en `Dockerfile` ya estan `chown -R sgduser:sgduser /app` pero `celery-beat` quiere escribir en CWD `/app` que NO es owned por sgduser. Fix: `-s` flag con path escribible.
+8. **El healthcheck de celery-beat/health puede no estar**: la imagen `cofar-sgd-api` solo tiene healthcheck en el servicio `backend`, no en celery. El "unhealthy" que vimos desde la sesion 5 era porque el healthcheck no existe (siempre es "starting" o "Restarting" si falla).
+
+### Seguridad (importante, leer antes de QAS en PROD)
+
+| Item | QAS actual | Recomendacion PROD |
+|---|---|---|
+| Password SSH sistemas | Texto plano en este chat | Cambiar AHORA + SSH key-only |
+| Sudo NOPASSWD | `ALL` para sistemas | Restringir a comandos especificos |
+| Cert HTTPS | Autofirmado (warning en browser) | Let's Encrypt o cert corporativo |
+| POSTGRES_PASSWORD | Random 16 chars en .env.qas | Mismo + Vault/secret manager |
+| JWT_SECRET | Random 32 bytes en .env.qas | Mismo + rotacion periodica |
+| LDAP_BIND_PASSWORD | Misma que DES (service account corp) | Considerar cuenta dedicada de QAS |
+| HTTP -> HTTPS | Redirect 301 correcto | OK |
+| HSTS | Habilitado (`max-age=31536000`) | OK |
+
+### Archivos nuevos (8 total, 0 modificaciones al original o backup)
+
+```
+TUTORIAL-BACKUP-PARALELO.md                              # Tutorial encender/apagar
+deploy/docker-compose.qas.yml                            # Compose QAS
+deploy/nginx/conf.d/sgd-qas.conf                         # Nginx HTTPS QAS
+scripts/qas-setup-docker.sh                              # Setup inicial Docker en QAS
+scripts/deploy-qas.bat                                   # Deploy desde laptop
+docs/PR/DEPLOY-QAS.md                                    # Tutorial + troubleshooting
+/opt/sgd/.env.qas (en QAS, NO en git)                    # Vars de entorno QAS
+/opt/sgd/deploy/nginx/ssl/sgdqas.{crt,key} (en QAS)      # Cert autofirmado
+```
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + import matriz + Editar Usuario + Mi Perfil + Backup paralelo**: 35/35 (100%). Sin cambios.
+- **QAS deploy**: 100% completo. Server operacional. 8 servicios Up. BD sembrada. HTTPS funcional. AD real configurado.
+- **Pendiente**: restaurar dump de backups/20260616_150015/sgd_pre_refactor.dump si quieren los 764 usuarios con la matriz abril (decision del usuario, no automatica).
+- **Backlog seguridad pre-QAS-public**: cambiar password sistemas, restringir sudo, cert valido.
+
+### Proxima sesion (sesion 11) — TBD
+
+Opciones:
+1. **Refactor Parametrizacion.js** (Fase 1 CRITICA): eliminar mocks duplicados, restaurar CRUD real. Misma tarea que antes, ahora en el contexto de tener QAS funcional.
+2. **#13 Deuda delegado**: implementar match desde AD o fuzzy.
+3. **#14 Cargos a areas**: seed POSICION -> area_id.
+4. **Sincronizar ESTADO.md**: limpieza 15 min (tarea #8 ya esta ✅, conteo de tablas 25/28, etc).
+5. **Configurar backups automaticos en QAS** (cron + pg_dump).
+6. **Restaurar dump del DES en QAS** (si quieren los 764 usuarios con matriz abril alli tambien).
+7. **Configurar cert valido + hardening de seguridad pre-QAS-public**.
+
+Recomendacion: arrancar con limpieza de ESTADO.md (15 min) + refactor Parametrizacion.js Fase 1 (3h).
+
+---
+
+## Sesion 11 — 2026-06-16 (martes PM) — Automatización completa del deploy QAS
+
+> Sesion dedicada a cerrar el deploy QAS 1-click, codificando en
+> scripts los fixes manuales que se hicieron durante la sesion 10
+> (permisos storage, sync AD, orden de seeds). Tambien se aprovecha
+> para limpiar el smell code `_build_server` y sincronizar ESTADO.md
+> con la realidad.
+
+### Contexto de inicio
+
+El usuario volvio con 3 pedidos concretos:
+1. Validar que existan fisicamente los archivos de seeds que mencionan
+   los scripts.
+2. Asegurar que el script incluya aprovisionamiento de permisos del
+   storage (sin chmod 777 — la "forma correcta").
+3. Automatizar el paso final del sync AD usando `sync_ad_oficial.py`.
+
+Ademas: el working tree tenia 4 archivos modificados sin commitear de
+la sesion 10 (docs + vite.config.js) y 14 archivos untracked (los del
+deploy QAS + backup paralelo).
+
+### Diagnostico inicial (verificado en vivo via SSH key)
+
+| Recurso | Estado |
+|---|---|
+| Docker local (laptop) | OK, 16 contenedores activos (8 DES + 8 backup paralelo) |
+| DES backend `localhost:18000/api/v1/health` | 200 OK |
+| DES backend via Nginx `localhost:8080/api/v1/health` | 200 OK |
+| QAS (sgdqas.cofar.com.bo) via SSH key | OK, 8 contenedores Up |
+| QAS health via HTTPS | 200 OK (curl -k) |
+| QAS BD | 5 users, 10 gerencias, 50 areas, 13 tipos, 5 estados, 20 feriados, 6 emails, 10 matriz_eto, alembic=b397cd9bfb91 |
+| Password SSH `sistemas` | Cambiada (ya no acepta plink -pw; solo SSH key) |
+| `/opt/sgd/storage/` en QAS host | NO existe (storage es volume Docker, no bind mount) |
+| `/app/storage/` en QAS container | Existe, propiedad de sgduser |
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Resultado |
+|---|---|---|
+| 11.1 | Refactor smell code `_build_server` → `build_server` (public API) | 4 ediciones: 1 en ad_service.py (def + 2 callers internos), 1 en sync_ad_oficial.py (import + 1 caller). Verificado con grep. |
+| 11.2 | Fix `celerybeat-schedule` con `-s` flag y volume correcto | Agregado `-s /app/storage/celerybeat-schedule` + volume `backend_storage:/app/storage` en los 3 compose (DES, QAS, backup). Eliminado `backend/celerybeat-schedule` huérfano. |
+| 11.3 | Crear `scripts/start-stack-qas.sh` (313 líneas) | 8 pasos: preflight + storage + compose up + health + chown 1000:1000 + 7 seeds + sync AD + resumen. Colores ANSI, validación de archivos, timeouts. Idempotente. |
+| 11.4 | Refactor `start-stack-des.bat` (Windows) | Agregado paso 2: provisionar storage (limpiar archivos corruptos). Agregado paso 5: chown 1000:1000 + chmod 755/644 dentro del container via `docker exec --user root`. |
+| 11.5 | Refactor `deploy-qas.bat` (laptop) | Agregado paso 6: invocar `start-stack-qas.sh` en el server post-deploy. Flag `--no-seed` para skip. Flag `--no-restart` se mantiene. |
+| 11.6 | Refactor `sync_ad_oficial.py` output path | Default `/app/storage/usuarios_sap_FINAL2026.csv` (writable por sgduser), configurable via `SYNC_AD_OUTPUT_DIR`. CSV se copia al host via `docker cp` para auditoría. |
+| 11.7 | Update `.env.example` con nota QAS | Agregada nota sobre `LDAP_SERVER=10.10.0.2` para QAS (no `172.16.10.17` que era el de DES). |
+| 11.8 | Update `ESTADO.md` con realidad | Tarea #8 marcada ✅ (10 migraciones aplicadas). Sesión 10 + 11 listadas. Versión bumped a v0.5.3-dev. |
+| 11.9 | Update `BITACORA.md` con sesión 11 | Esta entrada. |
+| 11.10 | Crear ADR-026 y ADR-027 en DECISIONES.md | Ver abajo. |
+| 11.11 | Validar end-to-end en QAS | `start-stack-qas.sh` corre 8/8 pasos. 7 seeds idempotentes. LDAP bind OK. **753 usuarios generados** en CSV. |
+
+### Bugs detectados y corregidos durante la sesion
+
+1. **`from app.services.ad_service import _build_server` en `sync_ad_oficial.py`** (smell code — uso de función privada). Renombrado a `build_server` (public). 4 ediciones.
+2. **`/app/storage/celerybeat-schedule` no era escribible por sgduser** en los compose de DES y backup (faltaba el flag `-s` en el command). Agregado en los 3 compose.
+3. **Compose no tenia volume `backend_storage` en celery-beat** de DES/backup (QAS lo tenia). Agregado en los 3 compose.
+4. **Permisos storage corruptos en celerybeat-schedule** (chmod 777 que era "la forma incorrecta"). Reemplazado con `chown 1000:1000 + chmod 755 dirs / 644 files` (forma correcta via `docker exec --user root`).
+5. **Banner ASCII en `start-stack-qas.sh` mostraba códigos literales** (`\033[1m`) en vez de interpretar escapes. Causa: `readonly BOLD='\033[1m'` con single quotes. Fix: usar `$'\033[1m'` (ANSI-C quoting) para que bash interprete el escape.
+6. **`docker exec wc -l < /path` se interpretaba en el host** (no en el container). Fix: `docker exec ... sh -c 'wc -l < /path'`.
+7. **`sync_ad_oficial.py` no recibia env vars LDAP** porque el container no ve `/opt/sgd/.env.qas` (solo `../backend:/app`). Fix: `docker exec --env-file /opt/sgd/.env.qas ...`.
+8. **CSV no se podia escribir a `/app/scripts/`** (propiedad de root via bind mount). Fix: output path default `/app/storage/` (volume escribible por sgduser). Configurable via `SYNC_AD_OUTPUT_DIR`.
+
+### Logros tecnicos
+
+1. **Deploy QAS 1-click**: `scripts/deploy-qas.bat` en la laptop → `bash /opt/sgd/scripts/start-stack-qas.sh` en el server → stack 100% funcional con seeds + sync AD (753 usuarios).
+2. **Forma correcta de permisos**: chown 1000:1000 + chmod 755/644 via `docker exec --user root`. NO chmod 777.
+3. **Refactor de smell**: `_build_server` → `build_server` (4 ediciones, public API).
+4. **Bugs pre-existentes corregidos en compose**: `-s /app/storage/celerybeat-schedule` faltaba en DES y backup (causaba "unhealthy" en celery-beat desde la sesion 1).
+5. **Documentación sincronizada**: ESTADO.md refleja la realidad (tarea #8 ✅, 35/35 R1 + EPICA9 cerrado).
+6. **Validacion empirica en QAS** con 8 pasos automatizados y conteos finales correctos.
+
+### Trampas/ensenanzas
+
+1. **Heredoc + color codes = literal**: si usas `readonly BOLD='\033[1m'` y luego `${BOLD}` en `cat <<EOF`, bash pone los caracteres literales. Usa `$'...'` para ANSI-C quoting, o `printf` con `%s`.
+2. **`<` en `docker exec` se redirige en el host**, no en el container. Para wc/head/etc dentro del container, usa `docker exec ... sh -c '...'` o pasa el path como argumento.
+3. **`docker exec --env-file` es la forma limpia** de pasar muchas env vars a un container, evitando el `-e` por variable.
+4. **Bind mounts NO preservan chown de la imagen**: aunque el Dockerfile haga `chown -R sgduser:sgduser /app`, el bind mount del host pisa esa ownership. La solución es `docker exec --user root ... chown` post-start (idempotente y clara).
+5. **Los "unhealthy" de celery en DES desde la sesion 1** eran porque faltaba el `-s` flag. La sesion 5 intento arreglarlo pero solo lo arreglo para QAS, no para DES ni backup. Ahora arreglado para los 3.
+6. **El working tree tenia 14 archivos untracked** de la sesion 10 (deploy QAS + backup paralelo). Ninguno se commiteo, por lo que un `git clean` los hubiera borrado. Se commitean en esta sesion.
+
+### Validacion empirica en QAS (sesion 11)
+
+```
+$ ssh sistemas@sgdqas.cofar.com.bo "bash /opt/sgd/scripts/start-stack-qas.sh"
+
+[1/8] Verificando prerequisitos...
+      OK: Prerequisitos OK. 8 archivos de seed validados.
+[2/8] Provisionando /opt/sgd/backend/storage (uid 1000:1000, sin chmod 777)...
+      OK: Storage provisionado.
+[3/8] Levantando stack QAS con /opt/sgd/.env.qas...
+      OK: 8 servicios iniciandose.
+[4/8] Esperando health-checks...
+      OK: PostgreSQL ready.
+      OK: Backend ready (HTTPS via nginx).
+[5/8] Aplicando permisos correctos a /app/storage dentro del container...
+      Permisos aplicados:
+      drwxr-xr-x 2 sgduser sgduser 4096 Jun 16 16:02 .
+      OK: Storage con permisos correctos (755/644, owner sgduser).
+      OK: celery-beat reiniciado.
+[6/8] Aplicando seeds (orden por dependencias FK)...
+      OK: seed_data.py (Roles + Modulos + Gerencias + Areas + 4 stubs).
+      OK: seed_organizacion.py (27 areas adicionales).
+      OK: seed_tipos_documento.py (13 tipos).
+      OK: seed_estados.py (5 estados).
+      OK: seed_feriados.py (20 feriados Bolivia 2026).
+      OK: seed_email_templates.py (6 plantillas).
+      OK: seed_matriz_eto.py (10 filas + cecEspinoza).
+      OK: 7/7 seeds aplicados correctamente.
+[7/8] Sincronizacion AD (solo si LDAP_ENABLED=true)...
+      INFO: LDAP_ENABLED=true. Ejecutando sync_ad_oficial.py...
+      ARCHIVO EXPORTADO: /app/storage/usuarios_sap_FINAL2026.csv  (753 filas)
+      OK: CSV generado en /app/storage/: 760 lineas (incluye header).
+      OK: CSV copiado a /opt/sgd/backend/scripts/ (host).
+[8/8] Resumen final
+      Conteos de BD:
+        roles:           5
+        modulos:         11
+        gerencias:       10
+        areas:           50
+        usuarios:        5 (4 stubs + 1 de seed)
+        tipos_documento: 13
+        estados:         5
+        feriados:        20
+        email_templates: 6
+        matriz_eto:      10
+        alembic:         b397cd9bfb91
+      OK: Stack QAS listo.
+```
+
+### Decisiones tecnicas (ADRs nuevos en sesion 11)
+
+- **ADR-026**: `start-stack-qas.sh` es el punto único de entrada para levantar QAS. 8 pasos idempotentes. Permisos via chown (no chmod 777). Sync AD automatizado si `LDAP_ENABLED=true`.
+- **ADR-027**: Sync AD output path es `/app/storage/` (volume escribible por sgduser), no `/app/scripts/` (propiedad de root via bind mount). Configurable via `SYNC_AD_OUTPUT_DIR`.
+- **ADR-024 (ratificado)**: celery-beat DEBE usar `-s /app/storage/celerybeat-schedule` en TODOS los compose (DES, QAS, backup). Faltaba en DES y backup → unhealthy desde sesion 1.
+
+### Progreso actualizado
+
+- **R1 + EPICA9**: 35/35 (100%). Cerrado.
+- **QAS**: 8/8 (100%). Automatizado 1-click.
+- **R2**: 0/21. Listo para arrancar (no hay bloqueos).
+- **Total**: 35/48 (73%) + 4 bonus + 8 tareas QAS automatizadas.
+- **Migraciones Alembic**: 10 aplicadas. Sin cambios.
+- **Endpoints totales**: 50+ REST. Sin cambios.
+- **Scripts nuevos**: 1 (`start-stack-qas.sh`).
+- **Scripts refactorizados**: 3 (`start-stack-des.bat`, `deploy-qas.bat`, `sync_ad_oficial.py`).
+- **Compose files refactorizados**: 3 (DES, QAS, backup) — agregado `-s` flag y volume storage.
+- **ADRs nuevos**: 026, 027.
+- **Archivos modificados**: `ad_service.py` (smell fix), `vite.config.js` (allowedHosts), `.env.example` (nota QAS).
+- **Archivos movidos**: `backend/celerybeat-schedule` → `backend/storage/celerybeat-schedule.bak` → borrado (volumen Docker se encarga).
+
+### Proxima sesion (sesion 12) — TBD
+
+Opciones:
+1. **Refactor Parametrizacion.js** (Fase 1, 2-3h): eliminar mocks duplicados, restaurar CRUD real.
+2. **R2 — Wizard de creacion** (tareas #23+): ya esta todo listo para arrancar.
+3. **#13 Deuda delegado**: implementar match desde AD `manager` attribute o fuzzy + threshold 0.85.
+4. **#14 Cargos a areas**: seed POSICION → area_id.
+5. **Backups automaticos en QAS** (cron + pg_dump): ya tenemos 16 contenedores, falta automatizar el backup.
+6. **Hardening de seguridad pre-QAS-public**: cert válido, sudo restringido, password SSH rotada (parcialmente hecha).
+
+Recomendacion: arrancar con #13 (rapido, ~30 min) + backups automaticos en QAS (~45 min) + hardening. Dejar R2 y refactor para la siguiente.
+

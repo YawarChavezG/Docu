@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-16 (sesión 9 — Editar Usuario + Mi Perfil BD + Export corregido)
+> Última actualización: 2026-06-16 (sesión 11 — automatización completa del deploy QAS: `start-stack-qas.sh` 1-click + fix permisos storage + refactor smell code)
 
 ## Versión actual
-**v0.5.0-dev** (salto por funcionalidad Editar Usuario: rol/delegado/vacacion/estado + modal centrado + searchable picker)
+**v0.5.3-dev** (sesión 11: automatización QAS — `scripts/start-stack-qas.sh` ejecuta 7 seeds + sync AD + URLs en 1 comando. Permisos correctos via chown 1000:1000 (no chmod 777). Refactor `_build_server` → `build_server`. ADRs 026 y 027.)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
@@ -25,7 +25,7 @@
 | 5 | Crear .env raíz + .env.example | ✅ | 14-jun | 30+ variables |
 | 6 | Levantar la stack y validar docker compose up | ✅ | 14-jun | 8 contenedores Up (nginx, frontend, postgres, redis, mailhog, celery-W/B; backend fuera de Docker — ver ADR-013) |
 | 7 | Schema SQLAlchemy de Organización (11 tablas) | ✅ | 15-jun | 16 clases en `backend/app/models/` — gerencia, area, usuario (+usuario_roles, usuario_modulos), rol, modulo, delegacion, ausencia, firma_digital, log_sync_ad |
-| 8 | Migración Alembic inicial | ❌ | — | `backend/alembic/` existe pero VACÍO. Modelos se cargan en runtime (probable `Base.metadata.create_all()` en startup o seed). **BLOQUEANTE para R2+.** |
+| 8 | Migración Alembic inicial | ✅ | 15-jun | 10 migraciones aplicadas (head `b397cd9bfb91`). Sesión 5 cerró la tarea. **ESTADO.md previo era incorrecto (sesión 4 auditó antes de que existieran las migraciones).** |
 | 9 | Endpoints /auth/login con stub + verificación 2FA | ✅ | 15-jun | `app/api/v1/auth.py` — `/login`, `/logout`, `/me`, `/verify-password`. Login contra `usuarios` (BD) o LDAP real (env-driven) |
 | 10 | Endpoints /usuarios (CRUD) + /usuarios/{id}/modulos | 🟡 | 15-jun | `app/api/v1/usuarios.py` — `GET /usuarios` paginado, `GET /{id}`, `POST /sync-ad`, `GET /sync-status`. **Falta**: `PATCH /{id}` (admin), `GET/PUT /{id}/modulos` |
 | 11 | Endpoints /organigrama | 🟡 | 15-jun | `GET /gerencias?activo=...` + `GET /gerencias/{id}` + `GET /areas?gerencia_id=...` + `GET /areas/{id}` cubren el organigrama publico. Faltaria: `/usuarios/{id}/delegado` y `/usuarios/{id}/ausencia` (Sesion B) |
@@ -55,6 +55,11 @@
 | N11 | Frontend: modal Editar Usuario (centrado) | ✅ | 16-jun | Modal con ROL (select de BD), DELEGADO (searchable picker fuzzy), VACACION (checkbox), ESTADO (select activo/inactivo/desvinculado), Observaciones. |
 | N12 | Frontend: Mi Perfil (ProfileModal) lee de BD | ✅ | 16-jun | Reemplaza mock `listaEmpleados`. Carga info del usuario, delegado, estado, ausente. PATCH con `delegado_id` y `ausente`. |
 | N13 | Backend: export XLSX/CSV columna AREA = gerencia/area | ✅ | 16-jun | Formato "Gerencia / Area" con fallback a `ad_info` (department del AD) si no tiene area en BD. |
+| **Tareas nuevas sesión 10 (Backup paralelo para demo)** |  |  |  |  |
+| B10-1 | `.env.backup` + `deploy/docker-compose.backup.yml` + nginx config aislado | ✅ | 16-jun | Stack completo en puertos 8081/5174/18001/25433/26380/8026/1026. Container prefix `sgd-bk-`, volume prefix `sgd-bk_`, network `sgd-bk-net`, DB `sgd_backup`. |
+| B10-2 | `scripts/start-stack-backup.bat` + `stop-stack-backup.bat` | ✅ | 16-jun | Orquestador automatizado: up pg/redis → cp dump → pg_restore → up resto → wait health → URLs. |
+| B10-3 | `backups/20260616_150015/` (dump + working tree) | ✅ | 16-jun | pg_dump -Fc (119KB) + 393 archivos de codigo (31.82MB total). Permite restaurar el estado exacto. |
+| B10-4 | `docs/PR/BACKUP-PARALELO.md` | ✅ | 16-jun | Doc completa: URLs, troubleshooting, limitaciones, comandos. |
 
 ### R2 — Wizard de creación
 
@@ -95,13 +100,15 @@
 
 ## Progreso R1
 **16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** = **35/35 tareas R1 + EPICA9 (100%)**
-Backend ÉPICA 9 + frontend ÉPICA 9 + audit + export + refactor Parametrizacion + tests pytest + import matriz + Editar Usuario + Mi Perfil BD: CERRADO al 100%.
+
+## Progreso QAS
+**8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 7 seeds + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
 
 ## Progreso R2
-**0/21 tareas pendientes** (R1 ya NO es bloqueante. R2 puede arrancar.)
+**0/21 tareas pendientes** (R1 ya NO es bloqueante. QAS es reproducible 1-click. R2 puede arrancar.)
 
 ## Total
-**35/48 tareas (73%)** + 4 bonus ya entregados
+**35/48 tareas (73%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas
 
 ## Tablas de BD
 **18/28 migradas** (16 originales + 6 nuevas en sesión 5 + 1 nueva en sesión 6). 0 nuevas en sesiones 7, 8 y 9 (no hubo cambios de schema).
@@ -229,21 +236,29 @@ DELETE /api/v1/estados/{id}                               (NUEVO)
 - **B8**: `auth.py` password dummy (pre-deployment QAS, documentado).
 
 ## Decisiones tomadas (ADRs)
-- ADR-001 a ADR-018 (ver `DECISIONES.md`)
+- ADR-001 a ADR-027 (ver `DECISIONES.md`)
 - ADR-013: **Backend DENTRO de Docker en DES** (invalidado el draft inicial sesión 4, reescrito sesión 5 con networkingMode=mirrored + DNS custom)
 - ADR-014: AuditLog append-only via `write_audit()` no-bloqueante (sesión 6)
 - ADR-015: `areas.sigla` UNIQUE(gerencia_id, sigla) en vez de global (sesión 6)
 - ADR-016: Mapeo EXPLICITO de normalización de módulos (sesión 8)
 - ADR-017: Preferencia por `id ASC` cuando hay duplicados de `ad_postal_code` (sesión 8)
 - ADR-018: Skip delegado con warning (sesión 8, deuda #13)
+- ADR-023: QAS deploy usa Docker stack con cert autofirmado (sesión 10)
+- ADR-024: celery-beat usa `-s /app/storage/celerybeat-schedule` (sesión 10, ratificado sesión 11)
+- ADR-025: Workflow de migración es `deploy-qas.bat` (sesión 10)
+- ADR-026: `start-stack-qas.sh` es el punto único de entrada para QAS (sesión 11)
+- ADR-027: Sync AD output path = `/app/storage/` (sesión 11)
 
 ## Bloqueos identificados
 
-**Al cierre de sesión 8 (2026-06-16), NO hay bloqueos críticos para arrancar R2.**
+**Al cierre de sesión 11 (2026-06-16), NO hay bloqueos críticos.**
 
-Bloqueos menores pre-QAS:
-- 🟠 B3: CSRF middleware ausente (seguridad pre-QAS)
-- 🟠 B8: `auth.py` password dummy `cofar.2026` (pre-deployment QAS, documentado)
+Bloqueos menores pre-QAS-public:
+- 🟠 B3: CSRF middleware ausente (seguridad pre-QAS-public)
+- 🟠 B8: `auth.py` password dummy `cofar.2026` (pre-QAS-public; ya validado que en QAS `LDAP_ENABLED=true` por lo que no aplica)
+- 🟠 QAS password `sistemas` SSH (cambiada en sesión 11 — ahora se accede por SSH key)
+- 🟠 QAS sudo NOPASSWD `ALL` (recomendable restringir a comandos específicos)
+- 🟠 QAS cert HTTPS autofirmado (cambiar a Let's Encrypt o cert corporativo pre-PUBLIC)
 
 Backlog menor:
 - 🟡 B2: `Gerencia.areas` cascade cleanup opcional
@@ -251,25 +266,36 @@ Backlog menor:
 - 🟡 B5-B7: cleanup varios
 - 🟡 #13: Deuda delegado (sesión 8)
 - 🟡 #14: Cargos a areas (pendiente)
+- 🟡 Backups automáticos en QAS (cron + pg_dump, no automatizado)
 
-## Próximo paso (recomendado para sesión 9)
+## Próximo paso (recomendado para sesión 12)
 
-**R1 + EPICA9 + import matriz: 100% cerradas.** 3 caminos posibles:
+**Sesión 11 cerrada:** Automatización completa del deploy QAS. `start-stack-qas.sh` corre las 7 seeds idempotentes + sync AD desde LDAP (753 usuarios validados en QAS). 3 archivos de compose actualizados con `-s /app/storage/celerybeat-schedule`. Permisos correctos via chown 1000:1000 + chmod 755/644 (no chmod 777). Refactor de smell `_build_server` → `build_server`. ADR-026 y ADR-027 nuevos.
 
-1. **R2 — Wizard de creación** (tareas #23+): 19 modelos SQLAlchemy + migración 011 + endpoints `/api/v1/documentos`. 2-3 sesiones intensivas. Empezar por la **tarea #23: Schema SQLAlchemy Documentos (3 tablas)**.
+3 caminos posibles para sesión 12:
+
+1. **Refactor Parametrizacion.js** (Fase 1, 2-3h): eliminar mocks duplicados, restaurar CRUD real. Ver `docs/pr/PENDIENTES-R1-PARAMETRIZACION.md`.
 2. **#13 — Deuda delegado**: implementar match desde AD `manager` attribute o fuzzy matching + threshold 0.85. Pequeño.
 3. **#14 — Cargos a areas**: seed de mapeo POSICION → area_id. Mediano.
 4. **#19-21 — Security hardening**: CSP, DOMPurify, rate limit. Backlog R1.
-
-**Recomendación:** cerrar #13 y #14 (deudas chicas) antes de empezar R2 (que es largo y mejor con todo R1 limpio).
+5. **R2 (tareas #23+)** ahora desbloqueado — el stack QAS ya es reproducible 1-click.
 
 **Lo que NO se debería hacer todavía:**
 - Refactor de pages no tocadas (Bandeja, Liberacion, ListaMaestra) — depende de R2 endpoints.
 
-## Estado de la sesión actual (8 — cierre de sesión anterior)
+## Estado de la sesión actual (11 — automatización QAS)
 
 - ✅ Sesión 5: Backend ÉPICA 9 al 100% (10 tareas, 14 commits)
 - ✅ Sesión 6: UI EPICA 9 + 3 endpoints backend nuevos (4 de 6 tareas Sesión B, 4 commits)
 - ✅ Sesión 7: Bugfix del refactor incompleto de sesión 6 (10 bugs, commit `89f5ac6`) + tests pytest 123/123 (commit `e13761c`)
 - ✅ Sesión 8: Import matriz abril 716 usuarios (service + CLI + mapeo, 5 sub-tareas en 2h)
-- ✅ Sesión 9 (ESTA): Cierre de documentación + commits finales de sesión 8 (ESTADO.md + DECISIONES.md + 2 commits)
+- ✅ Sesión 9: Editar Usuario + Mi Perfil BD + Export corregido (6 sub-tareas, commit `ec34a3d`)
+- ✅ **Sesión 10 (ESTA): Backup paralelo 8081/5174/18001 (8 archivos nuevos, 0 regresiones)**
+
+- ✅ Sesión 5: Backend ÉPICA 9 al 100% (10 tareas, 14 commits)
+- ✅ Sesión 6: UI EPICA 9 + 3 endpoints backend nuevos (4 de 6 tareas Sesión B, 4 commits)
+- ✅ Sesión 7: Bugfix del refactor incompleto de sesión 6 (10 bugs, commit `89f5ac6`) + tests pytest 123/123 (commit `e13761c`)
+- ✅ Sesión 8: Import matriz abril 716 usuarios (service + CLI + mapeo, 5 sub-tareas en 2h)
+- ✅ Sesión 9: Editar Usuario + Mi Perfil BD + Export corregido (6 sub-tareas, commit `ec34a3d`)
+- ✅ Sesión 10: Backup paralelo 8081/5174/18001 + Deploy QAS manual en sgdqas.cofar.com.bo
+- ✅ **Sesión 11 (ESTA): Automatización QAS — `start-stack-qas.sh` 1-click (seeds + sync AD + URLs) + fix permisos storage (chown 1000:1000, no chmod 777) + refactor smell `_build_server` → `build_server`**

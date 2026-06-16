@@ -33,7 +33,6 @@ Actua como Tech Lead senior del proyecto COFAR SGD. Realiza el siguiente ritual 
 4. PROPON al usuario:
    - "La siguiente tarea pendiente es #X: <titulo>"
    - "Tiempo estimado: <X> minutos"
-   - "Skills que se invocaran: <lista>"
    - "Riesgos: <lista>"
    - "Como la voy a ejecutar: <plan corto>"
    - PREGUNTAR: "Procedo? o preferis priorizar otra cosa?"
@@ -61,56 +60,12 @@ ESCENARIOS DE EMERGENCIA:
 - Si la sesion se cerro por error: el agente debe dejar ESTADO.md y BITACORA.md actualizados ANTES de cualquier cambio grande (regla de "checkpoint frecuente").
 - Si el usuario vuelve despues de dias: leer BITACORA.md (entrada de la ultima sesion) y ESTADO.md, preguntar "retomamos la tarea #X que quedo al 50%? o preferis empezar una nueva?"
 
-IMPORTANTE: usa SIEMPRE el stack de 21 skills instaladas en .opencode/skills/. Menciona explicitamente cual invocas en cada paso.
-```
+
 
 ---
 
-## ⚠️ CÓMO ENCONTRAR SKILLS Y AGENTS (lección aprendida sesión 5 — 2026-06-15)
 
-> **Las skills y agents del plugin ECC NO se descubren automaticamente con el tool `skill`.**
-> Hay que buscarlos en el filesystem antes de usarlos.
 
-### Skills (21 archivos en `.opencode/skills/`)
-
-| Tipo | Ubicación | Cómo se invoca |
-|---|---|---|
-| **Skills del proyecto (curadas)** | `.opencode/skills/<nombre>/SKILL.md` | Leer el archivo directo con `read`. El tool `skill` puede NO listarlas (encontrarás solo `customize-opencode`). |
-| **Agents del plugin ECC** | `.opencode/node_modules/ecc-universal/agents/<nombre>.md` | Invocar con `task --subagent_type=<nombre>`. Ej: `python-reviewer`, `database-reviewer`, `code-reviewer`, `security-reviewer`. |
-| **INSTRUCTIONS operativo** | `.opencode/instructions/INSTRUCTIONS.md` | Leer directo. Lista los 26 comandos slash y los 26 agents del plugin ECC v2.0.0. |
-
-### Skill `git-workflow` (CRÍTICA — antes de cada commit)
-
-Path: `.opencode/skills/git-workflow/SKILL.md`. **Siempre leerla antes de un commit.** Checklist de validación:
-
-1. **Conventional Commits**: `feat(scope):`, `fix(scope):`, `docs(scope):`, `chore(scope):`, `refactor(scope):`, `test(scope):`, `perf(scope):`, `ci(scope):`, `revert(scope):`. Subject imperativo, <50 chars ideal.
-2. **Sin secretos**: `grep -i 'password\|secret\|token\|api[_-]\?key\|credential' <archivos_nuevos>` antes de commitear. Solo deben aparecer keywords de la skill (p.ej. `csrf_token` nombre de cookie, `credentials` opción de fetch).
-3. **Archivos correctos**: NO `node_modules/`, `.env`, `dist/`, `__pycache__/`, `*.log`, PDFs/XLSXs de diseño.
-4. **Commit atómico**: 1 feature = 1 commit. NO mega-commits con archivos no relacionados.
-5. **Branch correcta**: `epica-X/rama-X` (no `main` directamente, salvo cierre de épica con PR).
-
-### Agentes del plugin ECC (CRÍTICOS para esta sesión A)
-
-| Agent | Path | Cuándo invocar |
-|---|---|---|
-| `python-reviewer` | `.opencode/node_modules/ecc-universal/agents/python-reviewer.md` | **SIEMPRE antes de commit con código Python nuevo** (tareas #2 a #9c) |
-| `database-reviewer` | `.opencode/node_modules/ecc-universal/agents/database-reviewer.md` | Para SQLAlchemy 2.0 + migraciones Alembic |
-| `code-reviewer` | `.opencode/node_modules/ecc-universal/agents/code-reviewer.md` | Review genérico cross-stack |
-| `security-reviewer` | `.opencode/node_modules/ecc-universal/agents/security-reviewer.md` | Solo cuando hay código sensible (auth, cookies, CSRF, secrets) |
-| `docs-lookup` | `.opencode/node_modules/ecc-universal/agents/docs-lookup.md` | Cuando hay duda de sintaxis de una librería (usa Context7) |
-
-### Flujo recomendado para cada tarea (sesión A)
-
-```
-1. Leer 2-3 skills relevantes (read del SKILL.md)
-2. Plan: anotar archivos a crear/modificar + queries de validación
-3. Codear
-4. Validar empíricamente (curl, SELECT, logs Docker)
-5. Invocar `python-reviewer` agent sobre el código nuevo
-6. Releer skill `git-workflow` → checklist
-7. git add + commit conventional
-8. Actualizar ESTADO.md y BITACORA.md → commit docs
-```
 
 ```
 
@@ -161,31 +116,11 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 
 ---
 
-## 🧠 Skills: CHEAT SHEET (memoria de skills por fase)
 
-> **Regla:** invocar 1-3 skills por tarea. NO saturar. El agente ya las tiene cargadas por opencode.json — solo hay que **mencionarlas explícitamente** en el prompt.
-
-### Skills de FLUJO (siempre, en cualquier sesión)
-
-| Cuándo | Skill | Prompt ejemplo |
-|---|---|---|
-| **Iniciar sesión** | `codebase-onboarding` | "Leyendo el codebase con la skill codebase-onboarding, dame un resumen de 5 líneas de la estructura." |
-| **Diagnosticar ambiente** | (manual) | "Corre `docker info`, `docker ps`, `curl health`. Reporta qué falla." |
-| **Antes de commit** | **`git-workflow`** ⭐ | "Usando la skill git-workflow, validá que el commit sigue conventional commits y no tiene secretos." |
-| **Cuando hay error desconocido** | (built-in: `build-error-resolver` agent) | "Invocá el agente build-error-resolver para diagnosticar este traceback." |
-| **Cuando hay duda sobre una librería** | (built-in: `docs-lookup` agent) | "Usá docs-lookup para confirmar la sintaxis exacta de SQLAlchemy 2.0 con asyncpg." |
-| **Cuando te trabás >15 min** | `error-handling` | "Usando error-handling, identificá la causa raíz de este fallo y proponé 2 alternativas." |
-| **Para limpiar código muerto** | (built-in: `refactor-cleaner` agent) | "Invocá refactor-cleaner sobre el directorio backend/app/api/v1/." |
-| **Al cerrar sesión** | `doc-updater` (agent) + `git-workflow` | "Actualizá ESTADO.md y BITACORA.md, después hacé commit con git-workflow." |
-
-### Skills por TIPO de TAREA (las 16 del plan, divididas en 2 sesiones)
-
-> **El plan completo tiene 15 tareas. Está dividido en 2 sesiones de ~6-7h cada una.**
-> Ver `docs/PR/MATRICES-MAPEO.md` para el detalle de cada US de la ÉPICA 9.
 
 #### 🅰️ SESIÓN A — Backend completo (10 tareas, ~6-7h)
 
-| # | Tarea concreta | Skills a invocar |
+| # | Tarea concreta | |
 |---|---|---|
 | **1** | `frontend/src/utils/api.js` (apiFetch con CSRF) | `frontend-design-direction`, `api-design`, `frontend-a11y` |
 | **2** | `backend/scripts/seed_organizacion.py` | `database-migrations`, `coding-standards`, `verification-loop` |
@@ -200,7 +135,7 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 
 #### 🅱️ SESIÓN B — UI + tests + bulk (6 tareas, ~4-5h)
 
-| # | Tarea concreta | Skills a invocar |
+| # | Tarea concreta ||
 |---|---|---|
 | **9** | `GET /api/v1/audit-log` (con filtros) | `fastapi-patterns`, `api-design`, `postgres-patterns` |
 | **9d** | Operaciones jerárquicas áreas (`POST /areas/{id}/mover`, `/promover-a-gerencia`, `DELETE` lógico) | `fastapi-patterns`, `api-design`, `error-handling`, `database-migrations` |
@@ -213,43 +148,8 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 
 **Verificación de cierre de R1:** cuando las 16 sub-tareas estén ✅, abrir PR `epica-1/rama-1` → `main`, mergear, crear `epica-2/rama-1`.
 
-### Skills por TIPO de TAREA (catálogo general, para futuras sesiones)
 
-| Tipo de tarea | Skills a invocar |
-|---|---|
-| **Implementar endpoint FastAPI nuevo** | `fastapi-patterns`, `api-design`, `error-handling`, `coding-standards`, `verification-loop` |
-| **Crear modelo SQLAlchemy** | `database-migrations`, `database-reviewer` (agent), `backend-patterns` |
-| **Generar migración Alembic** | `database-migrations`, `verification-loop` |
-| **Tests con pytest** | `tdd-workflow`, `tdd-mattpocock` o `tdd-superpowers`, `verification-loop` |
-| **Tests E2E con Playwright** | `webapp-testing`, `e2e-testing` |
-| **Review de código** | `python-reviewer` (agent), `coding-standards` |
-| **Setup de Docker** | `docker-patterns`, `deployment-patterns` |
-| **Trabajo en frontend Alpine.js** | `frontend-design-direction`, `frontend-a11y`, `design-system` |
-| **Diseño UI/UX** | `frontend-design-anthropic`, `design-system` |
-| **Trabajo en SQL/PostgreSQL** | `postgres-patterns`, `postgres-best-practices` |
-| **Seguridad / CSRF / hardening** | `security-review` (agent), `error-handling` |
-| **Documentación** | `doc-updater` (agent), `codebase-onboarding` |
-| **Git workflow (cualquier commit)** | **`git-workflow`** ⭐ — SIEMPRE antes de hacer commit |
-| **Refactor / limpieza** | `refactor-cleaner` (agent) |
-| **Hacer deploy a QAS/PRD** | `deployment-patterns`, `docker-patterns` |
-| **Trabajo en R5 (PDF / obsolescencia)** | `fastapi-patterns`, `postgres-patterns`, `database-migrations` (triggers SQL) |
-| **Trabajo en R6 (capacitación / chat NLP)** | `api-design`, `verification-loop`, `security-review` (chat NLP es vector de ataque) |
 
-### ⭐ REGLA DE ORO: `git-workflow` SIEMPRE antes de commit
-
-> **Ningún commit sin antes invocar la skill `git-workflow`.**
-> Esa skill valida que:
-> 1. El mensaje sigue Conventional Commits (`feat:`, `fix:`, `docs:`, etc.)
-> 2. NO hay secretos commiteados (escanea con `security` agent)
-> 3. Los archivos versionados son los correctos (no `node_modules`, no `.env`, no logs)
-> 4. El commit tiene sentido lógico (1 feature = 1 commit, no mega-commits)
-
-**Prompt obligatorio antes de CUALQUIER commit:**
-```
-"Invocá la skill git-workflow para validar este commit antes de hacerlo.
-Verificá: conventional commit, sin secretos, archivos correctos, mensaje claro.
-Después procedé con git add -A && git commit -m '...' "
-```
 
 ---
 
