@@ -27,6 +27,13 @@ from app.models.ausencia import Ausencia  # noqa: F401
 from app.models.firma_digital import FirmaDigital  # noqa: F401
 from app.models.log_sync_ad import LogSyncAd, TipoSync, ResultadoSync  # noqa: F401
 
+# ─── Parametrizacion R1 ───
+from app.models.configuracion_global import (  # noqa: F401
+    ConfiguracionGlobal,
+    TipoConfiguracion,
+    CategoriaConfiguracion,
+)
+
 
 __all__ = [
     "Base",
@@ -47,4 +54,7 @@ __all__ = [
     "LogSyncAd",
     "TipoSync",
     "ResultadoSync",
+    "ConfiguracionGlobal",
+    "TipoConfiguracion",
+    "CategoriaConfiguracion",
 ]
