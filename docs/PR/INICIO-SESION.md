@@ -111,7 +111,40 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 
 ---
 
-## Skills por tipo de tarea
+## 🧠 Skills: CHEAT SHEET (memoria de skills por fase)
+
+> **Regla:** invocar 1-3 skills por tarea. NO saturar. El agente ya las tiene cargadas por opencode.json — solo hay que **mencionarlas explícitamente** en el prompt.
+
+### Skills de FLUJO (siempre, en cualquier sesión)
+
+| Cuándo | Skill | Prompt ejemplo |
+|---|---|---|
+| **Iniciar sesión** | `codebase-onboarding` | "Leyendo el codebase con la skill codebase-onboarding, dame un resumen de 5 líneas de la estructura." |
+| **Diagnosticar ambiente** | (manual) | "Corre `docker info`, `docker ps`, `curl health`. Reporta qué falla." |
+| **Antes de commit** | **`git-workflow`** ⭐ | "Usando la skill git-workflow, validá que el commit sigue conventional commits y no tiene secretos." |
+| **Cuando hay error desconocido** | (built-in: `build-error-resolver` agent) | "Invocá el agente build-error-resolver para diagnosticar este traceback." |
+| **Cuando hay duda sobre una librería** | (built-in: `docs-lookup` agent) | "Usá docs-lookup para confirmar la sintaxis exacta de SQLAlchemy 2.0 con asyncpg." |
+| **Cuando te trabás >15 min** | `error-handling` | "Usando error-handling, identificá la causa raíz de este fallo y proponé 2 alternativas." |
+| **Para limpiar código muerto** | (built-in: `refactor-cleaner` agent) | "Invocá refactor-cleaner sobre el directorio backend/app/api/v1/." |
+| **Al cerrar sesión** | `doc-updater` (agent) + `git-workflow` | "Actualizá ESTADO.md y BITACORA.md, después hacé commit con git-workflow." |
+
+### Skills por TIPO de TAREA (las 11 del plan actual)
+
+| # | Tarea concreta | Skills a invocar |
+|---|---|---|
+| **1** | `frontend/src/utils/api.js` (apiFetch con CSRF) | `frontend-design-direction`, `api-design`, `frontend-a11y` |
+| **2** | `backend/scripts/seed_organizacion.py` | `database-migrations`, `coding-standards`, `verification-loop` |
+| **3** | `GET/POST/PATCH /api/v1/gerencias` | `fastapi-patterns`, `api-design`, `error-handling`, `python-reviewer` (agent, antes de commit) |
+| **4** | `GET/POST/PATCH /api/v1/areas` | `fastapi-patterns`, `api-design`, `error-handling` |
+| **5** | `GET/POST/PATCH /api/v1/configuracion-global` | `fastapi-patterns`, `api-design`, `verification-loop` |
+| **6** | `GET/POST/PATCH /api/v1/feriados` | `fastapi-patterns`, `api-design` |
+| **7** | `GET/POST/PATCH /api/v1/email-templates` | `fastapi-patterns`, `api-design`, `error-handling` |
+| **8** | `GET/POST/PATCH /api/v1/matriz-enrutamiento-eto` | `fastapi-patterns`, `api-design`, `verification-loop` |
+| **9** | `GET /api/v1/audit-log` (con filtros) | `fastapi-patterns`, `api-design`, `postgres-patterns` |
+| **10** | Refactor `Parametrizacion.js` para consumir los 7 endpoints | `frontend-design-direction`, `frontend-a11y`, `api-design`, `python-reviewer` (verificar contratos) |
+| **11** | Tests pytest de los 7 endpoints nuevos | `tdd-workflow`, `tdd-mattpocock`, `verification-loop` |
+
+### Skills por TIPO de TAREA (catálogo general, para futuras sesiones)
 
 | Tipo de tarea | Skills a invocar |
 |---|---|
@@ -127,7 +160,31 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 | **Trabajo en SQL/PostgreSQL** | `postgres-patterns`, `postgres-best-practices` |
 | **Seguridad / CSRF / hardening** | `security-review` (agent), `error-handling` |
 | **Documentación** | `doc-updater` (agent), `codebase-onboarding` |
-| **Git workflow** | `git-workflow` |
+| **Git workflow (cualquier commit)** | **`git-workflow`** ⭐ — SIEMPRE antes de hacer commit |
+| **Refactor / limpieza** | `refactor-cleaner` (agent) |
+| **Hacer deploy a QAS/PRD** | `deployment-patterns`, `docker-patterns` |
+| **Trabajo en R5 (PDF / obsolescencia)** | `fastapi-patterns`, `postgres-patterns`, `database-migrations` (triggers SQL) |
+| **Trabajo en R6 (capacitación / chat NLP)** | `api-design`, `verification-loop`, `security-review` (chat NLP es vector de ataque) |
+
+### ⭐ REGLA DE ORO: `git-workflow` SIEMPRE antes de commit
+
+> **Ningún commit sin antes invocar la skill `git-workflow`.**
+> Esa skill valida que:
+> 1. El mensaje sigue Conventional Commits (`feat:`, `fix:`, `docs:`, etc.)
+> 2. NO hay secretos commiteados (escanea con `security` agent)
+> 3. Los archivos versionados son los correctos (no `node_modules`, no `.env`, no logs)
+> 4. El commit tiene sentido lógico (1 feature = 1 commit, no mega-commits)
+
+**Prompt obligatorio antes de CUALQUIER commit:**
+```
+"Invocá la skill git-workflow para validar este commit antes de hacerlo.
+Verificá: conventional commit, sin secretos, archivos correctos, mensaje claro.
+Después procedé con git add -A && git commit -m '...' "
+```
+
+---
+
+## 📋 Plan de avance actualizado (11 tareas para ESTA sesión)
 
 ---
 

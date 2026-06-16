@@ -1,4 +1,4 @@
-# COFAR SGD — OpenCode Instructions
+﻿# COFAR SGD — OpenCode Instructions
 
 > Reglas operativas para que cualquier agente IA (Mavis, M3, Claude, GPT, etc.)
 > trabaje correctamente en este monorepo.
@@ -238,16 +238,39 @@ Análisis completo en `docs/PR/REUNIONES-R3-R6.md` con todas las US pendientes.
 
 ---
 
-## 8. Stubs en DES (reemplazables en QAS con env vars)
+## 8. ⭐ REGLA DE ORO: `git-workflow` SIEMPRE antes de commit
 
-- **LDAP/AD:** `LDAP_ENABLED=false` → 4 usuarios hardcoded. `LDAP_ENABLED=true` → bind real contra `172.16.10.17`.
-- **Microsoft 365:** `GRAPH_ENABLED=false` → stub. `GRAPH_ENABLED=true` → Graph API real.
-- **SMTP:** `SMTP_ENABLED=false` → emails van a MailHog (localhost:8025). `SMTP_ENABLED=true` → SMTP corporativo.
-- **Storage:** `LocalStorage` (volumen Docker). `SharePointStorage` (stub, no implementado).
+**Ningún commit sin antes invocar la skill `git-workflow`.** Esta skill valida:
+1. Mensaje sigue Conventional Commits (`feat:`, `fix:`, `docs:`, `test:`, `chore:`, `refactor:`, `perf:`, `ci:`).
+2. NO hay secretos (`security-review` agent escanea).
+3. Archivos versionados correctos (no `node_modules`, no `.env`, no logs, no PDFs/XLSXs de diseño).
+4. Commit atómico (1 feature = 1 commit, no mega-commits).
+
+**Prompt obligatorio antes de CUALQUIER commit:**
+```
+"Invocá la skill git-workflow para validar este commit antes de hacerlo.
+Verificá: conventional commit, sin secretos, archivos correctos, mensaje claro.
+Después procedé con git add + git commit."
+```
+
+**Conventional Commits de este proyecto** (prefijos más usados):
+- `feat(api):` endpoint nuevo
+- `feat(ui):` nueva vista o componente
+- `feat(db):` nuevo modelo o migración
+- `feat(agent):` setup del agente (skills, opencode.json)
+- `fix(ad-sync):` fix en la sincronización AD
+- `fix(auth):` fix de login/JWT/cookies
+- `docs(pr):` actualización de docs/PR
+- `chore(repo):` limpieza, gitignore
+- `refactor(api):` refactor de endpoints sin cambio funcional
+- `test(api):` tests nuevos
+- `feat(deploy):` cambios en docker-compose
+
+## 9. Stubs en DES (reemplazables en QAS con env vars)
 
 ---
 
-## 9. Trampas conocidas (NO caer en ellas)
+## 10. Trampas conocidas (NO caer en ellas)
 
 1. **PowerShell aliasa `curl` a `Invoke-WebRequest`.** Usar `curl.exe` directamente.
 2. **JSON inline en PowerShell falla** (convierte comillas). Usar archivo: `echo '{"k":"v"}' > test.json` y luego `--data-binary @test.json`.
@@ -259,7 +282,7 @@ Análisis completo en `docs/PR/REUNIONES-R3-R6.md` con todas las US pendientes.
 
 ---
 
-## 10. Reglas de oro (NO ROMPER)
+## 11. Reglas de oro (NO ROMPER)
 
 1. **No inventar datos.** Si una tabla no existe, crearla con Alembic. No hardcodear arrays.
 2. **No usar datos del frontend (`src/data/*.js`) en el backend.** El backend es la única fuente de verdad.
@@ -273,7 +296,7 @@ Análisis completo en `docs/PR/REUNIONES-R3-R6.md` con todas las US pendientes.
 
 ---
 
-## 11. Métricas de éxito
+## 12. Métricas de éxito
 
 Una tarea está terminada cuando:
 1. El código corre sin errores (verificado con `docker logs` o `curl`).
@@ -281,3 +304,4 @@ Una tarea está terminada cuando:
 3. La documentación está sincronizada (`ESTADO.md`, `BITACORA.md`).
 4. El commit sigue Conventional Commits y no tiene secretos.
 5. Los criterios de aceptación del US correspondiente están cumplidos.
+
