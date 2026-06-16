@@ -413,3 +413,99 @@ Si se quiere cerrar R2 (documentos + workflow + bandejas), el orden de ataque es
 4. GET /api/v1/audit-log con filtros (tarea #9, audit de admin).
 5. Operaciones jerarquicas de areas (mover, promover-a-gerencia, DELETE logico) � sub-tareas #9d.
 6. Override vacaciones + export Excel/CSV (tarea #9e).
+
+---
+
+## Sesion 7 — 2026-06-16 (martes PM) — Bugfix del refactor incompleto de Sesion 6
+
+### Contexto
+Al loguearse en la pantalla de Parametrizacion General y navegar a la pestana Gestion
+de Usuarios, la consola del browser mostraba multiples errores y la pagina no se visualizaba
+correctamente. La sesion 6 declaro "B5 RESUELTO: Parametrizacion.js ya no usa
+data/parametrosSistema.js" pero la realidad era que el refactor estaba **incompleto**:
+los imports se removieron pero las referencias al mock legacy quedaron huerfanas.
+
+### Diagnostico (guiado por el usuario via ritual INICIO-SESION.md)
+1. Lectura de BITACORA / ESTADO / INICIO-SESION / DECISIONES / REUNIONES-R3-R6 / MATRIZ-ABRIL
+2. Stack diagnosticado: `curl http://localhost:18000/api/v1/health` OK
+3. Inspeccion de errores de consola + network requests via Chrome DevTools
+4. Identificacion de los 10 bugs que se detallan abajo
+
+### Bugs encontrados y corregidos (1 commit: `89f5ac6`)
+
+| # | Bug | Severidad | Fix |
+|---|---|---|---|
+| 1 | `api.js:normalizePath()` REMOVIA el prefijo /api/v1 | Critico | Dejar API_BASE intacto |
+| 2 | 13 referencias huerfanas a mocks legacy | Critico | Re-importar 10 nombres de data/parametrosSistema.js |
+| 3 | Template usa `g.areas.length` (backend retorna `areas_count`) | Alto | Cambiar a `g.areas_count ?? 0` |
+| 4 | `cargarGerencias()` no mapea response al shape del template | Alto | Mapear cod/codigo, n/c, areas:[] |
+| 5 | `cargarTiempos()` filtra por VIGENCIA pero plazo_revision esta en FLUJO | Alto | Traer TODAS las claves |
+| 6 | Chips inicializa vacio (no usa mock como fallback) | Medio | `chips: [...exclusionTiposDB]` |
+| 7 | 60 warnings de "x-for key cannot be an object" | Medio | Usar IDs unicos en keys |
+| 8 | XLSX export header "Cod. SAP (AD)" | Bajo | Renombrar a "Cód. SAP" |
+| 9 | Tabla Usuarios no muestra `ad_postal_code` | Medio | Agregar columna "Cód. SAP" |
+| 10 | Seccion "Gestion de Usuarios" con `})` huerfano + falta `guardarTiempos()` | Alto | Reconstruir bloque |
+
+### Validacion empirica (Chrome DevTools)
+
+7 tabs validadas cargando datos del backend:
+
+| Tab | Endpoint | Datos cargados | Error/Warn |
+|---|---|---|---|
+| Tiempos y SLAs | `/configuracion-global` | plazoRevision: 25 (de BD!), vigencias: 14 | 0 |
+| Restricciones | `/configuracion-global` | maxAdjuntos: 20, maxSizeMB: 20, etc. | 0 |
+| Diccionarios y Enrutamiento | `/tipos-documento` + `/estados` + `/matriz-enrutamiento-eto` | tiposDocs: 14, estados: 7, matrizETO: 10 | 0 |
+| Gerencias y Areas | `/gerencias` + `/areas` | 12 gerencias, areasGerSel: 12 | 0 |
+| Plantillas de Notificacion | `/email-templates` | 6 plantillas (las 6 del PDF oficial) | 0 |
+| Gestion de Usuarios | `/usuarios` + `/audit-log` | 10 usuarios, kpis: 764, columna Cód. SAP visible | 0 |
+| Logs de Auditoria | `/audit-log` | 29 entradas con accion/recurso/usuario/descripcion | 0 |
+
+**Consola del browser: 0 errors, 0 warnings** (post-fix).
+
+### Estado de la BD validado
+
+```
+gerencias: 14 (10 esperadas + 4 de pruebas; 12 activas)
+areas: 56 (49 esperadas; distribuidas en las 10 gerencias semilla)
+usuarios: 764 (730 del Excel + 34 extras)
+roles: 5 (ADMIN, ETO, ELABORADOR-REVISOR, etc.)
+modulos: 11 (los 10 + 1 extra)
+feriados: 23 (20 Bolivia 2026 + 3 extra)
+email_templates: 6 (los 6 del PDF oficial - 9.04)
+matriz_enrutamiento_eto: 10 (1 por gerencia)
+tipos_documento: 15 (13 del Excel + 2 de prueba)
+estados: 8 (5 del flujo + 3 extra)
+configuracion_global: 8
+audit_log: 29 (todas las mutaciones de sesion 6 + 9e)
+```
+
+### Trampas/ensenanzas
+
+1. **El refactor de sesion 6 fue declarado "completo" pero NO LO ERA.** Validar empiricamente
+   navegando a CADA tab, no solo a uno.
+2. **El cache del browser es agresivo con Vite HMR** — para forzar reload use
+   `rm -rf /app/node_modules/.vite` + restart del container.
+3. **`console.log` al inicio del modulo** es la forma mas rapida de verificar que version
+   se esta ejecutando (es un marker que invalida cualquier cache).
+4. **El backend puede tener categorias mal asignadas** (VIGENCIA vs FLUJO) — mejor
+   traer todas las claves y mergear en el frontend.
+5. **El shape del template debe coincidir con el shape del backend** — si no, fallar
+   silenciosamente con `undefined.length`.
+
+### Proxima sesion
+
+- **Tarea #11:** Tests pytest de los 28+ endpoints nuevos (cobertura 80%)
+- **Tarea #12:** Asignacion masiva desde `USUARIOS EXISTENTES A ABRIL.xlsx` (730 usuarios)
+  - match estricto por `ad_postal_code == str(COFAR)`
+  - CLI script `backend/scripts/run_matriz_import.py` (sin endpoint, sin UI)
+  - Skip delegado (warning en log)
+
+### Pendientes menores (no bloqueantes)
+
+- Chips se inicializan del mock pero BD no tiene `tipos_excluidos_limite_descarga`
+- Restricciones: defaults del mock (maxAdjuntos=20 etc) porque la BD no tiene
+  las claves `max_archivos_por_solicitud` / `max_tamano_archivo_mb` / `max_descargas_editables_dia`
+- Semaforo verde/amarillo: defaults del mock porque la BD no tiene `semaforo_verde_dias`/`semaforo_amarillo_dias`
+
+(Esto es BUENO: confirma que la pagina CARGA del backend cuando existe, y usa
+fallback del mock solo si no existe. Es la mejora clave del fix.)
