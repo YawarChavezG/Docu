@@ -90,12 +90,29 @@ Si la sesión se cierra abruptamente (tokens agotados, error, loop), el agente *
 - Alpine.js stores en `src/store/*.js`, pages en `src/pages/*.js`, componentes en `src/components/*.js`.
 - **Datos**: backend es la única fuente de verdad. NO usar `src/data/*.js` en producción (es legacy mock).
 
-### 3.4 Git
-- **Branch principal:** `main` (protegida, solo PRs).
-- **Feature branches:** `feat/RX-descripcion` (RX = número de reunión).
-- **Bugfix branches:** `fix/descripcion-corta`.
-- **Commits:** Conventional Commits (`feat(scope): descripción`, `fix(scope):`, `docs(scope):`, etc.).
-- **NO commitear secretos.** El `.env` está en `.gitignore`.
+### 3.4 Git — Estrategia de branching (UNA RAMA POR ÉPICA)
+
+```
+main (protegido, solo PRs)
+├── epica-1/rama-1   ← R1 trabajo actual
+│   ├── feat/R1-login-ldap     (sub-rama solo si feature es grande/experimental)
+│   └── fix/ad-sync-bitmask
+├── epica-2/rama-1   ← R2 (crear al cerrar R1)
+└── epica-3/rama-1   ← R3 (crear al cerrar R2)
+```
+
+**Reglas:**
+- **`main`** está protegido. Solo recibe PRs desde `epica-X/rama-X` cuando la épica cierra (todos los criterios de aceptación OK + tests pasando + docs actualizados).
+- **`epica-X/rama-X`** es la rama de trabajo del día a día. Commits directos ahí.
+- **`feat/RX-descripcion`** solo si la feature es grande o experimental. Features medianas/pequeñas: commit directo en la rama de la épica.
+- **`fix/descripcion-corta`** para bugfixes. Preferentemente desde la rama de la épica actual.
+- **Al cerrar la épica**: PR de `epica-X/rama-X` → `main`, merge, crear `epica-(X+1)/rama-1` desde main actualizado.
+
+**Estado actual:** estamos en `epica-1/rama-1` desde el commit inicial. Al cerrar R1 → merge a main → crear `epica-2/rama-1`.
+
+**Commits:** Conventional Commits (`feat(scope): descripción`, `fix(scope):`, `docs(scope):`, etc.). Ver §8 para la regla de `git-workflow` antes de cada commit.
+
+**NO commitear secretos.** El `.env` está en `.gitignore`.
 
 ---
 
