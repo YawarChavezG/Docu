@@ -39,6 +39,7 @@ from app.models.matriz_enrutamiento_eto import (  # noqa: F401
     MatrizEnrutamientoEto,
     DisponibilidadEto,
 )
+from app.models.tipo_documento import TipoDocumento  # noqa: F401
 
 
 __all__ = [
@@ -69,4 +70,5 @@ __all__ = [
     "CodigoPlantilla",
     "MatrizEnrutamientoEto",
     "DisponibilidadEto",
+    "TipoDocumento",
 ]

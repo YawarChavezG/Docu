@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.core.config import settings
-from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias, areas, configuracion_global, feriados, email_templates, matriz_enrutamiento_eto
+from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias, areas, configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento
 
 # ─── Timezone (Bolivia = UTC-4) ───
 # Truco: pisamos el converter CLASS-attribute de logging.Formatter con
@@ -106,6 +106,7 @@ app.include_router(configuracion_global.router, prefix=settings.api_v1_prefix, t
 app.include_router(feriados.router, prefix=settings.api_v1_prefix, tags=["Feriados"])
 app.include_router(email_templates.router, prefix=settings.api_v1_prefix, tags=["Email Templates"])
 app.include_router(matriz_enrutamiento_eto.router, prefix=settings.api_v1_prefix, tags=["Matriz ETO"])
+app.include_router(tipos_documento.router, prefix=settings.api_v1_prefix, tags=["Tipos Documento"])
 app.include_router(admin_impersonate.router, prefix=settings.api_v1_prefix)
 
 
