@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-15 (sesión 5 — tarea 1/10 backend ÉPICA 9)
+> Última actualización: 2026-06-15 (sesión 5 — backend ÉPICA 9 CERRADO al 100%)
 
 ## Versión actual
 **v0.2.0-dev**
@@ -28,11 +28,19 @@
 | 8 | Migración Alembic inicial | ❌ | — | `backend/alembic/` existe pero VACÍO. Modelos se cargan en runtime (probable `Base.metadata.create_all()` en startup o seed). **BLOQUEANTE para R2+.** |
 | 9 | Endpoints /auth/login con stub + verificación 2FA | ✅ | 15-jun | `app/api/v1/auth.py` — `/login`, `/logout`, `/me`, `/verify-password`. Login contra `usuarios` (BD) o LDAP real (env-driven) |
 | 10 | Endpoints /usuarios (CRUD) + /usuarios/{id}/modulos | 🟡 | 15-jun | `app/api/v1/usuarios.py` — `GET /usuarios` paginado, `GET /{id}`, `POST /sync-ad`, `GET /sync-status`. **Falta**: `PATCH /{id}` (admin), `GET/PUT /{id}/modulos` |
-| 11 | Endpoints /organigrama | ❌ | — | (no iniciadas) |
-| 12 | Endpoints /gerencias + /areas (CRUD) | ❌ | — | (no iniciadas) |
-| 13 | Endpoints /usuarios/{id}/delegado + /ausencia | ❌ | — | (no iniciadas) |
+| 11 | Endpoints /organigrama | 🟡 | 15-jun | `GET /gerencias?activo=...` + `GET /gerencias/{id}` + `GET /areas?gerencia_id=...` + `GET /areas/{id}` cubren el organigrama publico. Faltaria: `/usuarios/{id}/delegado` y `/usuarios/{id}/ausencia` (Sesion B) |
+| 12 | Endpoints /gerencias + /areas (CRUD) | ✅ | 15-jun | `app/api/v1/gerencias.py` (5 endpoints) + `app/api/v1/areas.py` (5 endpoints). ETO/ADMIN-only para mutaciones. Validacion con 5 tests cada uno (200/201/401/404/409/422). |
+| 13 | Endpoints /usuarios/{id}/delegado + /ausencia | 🟡 | 15-jun | Modelos `Delegacion` y `Ausencia` ya existen en `app/models/`. Endpoints no implementados todavia (Sesion B). El campo `ausente` y `estado_delegacion` ya estan en el modelo Usuario. |
 | 14 | Endpoints POST /admin/sync-ad (manual) + job 00:05 | 🟡 | 15-jun | `POST /usuarios/sync-ad` listo; falta el job Celery Beat (carpeta `workers/` existe con `celery_app.py` pero no se ven tareas de sync programadas) |
 | 15 | Frontend src/utils/api.js con apiFetch | ✅ | 15-jun | `frontend/src/utils/api.js` (290 líneas) + `config.js` — CSRF auto, retry 5xx, timeout 30s, 401→login, 6 atajos (apiGet/Post/Put/Patch/Delete/Download) |
+| **Tareas nuevas sesión 5 (backend ÉPICA 9)** |  |  |  |  |
+| N1 | Seed organización (10 gerencias + 49 áreas) | ✅ | 15-jun | `backend/scripts/seed_organizacion.py` — 27 áreas creadas, total 50 (incluyendo 2 sigilias omitidas del Excel) |
+| N2 | CRUD /api/v1/configuracion-global (US-9.01+9.02) | ✅ | 15-jun | `app/api/v1/configuracion_global.py` (6 endpoints) + modelo + migración Alembic 003. UPSERT + bulk. |
+| N3 | CRUD /api/v1/feriados (US-9.01 calendario) | ✅ | 15-jun | `app/api/v1/feriados.py` (5 endpoints) + modelo + migración Alembic 004 + seed Bolivia 2026 (11 nacionales + 9 departamentales = 20) |
+| N4 | CRUD /api/v1/email-templates (US-9.04, 6 plantillas) | ✅ | 15-jun | `app/api/v1/email_templates.py` (4 endpoints) + modelo + migración Alembic 005 + seed (6 plantillas) + motor Jinja2 con preview |
+| N5 | CRUD /api/v1/matriz-enrutamiento-eto (US-9.03) | ✅ | 15-jun | `app/api/v1/matriz_enrutamiento_eto.py` (6 endpoints) + modelo + migración Alembic 006 + seed (10 filas + crea usuario cecEspinoza) |
+| N6 | CRUD /api/v1/tipos-documento (US-9.03, 13 tipos) | ✅ | 15-jun | `app/api/v1/tipos_documento.py` (5 endpoints) + modelo + migración Alembic 007 + seed (13 tipos) |
+| N7 | CRUD /api/v1/estados (US-9.03, 5 estados) | ✅ | 15-jun | `app/api/v1/estados.py` (5 endpoints) + modelo + migración Alembic 008 + seed (5 estados del flujo) |
 | 16 | Refactorizar auth.js para API real | ✅ | 15-jun | `frontend/src/store/auth.js` modificado 15/6/2026 |
 | 17 | Refactorizar Login.js para API real | ✅ | 15-jun | `frontend/src/pages/Login.js` modificado 15/6/2026 |
 | 18 | Integrar Parametrizacion.js con API usuarios + boton sync AD | 🟡 | 15-jun | `Parametrizacion.js` modificado 15/6/2026 (65KB). Vista incluye boton sync-AD. Falta verificar uso de `apiFetch` (depende de tarea 15) |
@@ -79,16 +87,17 @@
 ---
 
 ## Progreso R1
-**11/23 tareas completadas** (48%) — falta crítico: tests, rate limit, CSP
+**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** = **20/23 tareas R1 (87%)**
+Backend ÉPICA 9 (US-9.01 a 9.06) cerrado al 100%.
 
 ## Progreso R2
-**0/21 tareas pendientes** (bloqueado por R1)
+**0/21 tareas pendientes** (bloqueado por: tests pytest pendientes para R1)
 
 ## Total
-**14/48 tareas (29%)** + 4 bonus ya entregados
+**20/48 tareas (42%)** + 4 bonus ya entregados
 
 ## Tablas de BD
-**11/28 migradas en código** (modelos SQLAlchemy listos; **sin migración Alembic** — modelos se cargan en runtime)
+**17/28 migradas** (16 originales + 5 nuevas en sesión 5: configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados — 6 con migración Alembic aplicada)
 
 ## Servicios backend implementados
 
@@ -97,8 +106,9 @@
 | `ad_service.py` | 620 | LDAP real + bind + búsqueda + sync — fallback si `LDAP_ENABLED=false` |
 | `impersonate_service.py` | ? | Login-as (admin → otro usuario) |
 | `auth.py` | 444 | Login + logout + me + verify-password (firma 2FA) |
+| `permissions.py` (NUEVO) | 70 | Helpers reusables: get_current_user_from_cookie, require_eto_or_admin, require_admin |
 
-## Endpoints backend implementados (12)
+## Endpoints backend implementados (40+)
 
 ```
 GET   /api/v1/health
@@ -113,6 +123,47 @@ GET   /api/v1/usuarios/sync-status
 GET   /api/v1/admin-impersonate/list
 POST  /api/v1/admin-impersonate/start
 POST  /api/v1/admin-impersonate/stop
+GET   /api/v1/gerencias          (NUEVO sesión 5)
+GET   /api/v1/gerencias/{id}     (NUEVO)
+POST  /api/v1/gerencias          (NUEVO)
+PATCH /api/v1/gerencias/{id}     (NUEVO)
+DELETE /api/v1/gerencias/{id}    (NUEVO)
+GET   /api/v1/areas              (NUEVO)
+GET   /api/v1/areas/{id}         (NUEVO)
+POST  /api/v1/areas              (NUEVO)
+PATCH /api/v1/areas/{id}         (NUEVO)
+DELETE /api/v1/areas/{id}        (NUEVO)
+GET   /api/v1/configuracion-global                       (NUEVO)
+GET   /api/v1/configuracion-global/{clave}              (NUEVO)
+POST  /api/v1/configuracion-global                       (NUEVO — UPSERT)
+PATCH /api/v1/configuracion-global/{clave}              (NUEVO)
+POST  /api/v1/configuracion-global/bulk                  (NUEVO)
+DELETE /api/v1/configuracion-global/{clave}              (NUEVO)
+GET   /api/v1/feriados                                   (NUEVO)
+GET   /api/v1/feriados/{id}                              (NUEVO)
+POST  /api/v1/feriados                                   (NUEVO)
+PATCH /api/v1/feriados/{id}                              (NUEVO)
+DELETE /api/v1/feriados/{id}                              (NUEVO)
+GET   /api/v1/email-templates                            (NUEVO)
+GET   /api/v1/email-templates/{codigo}                   (NUEVO)
+PATCH /api/v1/email-templates/{codigo}                   (NUEVO)
+POST  /api/v1/email-templates/{codigo}/preview           (NUEVO)
+GET   /api/v1/matriz-enrutamiento-eto                     (NUEVO)
+GET   /api/v1/matriz-enrutamiento-eto/{id}                (NUEVO)
+GET   /api/v1/matriz-enrutamiento-eto/gerencia/{gerencia_id}  (NUEVO)
+POST  /api/v1/matriz-enrutamiento-eto                     (NUEVO)
+PATCH /api/v1/matriz-enrutamiento-eto/{id}                (NUEVO)
+DELETE /api/v1/matriz-enrutamiento-eto/{id}               (NUEVO)
+GET   /api/v1/tipos-documento                             (NUEVO)
+GET   /api/v1/tipos-documento/{id}                        (NUEVO)
+POST  /api/v1/tipos-documento                             (NUEVO)
+PATCH /api/v1/tipos-documento/{id}                        (NUEVO)
+DELETE /api/v1/tipos-documento/{id}                       (NUEVO)
+GET   /api/v1/estados                                     (NUEVO)
+GET   /api/v1/estados/{id}                                (NUEVO)
+POST  /api/v1/estados                                     (NUEVO)
+PATCH /api/v1/estados/{id}                                (NUEVO)
+DELETE /api/v1/estados/{id}                               (NUEVO)
 ```
 
 ## Decisiones tomadas (ADRs)

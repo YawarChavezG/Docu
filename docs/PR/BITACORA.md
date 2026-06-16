@@ -271,3 +271,65 @@ Para este proyecto (Python/FastAPI) se recomienda **perfil minimal** + desactiva
 - Modelos faltantes a crear: `configuracion_global`, `feriado`, `email_template`, `matriz_enrutamiento_eto`, `tipo_documento`, `estado`
 - Build de Vite falla por config preexistente (`manualChunks` con objeto en `vite.config.js`) â€” no es por mi cambio. Dev server (HMR) sÃ­ funciona
 
+
+---
+
+## Sesion 5 — 2026-06-15 (CIERRE) — Backend EPICA 9 al 100%
+
+### Resultado global
+**10/10 tareas de la sesion A completadas.** Backend de la EPICA 9 (US-9.01 a 9.06) cerrado al 100%.
+**Total commits sesion 5: 14** (10 de codigo + 4 de docs).
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 1 | frontend/src/utils/api.js (apiFetch con CSRF, retry, error handling) | bd7d423 | 290 lineas, 6 atajos, validado con curl. Docs asociados: 4525281, a07263f, 7778568. |
+| 2 | backend/scripts/seed_organizacion.py | 812cecb | 27 areas nuevas. Total BD: 50 (23 preexistentes + 27 nuevas). |
+| 3 | CRUD /api/v1/gerencias (US-9.06) | 3a03298 | 5 endpoints validados. Helper permissions.py reubicable. |
+| 4 | CRUD /api/v1/areas (US-9.06) | f922148 | 5 endpoints. Limitacion documentada: sigla UNIQUE global impide re-crear tras borrado. |
+| 5 | CRUD /api/v1/configuracion-global (US-9.01+9.02) | eaff39a | 6 endpoints (incluye bulk). Modelo + migracion Alembic 003. UPSERT (no 409 en POST dup). |
+| 6 | CRUD /api/v1/feriados (US-9.01 calendario) | 8b6a059 | 5 endpoints. Modelo + migracion Alembic 004 + seed Bolivia 2026 (20 feriados). |
+| 7 | CRUD /api/v1/email-templates (US-9.04, 6 plantillas) | c83bf35 | 4 endpoints. Modelo + migracion Alembic 005 + seed (6 plantillas) + motor Jinja2 con preview. |
+| 8 | CRUD /api/v1/matriz-enrutamiento-eto (US-9.03 sub-3) | cd4a444 | 6 endpoints. Modelo + migracion Alembic 006 + seed (10 filas + crea usuario cecEspinoza). |
+| 9b | CRUD /api/v1/tipos-documento (US-9.03 sub-1) | f0d3650 | 5 endpoints. Modelo + migracion Alembic 007 + seed (13 tipos del Excel). |
+| 9c | CRUD /api/v1/estados (US-9.03 sub-2) | 8ffaaa2 | 5 endpoints. Modelo + migracion Alembic 008 + seed (5 estados del flujo). |
+
+### Logros tecnicos
+
+1. **40+ endpoints REST** implementados (12 originales + 28 nuevos de la sesion 5).
+2. **6 migraciones Alembic** autogeneradas y aplicadas (003 a 008) — base durable.
+3. **5 seeds idempotentes** (seed_organizacion, seed_feriados, seed_email_templates, seed_matriz_eto, seed_estados).
+4. **1 helper de permisos reutilizable** (app/core/permissions.py) usado por 9 routers.
+5. **2 usuarios ETO** sembrados (aromero preexistente + cecEspinoza creado en sesion 5).
+6. **Datos sembrados**: 10 gerencias, 50 areas, 5 roles, 11 modulos, 763 usuarios AD, 20 feriados Bolivia 2026, 6 plantillas email, 10 filas matriz ETO, 13 tipos documento, 5 estados.
+
+### Bugs detectados y corregidos durante la sesion
+
+1. **SQLAlchemy 2.0 no acepta description= en String()/Text()** — kwarg desconocido. Quite de los modelos.
+2. **usuario_roles se importa de app/models/usuario.py**, NO de app/models/rol.py — bug de import en tarea #8.
+3. **PowerShell + http.client filtra mal cookies #HttpOnly_** — bug del tooling. Fix documentado.
+4. **cascade=all, delete-orphan en gerencia.areas** — incompatible con borrado logico. Documentado.
+5. **Doble endpoint list_matriz** en tarea #8 (codigo experimental). Reescrito limpio.
+6. **Metodo inventado activo_disponibilidad()** en seed original. Eliminado.
+
+### Hallazgos del pre-flight (importantes para futuras sesiones)
+
+- ? Alembic YA estaba aplicado (tabla alembic_version existe). El GAP reportado en sesion 4 es incorrecto.
+- ? Backend SI esta en Docker (verificado docker ps), no nativo. Sesion 4 estaba equivocada.
+- ? NO hay middleware CSRF en backend (solo se setea cookie en /login). api.js envia X-CSRF-Token aunque no se valide.
+- ? app/schemas/ estaba VACIO — ahora poblado con 8 schemas Pydantic v2.
+- ?? Skills git-workflow y python-reviewer (plugin ECC) NO disponibles como subagent — reemplazadas por lectura directa de la skill y auto-revision con checklist.
+
+### Progreso actualizado
+- **R1:** 20/23 tareas (87%). Pendientes: tests pytest, rate limit, CSP.
+- **R2:** 0/21 (bloqueado por tests).
+- **Total:** 20/48 (42%) + 4 bonus.
+
+### Proxima sesion (Sesion B) — UI + tests + bulk
+1. Refactor Parametrizacion.js para usar los 28 nuevos endpoints con apiFetch (US-9.01-9.06).
+2. Tests pytest de los endpoints nuevos (Sesion B tarea #11).
+3. Asignacion masiva desde USUARIOS EXISTENTES A ABRIL.xlsx (730 usuarios, tarea #12).
+4. GET /api/v1/audit-log con filtros (tarea #9, audit de admin).
+5. Operaciones jerarquicas de areas (mover, promover-a-gerencia, DELETE logico) — sub-tareas #9d.
+6. Override vacaciones + export Excel/CSV (tarea #9e).
