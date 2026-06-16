@@ -128,7 +128,12 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 | **Para limpiar código muerto** | (built-in: `refactor-cleaner` agent) | "Invocá refactor-cleaner sobre el directorio backend/app/api/v1/." |
 | **Al cerrar sesión** | `doc-updater` (agent) + `git-workflow` | "Actualizá ESTADO.md y BITACORA.md, después hacé commit con git-workflow." |
 
-### Skills por TIPO de TAREA (las 12 del plan actual)
+### Skills por TIPO de TAREA (las 16 del plan, divididas en 2 sesiones)
+
+> **El plan completo tiene 15 tareas. Está dividido en 2 sesiones de ~6-7h cada una.**
+> Ver `docs/PR/MATRICES-MAPEO.md` para el detalle de cada US de la ÉPICA 9.
+
+#### 🅰️ SESIÓN A — Backend completo (10 tareas, ~6-7h)
 
 | # | Tarea concreta | Skills a invocar |
 |---|---|---|
@@ -138,12 +143,25 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 | **4** | `GET/POST/PATCH /api/v1/areas` | `fastapi-patterns`, `api-design`, `error-handling` |
 | **5** | `GET/POST/PATCH /api/v1/configuracion-global` | `fastapi-patterns`, `api-design`, `verification-loop` |
 | **6** | `GET/POST/PATCH /api/v1/feriados` | `fastapi-patterns`, `api-design` |
-| **7** | `GET/POST/PATCH /api/v1/email-templates` | `fastapi-patterns`, `api-design`, `error-handling` |
+| **7** | `GET/POST/PATCH /api/v1/email-templates` (US-9.04, **6 plantillas** del PDF) | `fastapi-patterns`, `api-design`, `error-handling` |
 | **8** | `GET/POST/PATCH /api/v1/matriz-enrutamiento-eto` | `fastapi-patterns`, `api-design`, `verification-loop` |
+| **9b** | `GET/POST/PATCH /api/v1/tipos-documento` (US-9.03) | `fastapi-patterns`, `api-design`, `database-migrations` |
+| **9c** | `GET/POST/PATCH /api/v1/estados` (US-9.03) | `fastapi-patterns`, `api-design` |
+
+#### 🅱️ SESIÓN B — UI + tests + bulk (6 tareas, ~4-5h)
+
+| # | Tarea concreta | Skills a invocar |
+|---|---|---|
 | **9** | `GET /api/v1/audit-log` (con filtros) | `fastapi-patterns`, `api-design`, `postgres-patterns` |
-| **10** | Refactor `Parametrizacion.js` para consumir los 7 endpoints | `frontend-design-direction`, `frontend-a11y`, `api-design`, `python-reviewer` (verificar contratos) |
-| **11** | Tests pytest de los 7 endpoints nuevos | `tdd-workflow`, `tdd-mattpocock`, `verification-loop` |
-| **12** | **Asignación masiva de roles/módulos desde USUARIOS EXISTENTES A ABRIL.xlsx** (730 usuarios, 5 roles, 10 módulos) | `database-migrations`, `fastapi-patterns`, `api-design`, `python-reviewer` (agent) — ver `docs/PR/MATRIZ-ABRIL-ASIGNACION.md` |
+| **9d** | Operaciones jerárquicas áreas (`POST /areas/{id}/mover`, `/promover-a-gerencia`, `DELETE` lógico) | `fastapi-patterns`, `api-design`, `error-handling`, `database-migrations` |
+| **9e** | Override vacaciones (`PATCH /usuarios/{id}`) + export Excel/CSV | `fastapi-patterns`, `api-design`, `frontend-design-direction` |
+| **10** | Refactor `Parametrizacion.js` para consumir los 9 endpoints | `frontend-design-direction`, `frontend-a11y`, `api-design`, `python-reviewer` (verificar contratos) |
+| **11** | Tests pytest de los 9 endpoints nuevos (80% coverage) | `tdd-workflow`, `tdd-mattpocock`, `verification-loop` |
+| **12** | Asignación masiva desde `USUARIOS EXISTENTES A ABRIL.xlsx` (730 usuarios) | `database-migrations`, `fastapi-patterns`, `api-design`, `python-reviewer` — ver `docs/PR/MATRIZ-ABRIL-ASIGNACION.md` |
+
+**Total: 16 sub-tareas** (15 reales + 9c/9d/9e marcadas como sub-índices de 9).
+
+**Verificación de cierre de R1:** cuando las 16 sub-tareas estén ✅, abrir PR `epica-1/rama-1` → `main`, mergear, crear `epica-2/rama-1`.
 
 ### Skills por TIPO de TAREA (catálogo general, para futuras sesiones)
 
@@ -185,7 +203,27 @@ Después procedé con git add -A && git commit -m '...' "
 
 ---
 
-## 📋 Plan de avance actualizado (11 tareas para ESTA sesión)
+## 📋 Plan de avance actualizado (16 sub-tareas, divididas en 2 sesiones)
+
+> **IMPORTANTE:** el plan tiene 15 sub-tareas dividido en 2 sesiones para que sea alcanzable. Ver tabla arriba.
+>
+> - **Sesión A:** 10 sub-tareas backend (~6-7h). Cierra el backend de la ÉPICA 9. Validación con curl.
+> - **Sesión B:** 6 sub-tareas UI + tests + bulk (~4-5h). Cierra R1 al 100% (backend + UI + tests + bulk).
+
+---
+
+## 🎯 Prompts maestros (copiar y pegar)
+
+> Los prompts completos están en **`docs/PR/PROMPTS-MAESTROS.md`** (separados para fácil copia).
+> Son 3 prompts:
+> 1. **Prompt de inicio Sesión A** (pegar al abrir opencode)
+> 2. **Prompt de cierre** (pegar al final del día)
+> 3. **Prompt de inicio Sesión B** (pegar al abrir la próxima sesión)
+>
+> **Atajo rápido:**
+> - Sesión A → copiar bloque 1 de `PROMPTS-MAESTROS.md`
+> - Cierre → copiar bloque 2
+> - Sesión B → copiar bloque 3 (cuando vuelvas)
 
 ---
 
