@@ -41,6 +41,9 @@ weasyprint==63.1
 pymupdf==1.25.1
 pikepdf==9.4.0
 
+# ─── Export XLSX profesional (Sesion B - tarea #9e) ───
+openpyxl==3.1.5
+
 # ─── Background tasks ───
 celery[redis]==5.6.3
 # NOTA: Celery 5.6 aún no soporta redis-py 8.x — usar 5.x

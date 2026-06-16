@@ -8,27 +8,34 @@ Reemplaza al mock `frontend/src/data/parametrosSistema.js` que tiene
 Endpoints (todos bajo prefix /api/v1):
   GET   /usuarios              -> lista paginada de usuarios de la BD
   GET   /usuarios/{id}         -> detalle de un usuario
+  PATCH /usuarios/{id}         -> override vacaciones/estado (Sesion B - #9e)
   POST  /usuarios/sync-ad      -> sincroniza usuarios desde el AD real
   GET   /usuarios/sync-status  -> estado del ultimo sync (idempotente)
+  GET   /usuarios/export       -> export XLSX/CSV profesional (Sesion B - #9e)
 
   NOTA: las rutas NO repiten el segmento /usuarios/ porque el router
   se monta con prefix=/api/v1 en main.py. Repetirlo provoca
   colision con /{user_id} (que captura "usuarios" como int -> 422).
 
-Todos los endpoints requieren rol ADMIN.
+GETs y sync-ad requieren rol ADMIN.
+El PATCH y el export admiten ETO o ADMIN (override de vacaciones es US-9.05).
 """
 import logging
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from pydantic import BaseModel
+from fastapi.responses import Response
+from pydantic import BaseModel, Field
 from sqlalchemy import select, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
+from app.core.audit import write_audit
 from app.core.config import settings
+from app.core.excel_export import build_csv, build_excel
+from app.core.permissions import require_eto_or_admin
 from app.models.usuario import Usuario, EstadoUsuario, EstadoDelegacion
 from app.models.rol import Rol, CodigoRol
 from app.models.area import Area
@@ -95,6 +102,30 @@ class SyncAdResponse(BaseModel):
     warnings: list[str] = []
 
 
+# ─── Schemas Sesion B (tarea #9e) ───
+
+class UsuarioUpdate(BaseModel):
+    """
+    Override de campos administrativos del usuario.
+    Solo ETO/ADMIN. Todos los campos son opcionales (PATCH semantico).
+    Acciones tipicas:
+      - Marcar vacaciones: {ausente: true, observaciones: "Vacaciones 15-30 jul"}
+      - Suspender temporalmente: {estado: "inactivo", observaciones: "Suspendido por X"}
+      - Reactivar: {estado: "activo", ausente: false}
+    """
+    estado: Optional[EstadoUsuario] = Field(
+        default=None, description="activo / inactivo / desvinculado / ausente"
+    )
+    ausente: Optional[bool] = Field(default=None, description="Flag de ausencia (lectura en UI)")
+    estado_delegacion: Optional[EstadoDelegacion] = Field(
+        default=None, description="pendiente / asignado / na"
+    )
+    observaciones: Optional[str] = Field(
+        default=None, max_length=500,
+        description="Nota del override (queda en audit_log.detalles)"
+    )
+
+
 # ─── Helpers ───
 
 async def _get_current_user(request: Request, db: AsyncSession) -> Optional[Usuario]:
@@ -124,6 +155,18 @@ async def _require_admin(request: Request, db: AsyncSession) -> Usuario:
             detail=f"Solo usuarios con rol ADMIN pueden acceder (tu rol: {', '.join(r.codigo for r in user.roles) or 'ninguno'})"
         )
     return user
+
+
+async def _resolve_gerencia_de_usuario(
+    db: AsyncSession, user: Usuario
+) -> Optional[int]:
+    """Devuelve gerencia_id del usuario a traves de su area. None si no tiene area."""
+    if user.area_id is None:
+        return None
+    row = (await db.execute(
+        select(Area.gerencia_id).where(Area.id == user.area_id)
+    )).one_or_none()
+    return row[0] if row else None
 
 
 def _to_out(user: Usuario) -> UsuarioOut:
@@ -463,6 +506,146 @@ async def sync_status(
     }
 
 
+@router.get("/export")
+async def export_usuarios(
+    request: Request,
+    formato: str = Query("xlsx", pattern="^(xlsx|csv)$", description="Formato: xlsx o csv"),
+    q: Optional[str] = Query(None, description="Busca en username/nombre/email"),
+    rol: Optional[str] = Query(None, description="Filtra por codigo de rol (ETO, ADMIN, etc.)"),
+    estado: Optional[str] = Query(None, description="activo / inactivo / desvinculado / ausente"),
+    area_id: Optional[int] = Query(None, ge=1),
+    gerencia_id: Optional[int] = Query(None, ge=1),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Exporta la lista de usuarios a XLSX (default) o CSV.
+    Genera un archivo con cabecera profesional (auto-width, freeze, filtros,
+    totales, paleta pastel alineada con el design system del frontend).
+
+    Si no se pasan filtros, exporta TODOS los usuarios.
+    Solo ETO o ADMIN.
+    """
+    user_admin = await require_eto_or_admin(request, db)
+
+    # Query base (mismos filtros que listar_usuarios)
+    base = select(Usuario).options(
+        selectinload(Usuario.roles),
+        selectinload(Usuario.modulos),
+        selectinload(Usuario.area).selectinload(Area.gerencia),
+    )
+    if q:
+        pat = f"%{q.lower()}%"
+        base = base.where(or_(
+            func.lower(Usuario.username).like(pat),
+            func.lower(Usuario.nombre_completo).like(pat),
+            func.lower(Usuario.email).like(pat),
+        ))
+    if estado:
+        try:
+            estado_enum = EstadoUsuario(estado)
+            base = base.where(Usuario.estado == estado_enum)
+        except ValueError:
+            pass
+    if area_id is not None:
+        base = base.where(Usuario.area_id == area_id)
+    if gerencia_id is not None:
+        # Join a traves del area
+        base = base.join(Area, Area.id == Usuario.area_id).where(Area.gerencia_id == gerencia_id)
+    if rol:
+        from app.models.usuario import usuario_roles
+        base = base.join(usuario_roles, usuario_roles.c.usuario_id == Usuario.id).join(
+            Rol, Rol.id == usuario_roles.c.rol_id
+        ).where(Rol.codigo == rol)
+
+    users = (await db.execute(
+        base.order_by(Usuario.nombre_completo.asc())
+    )).scalars().all()
+
+    # ─── Construir filas ───
+    rows: list[list] = []
+    for u in users:
+        rows.append([
+            u.id,
+            u.username,
+            u.nombre_completo,
+            u.iniciales or "",
+            u.email or "",
+            u.cargo or "(sin cargo)",
+            (u.area.sigla if u.area else ""),
+            (u.area.gerencia.sigla if u.area and u.area.gerencia else ""),
+            (u.area.gerencia.nombre if u.area and u.area.gerencia else ""),
+            u.estado.value if hasattr(u.estado, "value") else str(u.estado),
+            "SI" if u.ausente else "NO",
+            (u.estado_delegacion.value if hasattr(u.estado_delegacion, "value") else str(u.estado_delegacion)),
+            ", ".join(r.codigo for r in u.roles) or "(sin rol)",
+            ", ".join(m.codigo for m in u.modulos) or "-",
+            u.ad_postal_code or "",
+            u.ad_last_synced_at.strftime("%Y-%m-%d %H:%M") if u.ad_last_synced_at else "",
+        ])
+
+    # ─── KPIs (totales) ───
+    total = len(rows)
+    activos = sum(1 for r in rows if r[9] == "activo")
+    ausentes = sum(1 for r in rows if r[10] == "SI")
+    inactivos = sum(1 for r in rows if r[9] in ("inactivo", "desvinculado"))
+
+    total_row = [
+        "TOTAL", f"{total} usuarios", "", "", "", "", "", "", "",
+        f"{activos} activos", f"{ausentes} ausentes", f"{inactivos} inactivos",
+        "", "", "", "",
+    ]
+
+    headers = [
+        "ID", "Username", "Nombre Completo", "Inic.", "Email", "Cargo",
+        "Area", "Gerencia (sigla)", "Gerencia", "Estado", "Ausente",
+        "Delegacion", "Roles", "Modulos", "Cod. SAP (AD)", "Ultimo Sync AD",
+    ]
+
+    # Alinear: ID y fechas centrados/right, resto izquierda
+    column_alignments = {1: "center", 4: "center", 10: "center", 11: "center", 12: "center", 16: "center"}
+
+    if formato == "xlsx":
+        file_bytes = build_excel(
+            headers=headers,
+            rows=rows,
+            sheet_name="Usuarios SGD",
+            title=f"Listado de Usuarios — COFAR SGD (generado por {user_admin.username})",
+            total_row=total_row,
+            column_alignments=column_alignments,
+        )
+        filename = f"usuarios_sgd_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+        await write_audit(
+            db, request, user_admin,
+            accion="EXPORT", recurso="usuario", recurso_id=None,
+            descripcion=f"Export de {total} usuarios a XLSX",
+            detalles={"formato": "xlsx", "total": total, "filtros": {"q": q, "rol": rol, "estado": estado, "area_id": area_id, "gerencia_id": gerencia_id}},
+        )
+        await db.commit()
+        return Response(
+            content=file_bytes,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    # CSV
+    file_bytes = build_csv(headers=headers, rows=rows, total_row=total_row)
+    filename = f"usuarios_sgd_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    await write_audit(
+        db, request, user_admin,
+        accion="EXPORT", recurso="usuario", recurso_id=None,
+        descripcion=f"Export de {total} usuarios a CSV",
+        detalles={"formato": "csv", "total": total, "filtros": {"q": q, "rol": rol, "estado": estado, "area_id": area_id, "gerencia_id": gerencia_id}},
+    )
+    await db.commit()
+    return Response(
+        content=file_bytes,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ─── /{user_id} generico DEBE ir AL FINAL (captura cualquier string) ───
+
 @router.get("/{user_id}", response_model=UsuarioOut)
 async def get_usuario(
     user_id: int,
@@ -482,3 +665,84 @@ async def get_usuario(
     if user is None:
         raise HTTPException(status_code=404, detail=f"Usuario {user_id} no encontrado")
     return _to_out(user)
+
+
+# ─── Sesion B - tarea #9e: override vacaciones ───
+
+@router.patch("/{user_id}", response_model=UsuarioOut)
+async def update_usuario_override(
+    user_id: int,
+    payload: UsuarioUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Override administrativo de un usuario (US-9.05).
+    Solo ETO o ADMIN. Audita TODOS los cambios con detalle antes/despues.
+
+    Casos tipicos:
+      - Marcar vacaciones: {ausente: true, observaciones: "Vacaciones 15-30 jul"}
+      - Suspender: {estado: "inactivo", observaciones: "Suspendido por X"}
+      - Reactivar: {estado: "activo", ausente: false}
+    """
+    user_admin = await require_eto_or_admin(request, db)
+
+    target = (await db.execute(
+        select(Usuario).where(Usuario.id == user_id)
+        .options(
+            selectinload(Usuario.roles),
+            selectinload(Usuario.modulos),
+            selectinload(Usuario.area).selectinload(Area.gerencia),
+        )
+    )).scalar_one_or_none()
+    if target is None:
+        raise HTTPException(404, f"Usuario {user_id} no encontrado")
+
+    data = payload.model_dump(exclude_unset=True)
+    if not data:
+        return _to_out(target)
+
+    observaciones = data.pop("observaciones", None)
+
+    antes = {
+        "estado": target.estado.value if hasattr(target.estado, "value") else str(target.estado),
+        "ausente": target.ausente,
+        "estado_delegacion": target.estado_delegacion.value if hasattr(target.estado_delegacion, "value") else str(target.estado_delegacion),
+    }
+
+    if "estado" in data and data["estado"] is not None:
+        target.estado = data["estado"]
+    if "ausente" in data and data["ausente"] is not None:
+        target.ausente = data["ausente"]
+    if "estado_delegacion" in data and data["estado_delegacion"] is not None:
+        target.estado_delegacion = data["estado_delegacion"]
+
+    await db.commit()
+    # Reload con selectinload porque expire_on_commit=True invalida las relaciones
+    target = (await db.execute(
+        select(Usuario).where(Usuario.id == user_id)
+        .options(
+            selectinload(Usuario.roles),
+            selectinload(Usuario.modulos),
+            selectinload(Usuario.area).selectinload(Area.gerencia),
+        )
+    )).scalar_one()
+
+    despues = {
+        "estado": target.estado.value if hasattr(target.estado, "value") else str(target.estado),
+        "ausente": target.ausente,
+        "estado_delegacion": target.estado_delegacion.value if hasattr(target.estado_delegacion, "value") else str(target.estado_delegacion),
+    }
+
+    await write_audit(
+        db, request, user_admin,
+        accion="OVERRIDE", recurso="usuario", recurso_id=target.id,
+        descripcion=f"Override administrativo sobre {target.username} (campos: {list(data.keys())})",
+        detalles={"antes": antes, "despues": despues, "campos": list(data.keys()), "observaciones": observaciones},
+    )
+    await db.commit()
+    logger.info(
+        f"Override de usuario {target.username} (id={target.id}) "
+        f"por {user_admin.username} (campos={list(data.keys())})"
+    )
+    return _to_out(target)
