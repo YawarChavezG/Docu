@@ -132,4 +132,11 @@ export const usuarios = {
     })
     return apiDownload(`/usuarios/export?${params.toString()}`)
   },
+  // Listar usuarios activos para el picker de delegado (modal editar)
+  listActivos: (q = '') => apiGet(`/usuarios?estado=activo&page_size=200&q=${encodeURIComponent(q)}`),
+}
+
+// ─── Roles (Sesion 9 - Gestion de Usuarios edit) ───
+export const roles = {
+  list: () => apiGet('/roles'),
 }

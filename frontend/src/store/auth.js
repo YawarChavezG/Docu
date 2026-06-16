@@ -59,6 +59,11 @@ export const authStore = {
         // que el resto del frontend espera (camelCase / nombres cortos).
         this.user = this._mapBackendUserToFrontend(data.user, data.impersonated_by)
         this.role = mapRolesToFrontend(data.user.roles)
+
+        // Chequear delegado en BD (necesario para alerta de sidebar).
+        // No bloquea: si falla, mantenemos la heuristica del rol.
+        this._checkDelegadoAlerta().catch(() => { /* ignore */ })
+
         this._persist()
         return this.user
       }
@@ -70,6 +75,44 @@ export const authStore = {
       this.user = null
       this.role = null
       return null
+    }
+  },
+
+  /**
+   * Chequea si el usuario actual tiene delegado asignado.
+   * Set this.user.hasDelegadoAlert = true si:
+   *   - el rol del usuario requiere delegado, Y
+   *   - el usuario NO tiene delegado (delegado_id=null)
+   * Si falla la consulta a /usuarios, deja el flag como esta.
+   */
+  async _checkDelegadoAlerta() {
+    if (!this.user || !this.user.username) return
+    if (!this.user.requiereDelegadoPorRol) {
+      this.user.hasDelegadoAlert = false
+      return
+    }
+    try {
+      const res = await fetch(
+        `${API_BASE}/usuarios?q=${encodeURIComponent(this.user.username)}&page_size=5`,
+        { method: 'GET', credentials: 'include' }
+      )
+      if (!res.ok) return
+      const data = await res.json()
+      const me = (data.items || []).find(x => x.username === this.user.username)
+      if (me) {
+        const tieneDelegado = !!me.delegado_id
+        const ausente = !!me.ausente
+        this.user.hasDelegadoAlert = !tieneDelegado && !ausente
+        // Exponer campos para que Mi Perfil los pueda leer
+        this.user.delegado_id = me.delegado_id
+        this.user.delegado_nombre = me.delegado_nombre
+        this.user.delegado_username = me.delegado_username
+        this.user.estado_delegacion = me.estado_delegacion
+        this.user.ausente = ausente
+        this.user.estado = me.estado
+      }
+    } catch (_) {
+      // ignore - mantener flag como esta
     }
   },
 
@@ -111,6 +154,17 @@ export const authStore = {
       areaLabel = bu.ad_department.split('|')[0].trim()
     }
 
+    // Roles que requieren delegado obligatorio (sesion 2, ver model Rol.requiere_delegado)
+    const rolesQueRequierenDelegado = new Set([
+      'ETO', 'ELABORADOR - REVISOR', 'ELABORADOR - REVISOR - APROBADOR',
+    ])
+    // La alerta solo se muestra si:
+    //   1) el rol lo requiere
+    //   2) el usuario NO tiene delegado (no lo sabemos en /me, hay que cruzar)
+    // Por ahora usamos una heuristica conservadora: la alerta se chequea en
+    // refreshFromBackend() buscando el usuario en /usuarios?q=<username>.
+    const requiereDelegadoPorRol = rolesQueRequierenDelegado.has(primaryRole)
+
     return {
       // passthrough del backend
       username: bu.username,
@@ -134,7 +188,10 @@ export const authStore = {
       roleLabel: bu.cargo || roleLabels[primaryRole] || primaryRole,
       initials: bu.iniciales,
       area: areaLabel,
-      hasDelegadoAlert: false, // TODO: cruzar con tabla delegaciones
+      // hasDelegadoAlert: se setea en refreshFromBackend (chequea BD).
+      // Por defecto false; el refresh asincrono lo activa si corresponde.
+      hasDelegadoAlert: false,
+      requiereDelegadoPorRol,
     }
   },
 

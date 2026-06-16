@@ -70,6 +70,9 @@ class UsuarioOut(BaseModel):
     estado: str
     ausente: bool
     estado_delegacion: str
+    delegado_id: Optional[int] = None
+    delegado_username: Optional[str] = None
+    delegado_nombre: Optional[str] = None
     roles: list[str] = []
     modulos: list[str] = []
     ad_warning: Optional[str] = None
@@ -112,6 +115,8 @@ class UsuarioUpdate(BaseModel):
       - Marcar vacaciones: {ausente: true, observaciones: "Vacaciones 15-30 jul"}
       - Suspender temporalmente: {estado: "inactivo", observaciones: "Suspendido por X"}
       - Reactivar: {estado: "activo", ausente: false}
+      - Asignar rol: {rol_codigo: "ETO"}
+      - Asignar/quitar delegado: {delegado_id: 42} o {delegado_id: None}
     """
     estado: Optional[EstadoUsuario] = Field(
         default=None, description="activo / inactivo / desvinculado / ausente"
@@ -119,6 +124,14 @@ class UsuarioUpdate(BaseModel):
     ausente: Optional[bool] = Field(default=None, description="Flag de ausencia (lectura en UI)")
     estado_delegacion: Optional[EstadoDelegacion] = Field(
         default=None, description="pendiente / asignado / na"
+    )
+    rol_codigo: Optional[str] = Field(
+        default=None, max_length=100,
+        description="Codigo del rol a asignar (ADMIN, ETO, ELABORADOR - REVISOR, etc.). "
+                    "Si el usuario ya tiene roles, se reemplazan todos por este."
+    )
+    delegado_id: Optional[int] = Field(
+        default=None, description="ID del usuario delegado. None para quitar el delegado."
     )
     observaciones: Optional[str] = Field(
         default=None, max_length=500,
@@ -194,6 +207,9 @@ def _to_out(user: Usuario) -> UsuarioOut:
         estado=user.estado.value if hasattr(user.estado, "value") else str(user.estado),
         ausente=user.ausente,
         estado_delegacion=user.estado_delegacion.value if hasattr(user.estado_delegacion, "value") else str(user.estado_delegacion),
+        delegado_id=user.delegado_id,
+        delegado_username=user.delegado.username if user.delegado else None,
+        delegado_nombre=user.delegado.nombre_completo if user.delegado else None,
         roles=[r.codigo for r in user.roles],
         modulos=[m.codigo for m in user.modulos],
         ad_warning=ad_warning,
@@ -232,6 +248,7 @@ async def listar_usuarios(
         selectinload(Usuario.roles),
         selectinload(Usuario.modulos),
         selectinload(Usuario.area).selectinload(Area.gerencia),
+        selectinload(Usuario.delegado),
     )
 
     # Filtros
@@ -532,6 +549,7 @@ async def export_usuarios(
         selectinload(Usuario.roles),
         selectinload(Usuario.modulos),
         selectinload(Usuario.area).selectinload(Area.gerencia),
+        selectinload(Usuario.delegado),
     )
     if q:
         pat = f"%{q.lower()}%"
@@ -564,6 +582,24 @@ async def export_usuarios(
     # ─── Construir filas ───
     rows: list[list] = []
     for u in users:
+        # Formato "Gerencia / Area" para que coincida con la UI
+        # Prioridad: 1) area en BD, 2) ad_info (department del AD), 3) vacio
+        gerencia_area = ""
+        if u.area:
+            partes = []
+            if u.area.gerencia and u.area.gerencia.sigla:
+                partes.append(u.area.gerencia.sigla)
+            if u.area.sigla:
+                partes.append(u.area.sigla)
+            gerencia_area = " / ".join(partes)
+        # Fallback al ad_info (department del AD) si no tiene area en BD
+        if not gerencia_area and u.ad_info:
+            # ad_info viene como "Tecnologia | Tercia SRL" del backend.
+            # Para el export usamos el primer componente (gerencia aprox).
+            gerencia_area = u.ad_info.split("|")[0].strip()
+        # Delegado: nombre si existe, si no vacio
+        delegado_nombre = u.delegado.nombre_completo if u.delegado else ""
+
         rows.append([
             u.id,
             u.username,
@@ -571,12 +607,11 @@ async def export_usuarios(
             u.iniciales or "",
             u.email or "",
             u.cargo or "(sin cargo)",
-            (u.area.sigla if u.area else ""),
-            (u.area.gerencia.sigla if u.area and u.area.gerencia else ""),
-            (u.area.gerencia.nombre if u.area and u.area.gerencia else ""),
+            gerencia_area,  # "Gerencia / Area" (mismo formato que la UI, fallback ad_info)
             u.estado.value if hasattr(u.estado, "value") else str(u.estado),
             "SI" if u.ausente else "NO",
             (u.estado_delegacion.value if hasattr(u.estado_delegacion, "value") else str(u.estado_delegacion)),
+            delegado_nombre,
             ", ".join(r.codigo for r in u.roles) or "(sin rol)",
             ", ".join(m.codigo for m in u.modulos) or "-",
             u.ad_postal_code or "",
@@ -585,24 +620,25 @@ async def export_usuarios(
 
     # ─── KPIs (totales) ───
     total = len(rows)
-    activos = sum(1 for r in rows if r[9] == "activo")
-    ausentes = sum(1 for r in rows if r[10] == "SI")
-    inactivos = sum(1 for r in rows if r[9] in ("inactivo", "desvinculado"))
+    activos = sum(1 for r in rows if r[7] == "activo")
+    ausentes = sum(1 for r in rows if r[8] == "SI")
+    inactivos = sum(1 for r in rows if r[7] in ("inactivo", "desvinculado"))
 
     total_row = [
-        "TOTAL", f"{total} usuarios", "", "", "", "", "", "", "",
+        "TOTAL", f"{total} usuarios", "", "", "", "", "",
         f"{activos} activos", f"{ausentes} ausentes", f"{inactivos} inactivos",
-        "", "", "", "",
+        "", "", "", "", "",
     ]
 
     headers = [
         "ID", "Username", "Nombre Completo", "Inic.", "Email", "Cargo",
-        "Area", "Gerencia (sigla)", "Gerencia", "Estado", "Ausente",
-        "Delegacion", "Roles", "Modulos", "Cód. SAP", "Ultimo Sync AD",
+        "Gerencia / Area",  # unificado: formato "GNS / AREA"
+        "Estado", "Ausente",
+        "Delegacion", "Delegado", "Roles", "Modulos", "Cód. SAP", "Ultimo Sync AD",
     ]
 
     # Alinear: ID y fechas centrados/right, resto izquierda
-    column_alignments = {1: "center", 4: "center", 10: "center", 11: "center", 12: "center", 16: "center"}
+    column_alignments = {1: "center", 4: "center", 8: "center", 9: "center", 10: "center", 14: "center"}
 
     if formato == "xlsx":
         file_bytes = build_excel(
@@ -660,6 +696,7 @@ async def get_usuario(
             selectinload(Usuario.roles),
             selectinload(Usuario.modulos),
             selectinload(Usuario.area).selectinload(Area.gerencia),
+            selectinload(Usuario.delegado),
         )
     )).scalar_one_or_none()
     if user is None:
@@ -693,6 +730,7 @@ async def update_usuario_override(
             selectinload(Usuario.roles),
             selectinload(Usuario.modulos),
             selectinload(Usuario.area).selectinload(Area.gerencia),
+            selectinload(Usuario.delegado),
         )
     )).scalar_one_or_none()
     if target is None:
@@ -703,11 +741,15 @@ async def update_usuario_override(
         return _to_out(target)
 
     observaciones = data.pop("observaciones", None)
+    rol_codigo = data.pop("rol_codigo", None)
+    delegado_id = data.pop("delegado_id", None)
 
     antes = {
         "estado": target.estado.value if hasattr(target.estado, "value") else str(target.estado),
         "ausente": target.ausente,
         "estado_delegacion": target.estado_delegacion.value if hasattr(target.estado_delegacion, "value") else str(target.estado_delegacion),
+        "roles": [r.codigo for r in target.roles],
+        "delegado_id": target.delegado_id,
     }
 
     if "estado" in data and data["estado"] is not None:
@@ -717,14 +759,61 @@ async def update_usuario_override(
     if "estado_delegacion" in data and data["estado_delegacion"] is not None:
         target.estado_delegacion = data["estado_delegacion"]
 
+    # ─── Asignar/cambiar rol ───
+    # Si se mando rol_codigo, se reemplazan TODOS los roles del usuario por ese.
+    if rol_codigo is not None:
+        from app.models.usuario import usuario_roles
+        # Buscar el rol por codigo
+        rol_obj = (await db.execute(
+            select(Rol).where(Rol.codigo == rol_codigo)
+        )).scalar_one_or_none()
+        if rol_obj is None:
+            raise HTTPException(404, f"Rol '{rol_codigo}' no existe")
+        # Limpiar roles anteriores
+        await db.execute(
+            usuario_roles.delete().where(usuario_roles.c.usuario_id == target.id)
+        )
+        # Asignar el nuevo
+        await db.execute(
+            usuario_roles.insert().values(usuario_id=target.id, rol_id=rol_obj.id)
+        )
+        logger.info(f"Usuario {target.username}: rol -> {rol_codigo}")
+
+    # ─── Asignar/quitar delegado ───
+    # Si se mando delegado_id (puede ser None explicito para quitar, o un int para asignar)
+    if "delegado_id" in payload.model_fields_set or delegado_id is not None:
+        if delegado_id is not None and delegado_id == target.id:
+            raise HTTPException(400, "Un usuario no puede ser su propio delegado")
+        if delegado_id is not None:
+            # Validar que el delegado existe y esta activo
+            delegado_user = (await db.execute(
+                select(Usuario).where(Usuario.id == delegado_id)
+            )).scalar_one_or_none()
+            if delegado_user is None:
+                raise HTTPException(404, f"Usuario delegado {delegado_id} no existe")
+            if delegado_user.estado == EstadoUsuario.DESVINCULADO:
+                raise HTTPException(400, f"El usuario delegado {delegado_id} esta desvinculado")
+        target.delegado_id = delegado_id
+        # Si se asigna un delegado, marcar estado_delegacion=asignado;
+        # si se quita, depende de si requiere_delegado (lo decide el caller).
+        if delegado_id is not None:
+            target.estado_delegacion = EstadoDelegacion.ASIGNADO
+        logger.info(
+            f"Usuario {target.username}: delegado_id -> {delegado_id} "
+            f"(estado_delegacion={target.estado_delegacion.value})"
+        )
+
     await db.commit()
-    # Reload con selectinload porque expire_on_commit=True invalida las relaciones
+    # Expirar explicitamente para forzar reload de relaciones (especialmente
+    # `roles` que fue modificada por delete+insert en la tabla asociacion).
+    db.expire(target)
     target = (await db.execute(
         select(Usuario).where(Usuario.id == user_id)
         .options(
             selectinload(Usuario.roles),
             selectinload(Usuario.modulos),
             selectinload(Usuario.area).selectinload(Area.gerencia),
+            selectinload(Usuario.delegado),
         )
     )).scalar_one()
 
@@ -732,6 +821,8 @@ async def update_usuario_override(
         "estado": target.estado.value if hasattr(target.estado, "value") else str(target.estado),
         "ausente": target.ausente,
         "estado_delegacion": target.estado_delegacion.value if hasattr(target.estado_delegacion, "value") else str(target.estado_delegacion),
+        "roles": [r.codigo for r in target.roles],
+        "delegado_id": target.delegado_id,
     }
 
     await write_audit(

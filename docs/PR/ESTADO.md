@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-16 (sesión 8 — import matriz abril 730 usuarios, R1+EPICA9 100% cerrada)
+> Última actualización: 2026-06-16 (sesión 9 — Editar Usuario + Mi Perfil BD + Export corregido)
 
 ## Versión actual
-**v0.4.0-dev** (salto por import masivo de matriz abril 730 usuarios)
+**v0.5.0-dev** (salto por funcionalidad Editar Usuario: rol/delegado/vacacion/estado + modal centrado + searchable picker)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
@@ -48,6 +48,13 @@
 | 20 | Agregar CSP meta tag | ❌ | — | (no verificado) |
 | 21 | Rate limit con slowapi | ❌ | — | (no implementado) |
 | 22 | **TESTING R1** | ✅ | 16-jun | `backend/tests/` poblado. **123/123 tests passing en 11.38s** (commit `e13761c`, sesión 7). Cobertura routers auth + usuarios + parametrización. |
+| **Tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** |  |  |  |  |
+| N8 | Backend `GET /api/v1/roles` (catalogo) | ✅ | 16-jun | `backend/app/api/v1/roles.py` + `schemas/rol.py`. 5 roles con flag `requiere_delegado`. |
+| N9 | Backend `PATCH /usuarios/{id}` con `rol_codigo` y `delegado_id` | ✅ | 16-jun | Extiende `UsuarioUpdate`. Reemplaza roles via `delete + insert` en `usuario_roles`. Asigna/quita delegado. Setea `estado_delegacion=asignado` automaticamente. `db.expire()` para refrescar relaciones. |
+| N10 | Frontend: columna DELEGADO en tabla Gestion de Usuarios | ✅ | 16-jun | 3 estados visuales: verde (asignado), amber (sin delegado + rol lo requiere), gris (no requiere). |
+| N11 | Frontend: modal Editar Usuario (centrado) | ✅ | 16-jun | Modal con ROL (select de BD), DELEGADO (searchable picker fuzzy), VACACION (checkbox), ESTADO (select activo/inactivo/desvinculado), Observaciones. |
+| N12 | Frontend: Mi Perfil (ProfileModal) lee de BD | ✅ | 16-jun | Reemplaza mock `listaEmpleados`. Carga info del usuario, delegado, estado, ausente. PATCH con `delegado_id` y `ausente`. |
+| N13 | Backend: export XLSX/CSV columna AREA = gerencia/area | ✅ | 16-jun | Formato "Gerencia / Area" con fallback a `ad_info` (department del AD) si no tiene area en BD. |
 
 ### R2 — Wizard de creación
 
@@ -87,17 +94,17 @@
 ---
 
 ## Progreso R1
-**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** = **29/29 tareas R1 + EPICA9 (100%)**
-Backend ÉPICA 9 + frontend EPICA 9 + audit + export + refactor Parametrizacion + tests pytest + import matriz: CERRADO al 100%.
+**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** = **35/35 tareas R1 + EPICA9 (100%)**
+Backend ÉPICA 9 + frontend ÉPICA 9 + audit + export + refactor Parametrizacion + tests pytest + import matriz + Editar Usuario + Mi Perfil BD: CERRADO al 100%.
 
 ## Progreso R2
 **0/21 tareas pendientes** (R1 ya NO es bloqueante. R2 puede arrancar.)
 
 ## Total
-**29/48 tareas (60%)** + 4 bonus ya entregados + import matriz abril
+**35/48 tareas (73%)** + 4 bonus ya entregados
 
 ## Tablas de BD
-**18/28 migradas** (16 originales + 6 nuevas en sesión 5: configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados; +1 nueva en sesión 6: **audit_log**; total 18 con migración Alembic aplicada). 0 nuevas en sesiones 7 y 8.
+**18/28 migradas** (16 originales + 6 nuevas en sesión 5 + 1 nueva en sesión 6). 0 nuevas en sesiones 7, 8 y 9 (no hubo cambios de schema).
 
 ## Servicios backend implementados
 

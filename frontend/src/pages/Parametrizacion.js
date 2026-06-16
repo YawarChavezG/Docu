@@ -26,6 +26,7 @@ import {
   areas,
   auditLog,
   usuarios,
+  roles,
 } from '../services/parametrizacionApi.js'
 import {
   ParametrosGlobalesDB,
@@ -797,6 +798,29 @@ export const page = {
       lastSyncText: 'nunca',
       kpisUsuarios: { total: 0, activos: 0, ausentes: 0 },
 
+      // ─── Modal Editar Usuario (Sesion 9) ───
+      editModalOpen: false,
+      editModalLoading: false,
+      editModalSaving: false,
+      editModalRoles: [],             // roles de la BD
+      editModalUsuariosActivos: [],   // lista para picker de delegado
+      editModalDelegadoSearch: '',
+      editModalShowDelegadoList: false,
+      editForm: {
+        id: null,
+        username: '',
+        nombre_completo: '',
+        email: '',
+        cargo: '',
+        estado: 'activo',             // activo / inactivo / desvinculado
+        ausente: false,
+        rol_codigo: '',               // rol seleccionado
+        requiere_delegado: false,     // si el rol actual requiere delegado
+        delegado_id: null,
+        delegado_nombre: '',
+        observaciones: '',
+      },
+
       // ─── Carga inicial al entrar al tab ───
       async init() {
         // Sesion B - tarea #10: carga los 7 tabs en paralelo al inicio.
@@ -1019,9 +1043,165 @@ export const page = {
         this.pushLog('Estado usuario', u.nombre_completo, u.ausente ? 'Ausente' : 'Activo', 'usuarios')
       },
 
-      editarUsuario(u) {
-        // TODO: cuando exista el modal de edicion, abrirlo
-        window.toast(`Edición de ${u.username} - en construcción`, 'info')
+      async editarUsuario(u) {
+        // Abrir modal de edicion con los datos del usuario.
+        // Carga roles y usuarios activos en paralelo.
+        this.editModalOpen = true
+        this.editModalLoading = true
+        this.editModalDelegadoSearch = ''
+        this.editModalShowDelegadoList = false
+        // IMPORTANTE: NO setear rol_codigo aqui. Las <option> del <select>
+        // se renderizan DESPUES de cargar editModalRoles, y Alpine bindea
+        // x-model cuando las options existen. Si lo seteamos antes, el <select>
+        // muestra "Seleccionar rol" hasta que el usuario interactue con el.
+        this.editForm = {
+          id: u.id,
+          username: u.username,
+          nombre_completo: u.nombre_completo,
+          email: u.email || '',
+          cargo: u.cargo || '',
+          estado: u.estado,
+          ausente: !!u.ausente,
+          rol_codigo: '',
+          requiere_delegado: false,
+          delegado_id: u.delegado_id || null,
+          delegado_nombre: u.delegado_nombre || '',
+          observaciones: '',
+        }
+        // Guardar el rol original para setearlo despues de cargar las options
+        const rolOriginal = (u.roles && u.roles.length > 0) ? u.roles[0] : ''
+        try {
+          const [resRoles, resActivos] = await Promise.all([
+            roles.list(),
+            usuarios.listActivos(),
+          ])
+          if (resRoles.ok) {
+            this.editModalRoles = resRoles.data.items || []
+            // Despues de cargar las options, setear el rol original.
+            // Usar $nextTick para esperar a que Alpine renderice las <option>.
+            await this.$nextTick()
+            this.editForm.rol_codigo = rolOriginal
+            // Determinar si el rol actual requiere delegado
+            const rolObj = this.editModalRoles.find(r => r.codigo === rolOriginal)
+            this.editForm.requiere_delegado = rolObj ? !!rolObj.requiere_delegado : false
+          } else {
+            window.toast('Error cargando roles', 'error')
+            this.editModalRoles = []
+          }
+          if (resActivos.ok) {
+            // Excluir al propio usuario del listado de posibles delegados
+            this.editModalUsuariosActivos = (resActivos.data.items || []).filter(x => x.id !== u.id)
+          } else {
+            window.toast('Error cargando usuarios activos', 'error')
+            this.editModalUsuariosActivos = []
+          }
+        } catch (e) {
+          window.toast(`Error: ${e.message}`, 'error')
+        } finally {
+          this.editModalLoading = false
+        }
+      },
+
+      cerrarModalEdicion() {
+        if (this.editModalSaving) return
+        this.editModalOpen = false
+      },
+
+      onRolChange() {
+        // Actualizar si el rol requiere delegado
+        const rolObj = this.editModalRoles.find(r => r.codigo === this.editForm.rol_codigo)
+        this.editForm.requiere_delegado = rolObj ? !!rolObj.requiere_delegado : false
+        // Si el rol NO requiere delegado, limpiar el delegado
+        if (!this.editForm.requiere_delegado) {
+          this.editForm.delegado_id = null
+          this.editForm.delegado_nombre = ''
+          this.editModalDelegadoSearch = ''
+        }
+      },
+
+      get editModalDelegadosFiltrados() {
+        // Filtro fuzzy sobre usuarios activos: nombre, username, codigo SAP, email
+        const q = (this.editModalDelegadoSearch || '').toLowerCase().trim()
+        if (!q) return this.editModalUsuariosActivos.slice(0, 50)
+        const tokens = q.split(/\s+/).filter(Boolean)
+        return this.editModalUsuariosActivos.filter(u => {
+          const haystack = [
+            u.nombre_completo || '',
+            u.username || '',
+            u.email || '',
+            u.ad_postal_code || '',
+            u.cargo || '',
+          ].join(' ').toLowerCase()
+          return tokens.every(t => haystack.includes(t))
+        }).slice(0, 50)
+      },
+
+      seleccionarDelegado(u) {
+        this.editForm.delegado_id = u.id
+        this.editForm.delegado_nombre = u.nombre_completo
+        this.editModalDelegadoSearch = ''
+        this.editModalShowDelegadoList = false
+      },
+
+      limpiarDelegado() {
+        this.editForm.delegado_id = null
+        this.editForm.delegado_nombre = ''
+        this.editModalDelegadoSearch = ''
+        this.editModalShowDelegadoList = false
+      },
+
+      async guardarEdicionUsuario() {
+        if (!this.editForm.id) return
+        if (!this.editForm.rol_codigo) {
+          window.toast('⚠️ Selecciona un rol', 'warn')
+          return
+        }
+        if (this.editForm.requiere_delegado && !this.editForm.delegado_id) {
+          window.toast('⚠️ Este rol requiere delegado. Asigna uno.', 'warn')
+          return
+        }
+        this.editModalSaving = true
+        try {
+          // Construir payload solo con campos que cambiaron respecto al original
+          const u = this.usuarios.find(x => x.id === this.editForm.id)
+          const payload = {}
+          if (u) {
+            if (this.editForm.estado !== u.estado) payload.estado = this.editForm.estado
+            if (this.editForm.ausente !== !!u.ausente) payload.ausente = this.editForm.ausente
+            const rolOrig = (u.roles && u.roles[0]) || ''
+            if (this.editForm.rol_codigo !== rolOrig) payload.rol_codigo = this.editForm.rol_codigo
+            if ((this.editForm.delegado_id || null) !== (u.delegado_id || null)) {
+              payload.delegado_id = this.editForm.delegado_id
+            }
+          } else {
+            // Fallback: mandar todo
+            payload.estado = this.editForm.estado
+            payload.ausente = this.editForm.ausente
+            payload.rol_codigo = this.editForm.rol_codigo
+            payload.delegado_id = this.editForm.delegado_id
+          }
+          if (this.editForm.observaciones && this.editForm.observaciones.trim()) {
+            payload.observaciones = this.editForm.observaciones.trim()
+          }
+          if (Object.keys(payload).length === 0) {
+            window.toast('Sin cambios que guardar', 'info')
+            this.cerrarModalEdicion()
+            return
+          }
+          const res = await usuarios.override(this.editForm.id, payload)
+          if (!res.ok) {
+            window.toast(`Error: ${res.data?.detail || res.status}`, 'error')
+            return
+          }
+          window.toast('✅ Usuario actualizado', 'success')
+          this.cerrarModalEdicion()
+          await this.cargarUsuarios()
+          await this.cargarLogs()
+        } catch (e) {
+          window.toast(`Error de red: ${e.message}`, 'error')
+        } finally {
+          this.editModalSaving = false
+        }
       },
 
       formatRol(rolCodigo) {
@@ -1574,6 +1754,7 @@ export const page = {
               <th>Colaborador</th>
               <th class="w-32">Rol</th>
               <th>Área / Gerencia</th>
+              <th class="w-36">Delegado</th>
               <th class="w-28">Cód. SAP</th>
               <th class="w-20">Estado</th>
               <th>Sincronizado</th>
@@ -1604,12 +1785,35 @@ export const page = {
                   <div x-show="u.gerencia_sigla" class="text-slate-700 font-semibold" x-text="u.gerencia_sigla + (u.area_sigla ? ' / ' + u.area_sigla : '')"></div>
                   <div x-show="u.ad_info" class="text-[10px] text-slate-400 truncate max-w-[200px]" :title="u.ad_info" x-text="u.ad_info"></div>
                 </td>
+                <td class="text-[11px]">
+                  <template x-if="u.delegado_nombre">
+                    <div>
+                      <div class="flex items-center gap-1.5 text-slate-700">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        <span class="font-medium truncate" x-text="u.delegado_nombre"></span>
+                      </div>
+                      <div class="text-[9.5px] text-slate-400 mt-0.5" x-text="'@' + (u.delegado_username || '')"></div>
+                    </div>
+                  </template>
+                  <template x-if="!u.delegado_nombre && u.estado_delegacion === 'pendiente'">
+                    <div class="flex items-center gap-1.5 text-amber-600">
+                      <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                      <span class="text-[10.5px] font-medium">⚠ Sin delegado</span>
+                    </div>
+                  </template>
+                  <template x-if="!u.delegado_nombre && u.estado_delegacion === 'na'">
+                    <div class="flex items-center gap-1.5 text-slate-400">
+                      <span class="w-1.5 h-1.5 rounded-full bg-slate-300"></span>
+                      <span class="text-[10.5px]">No requiere</span>
+                    </div>
+                  </template>
+                </td>
                 <td>
                   <span x-show="u.ad_postal_code" class="text-[11px] font-mono text-slate-700" x-text="u.ad_postal_code"></span>
                   <span x-show="!u.ad_postal_code" class="text-[10px] text-amber-600" title="Sin codigo SAP (postalCode vacio en AD)">⚠ falta</span>
                 </td>
                 <td>
-                  <span :class="u.estado === 'activo' ? 'badge badge-green' : 'badge badge-gray'" class="text-[10px]" x-text="u.estado"></span>
+                  <span :class="u.estado === 'activo' ? 'badge badge-green' : (u.estado === 'inactivo' ? 'badge badge-amber' : 'badge badge-gray')" class="text-[10px]" x-text="u.estado"></span>
                   <div x-show="u.ausente" class="text-[10px] text-amber-600 mt-0.5">En vacaciones</div>
                 </td>
                 <td class="text-[10px] text-slate-400">
@@ -1619,18 +1823,18 @@ export const page = {
                 </td>
                 <td class="text-center">
                   <button @click="impersonarUsuario(u)" class="btn btn-sm text-[10px] mr-1" title="Iniciar sesion como este usuario">Impersonar</button>
-                  <button @click="editarUsuario(u)" class="btn btn-sm text-[10px]" title="Editar usuario">Editar</button>
+                  <button @click="editarUsuario(u)" class="btn btn-sm text-[10px] btn-primary" title="Editar usuario">Editar</button>
                 </td>
               </tr>
             </template>
             <tr x-show="!loadingUsuarios && usuarios.length === 0">
-              <td colspan="7" class="text-center text-slate-400 py-8">
+              <td colspan="8" class="text-center text-slate-400 py-8">
                 <div class="text-[12px] mb-2">No hay usuarios cargados.</div>
                 <button @click="sincronizarDirectorio()" class="btn btn-sm btn-primary text-[11px]">Sincronizar AD ahora</button>
               </td>
             </tr>
             <tr x-show="loadingUsuarios">
-              <td colspan="7" class="text-center text-slate-400 py-6 text-[11px]">
+              <td colspan="8" class="text-center text-slate-400 py-6 text-[11px]">
                 <div class="flex items-center justify-center gap-2">
                   <div class="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
                   <span>Cargando usuarios...</span>
@@ -1712,6 +1916,186 @@ export const page = {
   <!-- ═══════════════════════════════════════════════════════════
        TAB: LOGS DE AUDITORÍA (NUEVA)
   ═══════════════════════════════════════════════════════════ -->
+
+  <!-- ═══════════════════════════════════════════════════════════
+       MODAL: EDITAR USUARIO (Sesion 9)
+  ═══════════════════════════════════════════════════════════ -->
+  <template x-teleport="body">
+    <div x-show="editModalOpen"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         @keydown.escape.window="cerrarModalEdicion()"
+         class="modal-overlay" style="z-index:8000;display:none"
+         :style="editModalOpen ? 'display:flex' : 'display:none'">
+
+      <div @click.stop class="modal-box max-w-[560px] relative max-h-[90vh] overflow-y-auto"
+           style="display:block">
+
+        <button @click="cerrarModalEdicion()" :disabled="editModalSaving"
+                class="absolute top-3.5 right-3.5 text-slate-400 hover:text-red-500 transition-colors text-lg leading-none cursor-pointer disabled:opacity-30">✕</button>
+
+        <!-- Header -->
+        <div class="mb-4 pb-3 border-b border-slate-200">
+          <div class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <span class="text-xl">✏️</span>
+            <span>Editar Usuario</span>
+          </div>
+          <div class="text-[11px] text-slate-500 mt-1">
+            <span class="font-mono" x-text="'@' + editForm.username"></span>
+            <span class="mx-1.5">·</span>
+            <span x-text="editForm.nombre_completo"></span>
+            <span class="mx-1.5">·</span>
+            <span x-text="editForm.cargo"></span>
+          </div>
+        </div>
+
+        <!-- Loading inicial -->
+        <div x-show="editModalLoading" class="py-12 text-center text-slate-500">
+          <div class="w-6 h-6 mx-auto border-2 border-brand-500 border-t-transparent rounded-full animate-spin mb-2"></div>
+          <div class="text-[11.5px]">Cargando roles y usuarios activos...</div>
+        </div>
+
+        <!-- Form -->
+        <div x-show="!editModalLoading" class="space-y-4">
+
+          <!-- ROL -->
+          <div>
+            <label class="form-label flex items-center gap-1.5">
+              <span class="text-brand-500">●</span> Rol
+              <span class="text-amber-600 text-[10px]" x-show="editForm.requiere_delegado">⚠ requiere delegado</span>
+            </label>
+            <select class="form-input text-xs" x-model="editForm.rol_codigo" @change="onRolChange()">
+              <option value="">— Seleccionar rol —</option>
+              <template x-for="r in editModalRoles" :key="r.codigo">
+                <option :value="r.codigo" x-text="r.nombre + (r.requiere_delegado ? ' (requiere delegado)' : '')"></option>
+              </template>
+            </select>
+            <div class="form-hint">Determina qué pantallas y permisos tiene el usuario.</div>
+          </div>
+
+          <!-- DELEGADO (visible si el rol lo requiere) -->
+          <div x-show="editForm.requiere_delegado">
+            <label class="form-label flex items-center gap-1.5">
+              <span class="text-brand-500">●</span> Delegado (Back-up)
+              <span class="text-red-600 text-[10px]">*</span>
+            </label>
+
+            <!-- Delegado actual -->
+            <div x-show="editForm.delegado_nombre && !editModalShowDelegadoList"
+                 class="flex items-center gap-2.5 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+              <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span class="text-[12px] font-semibold text-slate-800 flex-1" x-text="editForm.delegado_nombre"></span>
+              <button @click="limpiarDelegado()" type="button" class="text-slate-400 hover:text-red-500 text-[14px] leading-none" title="Quitar delegado">✕</button>
+              <button @click="editModalShowDelegadoList=true" type="button" class="text-brand-500 hover:text-brand-700 text-[10.5px] font-semibold" title="Cambiar delegado">Cambiar</button>
+            </div>
+
+            <!-- Buscador de delegado -->
+            <div x-show="!editForm.delegado_nombre || editModalShowDelegadoList"
+                 class="relative">
+              <input type="text"
+                     class="form-input text-xs"
+                     placeholder="Buscar por nombre, usuario, código SAP, email..."
+                     x-model="editModalDelegadoSearch"
+                     @input="editModalShowDelegadoList=true"
+                     @focus="editModalShowDelegadoList=true"
+                     @click.outside="editModalShowDelegadoList=false">
+              <div class="form-hint">
+                <span x-text="editModalUsuariosActivos.length"></span> usuarios activos disponibles.
+              </div>
+
+              <!-- Dropdown de resultados -->
+              <div x-show="editModalShowDelegadoList && editModalDelegadosFiltrados.length > 0"
+                   x-transition:enter="transition ease-out duration-100"
+                   x-transition:enter-start="opacity-0 -translate-y-1"
+                   x-transition:enter-end="opacity-100 translate-y-0"
+                   class="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[240px] overflow-y-auto"
+                   style="display:none"
+                   :style="(editModalShowDelegadoList && editModalDelegadosFiltrados.length > 0) ? 'display:block' : 'display:none'">
+                <template x-for="u in editModalDelegadosFiltrados" :key="u.id">
+                  <button @click="seleccionarDelegado(u)" type="button"
+                          class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors">
+                    <div class="flex items-center gap-2">
+                      <div class="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-blue-400 flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                           x-text="u.iniciales || '??'"></div>
+                      <div class="min-w-0 flex-1">
+                        <div class="text-[12px] font-semibold text-slate-800 truncate" x-text="u.nombre_completo"></div>
+                        <div class="text-[10px] text-slate-500 flex items-center gap-1.5">
+                          <span class="font-mono" x-text="'@' + u.username"></span>
+                          <template x-if="u.ad_postal_code">
+                            <span class="text-slate-400">· SAP: <span class="font-mono" x-text="u.ad_postal_code"></span></span>
+                          </template>
+                          <template x-if="u.gerencia_sigla">
+                            <span class="text-slate-400">· <span x-text="u.gerencia_sigla"></span></span>
+                          </template>
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                </template>
+              </div>
+
+              <div x-show="editModalShowDelegadoList && editModalDelegadosFiltrados.length === 0"
+                   class="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-center text-[11px] text-slate-500"
+                   style="display:none"
+                   :style="(editModalShowDelegadoList && editModalDelegadosFiltrados.length === 0) ? 'display:block' : 'display:none'">
+                No se encontraron usuarios activos que coincidan con la búsqueda.
+              </div>
+            </div>
+          </div>
+
+          <!-- VACACIONES -->
+          <div>
+            <label class="form-label flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" x-model="editForm.ausente" class="w-4 h-4 accent-brand-500 cursor-pointer">
+              <span>🏖️ En vacaciones / Licencia</span>
+            </label>
+            <div class="form-hint">Marca al usuario como ausente. Las tareas se re-enrutan a su delegado.</div>
+          </div>
+
+          <!-- ESTADO -->
+          <div>
+            <label class="form-label flex items-center gap-1.5">
+              <span class="text-brand-500">●</span> Estado
+            </label>
+            <select class="form-input text-xs" x-model="editForm.estado">
+              <option value="activo">✅ Activo (puede usar el sistema)</option>
+              <option value="inactivo">⏸ Inactivo (suspendido temporalmente)</option>
+              <option value="desvinculado">🚫 Desvinculado (baja definitiva)</option>
+            </select>
+            <div class="form-hint">
+              <span class="text-amber-600" x-show="editForm.estado === 'inactivo'">El usuario no podrá iniciar sesión hasta reactivarlo.</span>
+              <span class="text-red-600" x-show="editForm.estado === 'desvinculado'">El usuario es removido del AD. No podrá loguearse nunca más por este username.</span>
+            </div>
+          </div>
+
+          <!-- Observaciones -->
+          <div>
+            <label class="form-label">📝 Observaciones (queda en audit log)</label>
+            <textarea class="form-input text-xs" x-model="editForm.observaciones" rows="2"
+                      placeholder="Ej.: Asignación de ETO por promoción interna..."></textarea>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="flex justify-end gap-2 mt-5 pt-3 border-t border-slate-200">
+          <button @click="cerrarModalEdicion()" :disabled="editModalSaving" class="btn">Cancelar</button>
+          <button @click="guardarEdicionUsuario()" :disabled="editModalSaving || editModalLoading"
+                  class="btn btn-primary flex items-center gap-1.5">
+            <span x-show="!editModalSaving">💾 Guardar cambios</span>
+            <span x-show="editModalSaving" class="flex items-center gap-1.5">
+              <span class="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+              Guardando...
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </template>
+
   <div x-show="tab==='logs'" x-cloak>
     <div class="card-base">
       <div class="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100 flex-wrap gap-2">

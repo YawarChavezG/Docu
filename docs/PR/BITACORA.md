@@ -617,3 +617,93 @@ Opciones para retomar:
 
 Recomendacion: cerrar #13 y #14 (deudas chicas) antes de empezar R2 (que es
 largo y mejor con todo R1 limpio).
+
+---
+
+## Sesion 9 — 2026-06-16 (martes PM) — Editar Usuario + Mi Perfil BD + Export corregido
+
+> Sesion dedicada a cerrar los pendientes de gestion de usuarios que
+> estaban identificados en la bitacora: columna Delegado, modal de
+> edicion, Mi Perfil consistente con BD, export Excel correcto.
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 9.1 | Backend `GET /api/v1/roles` | (con 9.7) | `app/api/v1/roles.py` + `schemas/rol.py`. 5 roles con flag `requiere_delegado` (ETO, ELABORADOR-REVISOR, ELABORADOR-REVISOR-APROBADOR = true). Sin auth (catalogo publico). |
+| 9.2 | Backend `PATCH /usuarios/{id}` con `rol_codigo` y `delegado_id` | (con 9.7) | `UsuarioUpdate` extendido. Reemplaza roles via `delete + insert` en `usuario_roles`. Asigna/quita delegado. Setea `estado_delegacion=asignado` automaticamente al asignar. `db.expire(target)` para refrescar relaciones tras delete+insert. |
+| 9.3 | Frontend `parametrizacionApi.js`: roles.list() + usuarios.listActivos() | (con 9.7) | Helpers para el modal. `listActivos` usa filtro `estado=activo&page_size=200`. |
+| 9.4 | Frontend columna DELEGADO en tabla | (con 9.7) | 3 estados visuales: verde (asignado con dot), amber (sin delegado + rol lo requiere con dot pulsante), gris (no requiere). |
+| 9.5 | Frontend modal Editar Usuario centrado | (con 9.7) | ROL (select de BD con `requiere_delegado` flag), DELEGADO (searchable picker fuzzy con tokens), VACACION (checkbox), ESTADO (select activo/inactivo/desvinculado), Observaciones. |
+| 9.6 | Frontend Mi Perfil (ProfileModal) lee de BD | (con 9.7) | Reemplaza mock `listaEmpleados`. Carga info de `/me` + `/usuarios?q=<username>` para delegado. PATCH con `delegado_id` y `ausente`. Banner de alerta si rol requiere y no tiene. |
+| 9.7 | Backend export XLSX/CSV columna AREA poblada | (con 9.7) | Formato "Gerencia / Area" con fallback a `ad_info` (department del AD) si no tiene area en BD. Antes salia vacio para 700+ usuarios que no tienen area_id. |
+| 9.8 | BUG fix: select de ROL aparece vacio al abrir modal | (con 9.7) | Alpine no bindea `x-model` en `<select>` cuando las `<option>` no existen. Fix: `editForm.rol_codigo = ''` inicialmente, y setear el rol original **despues** de cargar roles, con `await this.$nextTick()` para esperar a que Alpine renderice las options. |
+| 9.9 | BUG fix: cache de Vite impedia ver cambios | (con 9.7) | `docker restart sgd-frontend` limpia el cache del dev server. Ademas usar `?_v=N` en la URL del navegador para forzar cache buster. |
+
+### Logros tecnicos
+
+1. **6 tareas nuevas** sumadas a R1 (cerrado al 100% en 35/35).
+2. **3 endpoints extendidos/creados**: `GET /roles`, `PATCH /usuarios/{id}` con `rol_codigo`/`delegado_id`, export con AREA poblada.
+3. **2 archivos frontend refactorizados**: `parametrizacionApi.js` con 2 helpers nuevos, `ProfileModal.js` reescrito para leer BD en vez de mock.
+4. **1 archivo frontend extendido**: `Parametrizacion.js` con columna Delegado + modal centrado + searchable picker.
+5. **2 bugs fixes criticos** detectados en validacion: select vacio + cache Vite.
+
+### Bugs detectados y corregidos durante la sesion
+
+1. **Relaciones `target.roles` no se refrescaban tras delete+insert** -> SQLAlchemy 2.0 mantiene identity map. Fix: `db.expire(target)` antes del reload.
+2. **Select de ROL aparecia vacio al abrir modal** -> Alpine no bindea `x-model` si las `<option>` no existen. Fix: `await $nextTick()` + setear `rol_codigo` despues de cargar las options.
+3. **Cache de Vite retenia la version vieja del archivo** -> Docker restart limpia. Tambien descubrimos que el navegador cachea via service worker / Vite client, hay que usar `?_v=N` cache buster.
+4. **Columna AREA del export salia vacia** para usuarios sin area_id -> Fallback al `ad_info` (department del AD) que SI tiene valor.
+
+### Validacion empirica (Chrome DevTools)
+
+| Verificacion | Resultado |
+|---|---|
+| `GET /api/v1/roles` | 200, 5 roles, 3 con `requiere_delegado=true` |
+| `GET /api/v1/usuarios?rol=ETO` | 200, lista de 4 ETOs |
+| `PATCH /usuarios/{id}` con `rol_codigo` | 200, rol actualizado, refresh correcto |
+| `PATCH /usuarios/{id}` con `delegado_id` | 200, delegado asignado, `estado_delegacion=asignado` |
+| Login 3x como aromero (ya importado) | 1 sola fila en BD, NO se duplica |
+| Modal Editar Aida (Elaborador) | Rol="Elaborador-Revisor (requiere delegado)", delegado=Aracely, picker funcional |
+| Buscar "aromero" en picker | Dropdown muestra "AR Aracely Carol Romero Plata @aromero SAP:10002572 CAL" |
+| Tabla Gestion de Usuarios | Columna DELEGADO visible: "No requiere" / "Sin delegado" / nombre delegado |
+| Mi Perfil sidebar | Avatar + Lucia Herrera + Administrador del Sistema + Delegado picker |
+| Export XLSX | Col "Gerencia / Area" poblada con "Oruro", "La Paz", "Comercial", etc. (fallback ad_info) |
+
+### Estado de la BD al cierre de sesion 9
+
+```
+Endpoint /usuarios:
+  gescobari.delegado_id = 1 (aromero), estado_delegacion = 'asignado'
+  Test aromatic test PASS: 3 logins aromatic = 1 fila en BD (no duplica)
+  
+Endpoint /roles:
+  ADMIN, ETO, ELABORADOR - REVISOR, ELABORADOR - REVISOR - APROBADOR, VISUALIZADOR (CL-EVAL)
+  requiere_delegado: [F, T, T, T, F]
+  
+Export XLSX (573 visualizadores):
+  Col "Gerencia / Area" poblada (antes vacia para ~95% de los usuarios)
+```
+
+### Decisiones tecnicas (ADRs candidatos para sesion 10)
+
+- **ADR-019 (en draft)**: PATCH /usuarios/{id} acepta `rol_codigo` y `delegado_id`. Reemplazo atomico de roles. Auto-set `estado_delegacion=asignado` al asignar. Validacion: no se puede asignar a si mismo; delegado no puede estar desvinculado.
+- **ADR-020 (en draft)**: Export de usuarios con fallback a `ad_info` cuando no hay area_id. El `ad_info` (department del AD) es la mejor aproximacion disponible sin enriquecimiento adicional.
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + import matriz + Editar Usuario + Mi Perfil**: 35/35 (100%). CERRADO.
+- **R2**: 0/21. Listo para arrancar.
+- **Total**: 35/48 (73%) + 4 bonus + import matriz + editar.
+- **Migraciones Alembic**: 10 aplicadas. 0 nuevas en sesion 9 (no hubo cambios de schema).
+- **Endpoints totales**: 50+ REST. +1 nuevo (`GET /roles`).
+
+### Proxima sesion (sesion 10) — TBD
+
+Opciones:
+1. **R2 - Wizard de creacion** (tareas #23+): 19 modelos SQLAlchemy + migracion 011 + endpoints. 2-3 sesiones.
+2. **#13 - Deuda delegado** (fuzzy matching + threshold 0.85): pequeno.
+3. **#14 - Cargos a areas**: seed POSICION -> area_id. Mediano.
+4. **#19-21 - Security hardening pre-QAS**: CSP, DOMPurify, rate limit. Backlog R1.
+
+Recomendacion: cerrar #13 y #14 (deudas chicas) antes de R2.
