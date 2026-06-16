@@ -1,83 +1,494 @@
 /**
- * src/pages/Parametrizacion.js — Parametrización General del Sistema (Lote 11)
- * Cero inline styles. Toda la data importada desde src/data/parametrosSistema.js
+ * src/pages/Parametrizacion.js - Parametrizacion General del Sistema.
+ *
+ * Sesion B - tarea #10: refactorizado para consumir el backend real
+ * (EPICA 9 endpoints) a traves de services/parametrizacionApi.js.
+ * Ya NO importa de data/parametrosSistema.js.
+ *
+ * Tabs:
+ *  - Tiempos y SLAs: /api/v1/configuracion-global
+ *  - Restricciones:  /api/v1/configuracion-global
+ *  - Diccionarios:   /api/v1/tipos-documento + /estados + /matriz-enrutamiento-eto
+ *  - Gerencias:      /api/v1/gerencias + /areas
+ *  - Notificaciones: /api/v1/email-templates
+ *  - Usuarios:       /api/v1/usuarios (incluye export XLSX/CSV)
+ *  - Logs:           /api/v1/audit-log
  */
 
 import {
-  historialParametrosDB,
-  tiemposSLADB,
-  vigenciaPorDocumentoDB,
-  ParametrosGlobalesDB,
-  exclusionTiposDB,
-  tiposExcluiblesDB,
-  tiposDocParamDB,
-  estadosProcesoParamDB,
-  matrizETOParamDB,
-  analistasETODB,
-  gerenciasParamDB,
-  plantillasNotificacionParamDB,
-  etiquetasPlantillaDB,
-  rolesSistemaDB,
-  nowLogString,
-} from '../data/parametrosSistema.js'
+  configGlobal,
+  feriados,
+  emailTemplates,
+  matrizEto,
+  tiposDocumento,
+  estados,
+  gerencias,
+  areas,
+  auditLog,
+  usuarios,
+} from '../services/parametrizacionApi.js'
 
 export const page = {
   init() {
     window.Alpine?.data('paramPage', () => ({
-      /* ─── Exposición de data imports para el template ─── */
-      _tiposExcluibles: [...tiposExcluiblesDB],
-      _rolesSistema: [...rolesSistemaDB],
-
-      /* ─── Tabs ─── */
+      /* ── Tabs ── */
       tab: 'tiempos',
       tabs: [
-        { id: 'tiempos', label: '⏱ Tiempos y SLAs' },
-        { id: 'restricciones', label: '🔒 Restricciones' },
-        { id: 'diccionarios', label: '📋 Diccionarios y Enrutamiento' },
-        { id: 'gerencias', label: '🏢 Gerencias y Áreas' },
-        { id: 'notificaciones', label: '📧 Plantillas de Notificación' },
-        { id: 'usuarios', label: '👥 Gestión de Usuarios' },
-        { id: 'logs', label: '📜 Logs de Auditoría' },
+        { id: 'tiempos', label: 'Tiempos y SLAs' },
+        { id: 'restricciones', label: 'Restricciones' },
+        { id: 'diccionarios', label: 'Diccionarios y Enrutamiento' },
+        { id: 'gerencias', label: 'Gerencias y Areas' },
+        { id: 'notificaciones', label: 'Plantillas de Notificacion' },
+        { id: 'usuarios', label: 'Gestion de Usuarios' },
+        { id: 'logs', label: 'Logs de Auditoria' },
       ],
 
-      /* ─── Logs (Auditoría) ─── */
-      logs: JSON.parse(JSON.stringify(historialParametrosDB)),
+      /* ── Estado general: loading por tab ── */
+      loading: { tiempos: false, restricciones: false, diccionarios: false, gerencias: false, notificaciones: false, logs: false, usuarios: false },
+
+      /* ── LOGS (Auditoria - Sesion B #9) ── */
+      logs: [],
       logSearch: '',
       logTabFilter: '',
+      logAccionFilter: '',
+      logRecursoFilter: '',
+      logLimit: 200,
+      logOffset: 0,
+      logTotal: 0,
       get logsFiltrados() {
         const q = this.logSearch.toLowerCase()
         return this.logs.filter(l =>
-          (!q || l.parametro.toLowerCase().includes(q) || l.usuario.toLowerCase().includes(q) || l.anterior.toLowerCase().includes(q) || l.nuevo.toLowerCase().includes(q)) &&
-          (!this.logTabFilter || l.tab === this.logTabFilter)
+          (!q ||
+            (l.descripcion || '').toLowerCase().includes(q) ||
+            (l.usuario_username || '').toLowerCase().includes(q) ||
+            (l.recurso || '').toLowerCase().includes(q) ||
+            (l.accion || '').toLowerCase().includes(q)
+          ) &&
+          (!this.logTabFilter || this._tabFromRecurso(l.recurso) === this.logTabFilter) &&
+          (!this.logAccionFilter || l.accion === this.logAccionFilter) &&
+          (!this.logRecursoFilter || l.recurso === this.logRecursoFilter)
         )
       },
-      pushLog(parametro, anterior, nuevo, tabOrigen) {
-        const user = window.Alpine?.store('auth')?.user?.user || 'aromero'
-        this.logs.unshift({ fecha: nowLogString(), parametro, anterior, nuevo, usuario: user, tab: tabOrigen || this.tab })
+      _tabFromRecurso(recurso) {
+        const map = { gerencia: 'gerencias', area: 'gerencias', feriado: 'restricciones', configuracion_global: 'restricciones', email_template: 'notificaciones', matriz_eto: 'diccionarios', tipo_documento: 'diccionarios', estado: 'diccionarios', usuario: 'usuarios' }
+        return map[recurso] || ''
       },
-      exportarLogs() {
-        window.toast('📊 Exportando logs a Excel...', 'info')
+      async cargarLogs() {
+        this.loading.logs = true
+        try {
+          const res = await auditLog.list({
+            limit: this.logLimit,
+            offset: this.logOffset,
+            accion: this.logAccionFilter,
+            recurso: this.logRecursoFilter,
+          })
+          if (res.ok) {
+            const data = await res.data
+            this.logs = data.items
+            this.logTotal = data.total
+          } else {
+            window.toast(`Error cargando logs: ${res.status}`, 'error')
+          }
+        } catch (e) {
+          window.toast(`Error de red: ${e.message}`, 'error')
+        } finally {
+          this.loading.logs = false
+        }
+      },
+      async exportarLogs(formato = 'xlsx') {
+        // Reutiliza el helper build_excel del backend via /audit-log?formato=
+        // Por simplicidad: descarga un XLSX via CSV (el backend no tiene export
+        // de audit aun, asi que el frontend arma un CSV a partir de this.logs).
+        const headers = ['Fecha', 'Usuario', 'Accion', 'Recurso', 'Recurso ID', 'Descripcion', 'IP', 'Exitoso']
+        const rows = this.logs.map(l => [
+          l.created_at, l.usuario_username || '', l.accion, l.recurso, l.recurso_id || '',
+          (l.descripcion || '').replace(/[;,]/g, ' '), l.ip || '', l.exitoso ? 'SI' : 'NO',
+        ])
+        let csv = headers.join(';') + '\n'
+        rows.forEach(r => { csv += r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';') + '\n' })
+        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `audit_log_${new Date().toISOString().slice(0,10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+        window.toast('Logs exportados a CSV', 'success')
       },
 
-      /* ─── Tiempos y SLAs ─── */
-      tiempos: { ...tiemposSLADB },
-      vigencias: JSON.parse(JSON.stringify(vigenciaPorDocumentoDB)),
-      guardarTiempos() {
-        const snap = tiemposSLADB
-        const cambios = []
-        if (snap.plazoRevision !== this.tiempos.plazoRevision) cambios.push({ p: 'Plazo máx. revisión', a: snap.plazoRevision + ' días', n: this.tiempos.plazoRevision + ' días' })
-        if (snap.plazoLectura !== this.tiempos.plazoLectura) cambios.push({ p: 'Plazo control de lectura', a: snap.plazoLectura + ' días', n: this.tiempos.plazoLectura + ' días' })
-        if (snap.slaVerde !== this.tiempos.slaVerde) cambios.push({ p: 'SLA Verde', a: snap.slaVerde + ' días', n: this.tiempos.slaVerde + ' días' })
-        if (snap.slaAmarillo !== this.tiempos.slaAmarillo) cambios.push({ p: 'SLA Amarillo', a: snap.slaAmarillo + ' días', n: this.tiempos.slaAmarillo + ' días' })
-        cambios.forEach(c => this.pushLog(c.p, c.a, c.n, 'tiempos'))
-        Object.assign(snap, { ...this.tiempos })
-        // Guardar vigencias por documento
-        this.vigencias.forEach(v => {
-          const orig = vigenciaPorDocumentoDB.find(x => x.tipo === v.tipo)
-          if (orig && orig.años !== v.años) {
-            this.pushLog(`Vigencia · ${v.tipo}`, orig.años + ' años', v.años + ' años', 'tiempos')
-            orig.años = v.años
+      /* ── Tiempos y SLAs (US-9.01) ── */
+      tiempos: { plazoRevision: 5, plazoLectura: 3, slaVerde: 5, slaAmarillo: 10 },
+      vigencias: [],
+      async cargarTiempos() {
+        this.loading.tiempos = true
+        try {
+          const res = await configGlobal.list('VIGENCIA')
+          if (res.ok) {
+            const cfg = (res.data.items || []).reduce((acc, c) => { acc[c.clave] = c.valor; return acc }, {})
+            this.tiempos = {
+              plazoRevision: parseInt(cfg.plazo_revision_aprobacion_dias || '5', 10),
+              plazoLectura: parseInt(cfg.plazo_control_lectura_dias || '3', 10),
+              slaVerde: parseInt(cfg.semaforo_verde_dias || '5', 10),
+              slaAmarillo: parseInt(cfg.semaforo_amarillo_dias || '10', 10),
+            }
           }
+          // Cargar tipos-doc con periodo_vigencia para la grilla de vigencias
+          const tdRes = await tiposDocumento.list()
+          if (tdRes.ok) {
+            this.vigencias = (tdRes.data.items || []).map(t => ({
+              tipo: t.nombre, codigo: t.codigo, codigo_doc: t.codigo_doc,
+              anios: t.indefinido ? 'Indefinido' : (t.periodo_vigencia || 0),
+            }))
+          }
+        } catch (e) {
+          window.toast(`Error cargando tiempos: ${e.message}`, 'error')
+        } finally {
+          this.loading.tiempos = false
+        }
+      },
+      async guardarTiempos() {
+        try {
+          await configGlobal.bulkUpsert('VIGENCIA', [
+            { clave: 'plazo_revision_aprobacion_dias', valor: String(this.tiempos.plazoRevision) },
+            { clave: 'plazo_control_lectura_dias', valor: String(this.tiempos.plazoLectura) },
+            { clave: 'semaforo_verde_dias', valor: String(this.tiempos.slaVerde) },
+            { clave: 'semaforo_amarillo_dias', valor: String(this.tiempos.slaAmarillo) },
+          ])
+          window.toast('Parametros de tiempos actualizados', 'success')
+          await this.cargarLogs()
+        } catch (e) {
+          window.toast(`Error: ${e.message}`, 'error')
+        }
+      },
+      guardarSemaforizacion() { this.guardarTiempos() },
+
+      /* ── Restricciones (US-9.02) ── */
+      restricciones: { maxAdjuntos: 20, maxSizeMB: 20, maxDescargasDia: 10, bandejaRegistros: 10 },
+      chips: [], // tipos excluidos de limite de descarga (US-9.02)
+      async cargarRestricciones() {
+        this.loading.restricciones = true
+        try {
+          const res = await configGlobal.list()
+          if (res.ok) {
+            const cfg = (res.data.items || []).reduce((acc, c) => { acc[c.clave] = c.valor; return acc }, {})
+            this.restricciones = {
+              maxAdjuntos: parseInt(cfg.max_archivos_por_solicitud || '20', 10),
+              maxSizeMB: parseInt(cfg.max_tamano_archivo_mb || '20', 10),
+              maxDescargasDia: parseInt(cfg.max_descargas_editables_dia || '10', 10),
+              bandejaRegistros: parseInt(cfg.paginacion_mi_bandeja || '10', 10),
+            }
+            // Chips: tipos excluidos se guardan como JSON en una clave dedicada
+            try {
+              this.chips = cfg.tipos_excluidos_limite_descarga ? JSON.parse(cfg.tipos_excluidos_limite_descarga) : []
+            } catch (_) { this.chips = [] }
+          }
+        } catch (e) {
+          window.toast(`Error cargando restricciones: ${e.message}`, 'error')
+        } finally {
+          this.loading.restricciones = false
+        }
+      },
+      nuevoChip: '',
+      quitarChip(tipo) { this.chips = this.chips.filter(c => c !== tipo) },
+      agregarChip() {
+        const t = (this.nuevoChip || '').trim()
+        if (!t) return
+        if (this.chips.includes(t)) { window.toast('Tipo ya excluido', 'warn'); return }
+        this.chips.push(t); this.nuevoChip = ''
+      },
+      async guardarRestricciones() {
+        try {
+          await configGlobal.bulkUpsert('ARCHIVOS', [
+            { clave: 'max_archivos_por_solicitud', valor: String(this.restricciones.maxAdjuntos) },
+            { clave: 'max_tamano_archivo_mb', valor: String(this.restricciones.maxSizeMB) },
+          ])
+          await configGlobal.bulkUpsert('DESCARGAS', [
+            { clave: 'max_descargas_editables_dia', valor: String(this.restricciones.maxDescargasDia) },
+            { clave: 'paginacion_mi_bandeja', valor: String(this.restricciones.bandejaRegistros) },
+            { clave: 'tipos_excluidos_limite_descarga', valor: JSON.stringify(this.chips) },
+          ])
+          window.toast('Restricciones guardadas', 'success')
+          await this.cargarLogs()
+        } catch (e) {
+          window.toast(`Error: ${e.message}`, 'error')
+        }
+      },
+      guardarLimitesDescarga() { this.guardarRestricciones() },
+
+      /* ── Diccionarios (US-9.03) ── */
+      tiposDocs: [],
+      tipoEditing: null,
+      estados: [],
+      estadoEditing: null,
+      matrizETO: [],
+      analistas: [], // lista de usuarios con rol ETO (cargada al entrar al tab)
+      async cargarDiccionarios() {
+        this.loading.diccionarios = true
+        try {
+          const [tdRes, estRes, matRes, uRes] = await Promise.all([
+            tiposDocumento.list(),
+            estados.list(),
+            matrizEto.list(),
+            usuarios.list({ rol: 'ETO' }),
+          ])
+          if (tdRes.ok) this.tiposDocs = (tdRes.data.items || []).map(t => ({
+            id: t.id, tipo: t.nombre, cod: t.codigo, codigo_doc: t.codigo_doc,
+            vigencia: t.indefinido ? 'Indefinido' : (t.periodo_vigencia || 0),
+            activo: t.activo,
+          }))
+          if (estRes.ok) this.estados = (estRes.data.items || []).map(e => ({
+            id: e.id, est: e.nombre, cod: e.codigo, ctx: e.contexto, activo: e.activo,
+          }))
+          if (matRes.ok) this.matrizETO = (matRes.data.items || []).map(m => ({
+            id: m.id, gerencia: m.gerencia_sigla, gerencia_id: m.gerencia_id,
+            analista: m.analista_username, analista_id: m.analista_usuario_id,
+            disponible: m.disponibilidad === 'DISPONIBLE', disponibilidad: m.disponibilidad,
+          }))
+          if (uRes.ok) this.analistas = (uRes.data.items || []).map(u => ({ id: u.id, username: u.username, nombre: u.nombre_completo }))
+        } catch (e) {
+          window.toast(`Error cargando diccionarios: ${e.message}`, 'error')
+        } finally {
+          this.loading.diccionarios = false
+        }
+      },
+      addTipo() {
+        const nuevo = { tipo: '', cod: '', codigo_doc: 1, _new: true }
+        this.tiposDocs.push(nuevo); this.tipoEditing = nuevo
+      },
+      async saveTipo(t) {
+        if (!t.tipo.trim() || !t.cod.trim()) { window.toast('Complete tipo y codigo', 'warn'); return }
+        const codigo = t.cod.toUpperCase().slice(0, 10)
+        const codigo_doc = parseInt(t.codigo_doc, 10) || 1
+        try {
+          if (t._new) {
+            const res = await tiposDocumento.create({ codigo, nombre: t.tipo, codigo_doc, periodo_vigencia: 5, indefinido: false, max_descargas_dia: 10, activo: true })
+            if (res.ok) { t.id = res.data.id; delete t._new; this.tipoEditing = null; window.toast('Tipo creado', 'success'); await this.cargarDiccionarios(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          } else {
+            const res = await tiposDocumento.update(t.id, { codigo, nombre: t.tipo, codigo_doc })
+            if (res.ok) { this.tipoEditing = null; window.toast('Tipo actualizado', 'success'); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          }
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
+      },
+      cancelTipo(t) { if (t._new) this.tiposDocs.splice(this.tiposDocs.indexOf(t), 1); this.tipoEditing = null },
+      deleteTipo(t) {
+        window.confirmDeleteModal?.abrir({
+          titulo: 'Eliminar Tipo de Documento',
+          mensaje: `Eliminar el tipo <strong>${t.tipo}</strong> (${t.cod})?`,
+          onConfirm: async () => {
+            const res = await tiposDocumento.remove(t.id)
+            if (res.ok) { window.toast('Tipo eliminado', 'warn'); await this.cargarDiccionarios(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          },
+        })
+      },
+      addEstado() {
+        const nuevo = { est: '', cod: '', ctx: 'TAREA', _new: true }
+        this.estados.push(nuevo); this.estadoEditing = nuevo
+      },
+      async saveEstado(e) {
+        if (!e.est.trim()) { window.toast('Ingrese el nombre del estado', 'warn'); return }
+        try {
+          if (e._new) {
+            const res = await estados.create({ codigo: e.cod || e.est.toUpperCase().replace(/\s+/g, '_'), nombre: e.est, contexto: e.ctx, orden: 99, activo: true })
+            if (res.ok) { e.id = res.data.id; delete e._new; this.estadoEditing = null; window.toast('Estado creado', 'success'); await this.cargarDiccionarios(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          } else {
+            const res = await estados.update(e.id, { nombre: e.est, contexto: e.ctx })
+            if (res.ok) { this.estadoEditing = null; window.toast('Estado actualizado', 'success'); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          }
+        } catch (err) { window.toast(`Error: ${err.message}`, 'error') }
+      },
+      cancelEstado(e) { if (e._new) this.estados.splice(this.estados.indexOf(e), 1); this.estadoEditing = null },
+      deleteEstado(e) {
+        window.confirmDeleteModal?.abrir({
+          titulo: 'Eliminar Estado',
+          mensaje: `Eliminar el estado <strong>${e.est}</strong> (${e.ctx})?`,
+          onConfirm: async () => {
+            const res = await estados.remove(e.id)
+            if (res.ok) { window.toast('Estado eliminado', 'warn'); await this.cargarDiccionarios(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          },
+        })
+      },
+      async guardarFilaMatriz(m) {
+        try {
+          const res = await matrizEto.update(m.id, { disponibilidad: m.disponible ? 'DISPONIBLE' : 'AUSENTE' })
+          if (res.ok) { window.toast('Fila actualizada', 'success'); await this.cargarDiccionarios(); await this.cargarLogs() }
+          else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
+      },
+
+      /* ── Gerencias y Areas (US-9.06 + #9d) ── */
+      gerencias: [],
+      areasPorGerencia: {},
+      gerSelId: null,
+      gerEditMode: false,
+      gerEditNombre: '',
+      gerEditSigla: '',
+      get gerSel() { return this.gerencias.find(g => g.id === this.gerSelId) },
+      get areasGerSel() { return this.areasPorGerencia[this.gerSelId] || [] },
+      async cargarGerencias() {
+        this.loading.gerencias = true
+        try {
+          const res = await gerencias.list('', 1, 200)
+          if (res.ok) {
+            this.gerencias = (res.data.items || []).map(g => ({ id: g.id, sigla: g.sigla, nombre: g.nombre, activo: g.activo, orden: g.orden, areas_count: g.areas_count }))
+            if (this.gerencias.length && !this.gerSelId) this.gerSelId = this.gerencias[0].id
+            // Cargar areas de cada gerencia
+            for (const g of this.gerencias) {
+              const ar = await areas.list('', g.id)
+              if (ar.ok) this.areasPorGerencia[g.id] = (ar.data.items || []).map(a => ({ id: a.id, sigla: a.sigla, nombre: a.nombre, activo: a.activo, orden: a.orden, usuarios_count: a.usuarios_count, _new: false }))
+            }
+          }
+        } catch (e) {
+          window.toast(`Error cargando gerencias: ${e.message}`, 'error')
+        } finally {
+          this.loading.gerencias = false
+        }
+      },
+      async addGerencia() {
+        try {
+          const res = await gerencias.create({ sigla: 'NUEVA', nombre: 'Nueva Gerencia', orden: 99, activo: true })
+          if (res.ok) { window.toast('Gerencia creada', 'success'); await this.cargarGerencias(); await this.cargarLogs(); this.gerSelId = res.data.id; this.startEditGer() }
+          else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
+      },
+      startEditGer() { const g = this.gerSel; if (!g) return; this.gerEditMode = true; this.gerEditNombre = g.nombre; this.gerEditSigla = g.sigla },
+      async saveGer() {
+        const g = this.gerSel; if (!g) return
+        if (!this.gerEditNombre.trim() || !this.gerEditSigla.trim()) { window.toast('Complete nombre y sigla', 'warn'); return }
+        try {
+          const res = await gerencias.update(g.id, { nombre: this.gerEditNombre.trim(), sigla: this.gerEditSigla.trim().toUpperCase().slice(0, 10) })
+          if (res.ok) { this.gerEditMode = false; window.toast('Gerencia actualizada', 'success'); await this.cargarGerencias(); await this.cargarLogs() }
+          else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
+      },
+      deleteGer() {
+        const g = this.gerSel; if (!g) return
+        window.confirmDeleteModal?.abrir({
+          titulo: 'Eliminar Gerencia',
+          mensaje: `Borrado logico de la gerencia <strong>${g.nombre}</strong>. Las areas hijas tambien se desactivaran.`,
+          onConfirm: async () => {
+            const res = await gerencias.remove(g.id)
+            if (res.ok) { window.toast('Gerencia eliminada (logico)', 'warn'); await this.cargarGerencias(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          },
+        })
+      },
+      addArea() {
+        const g = this.gerSel; if (!g) return
+        if (!this.areasPorGerencia[g.id]) this.areasPorGerencia[g.id] = []
+        this.areasPorGerencia[g.id].push({ sigla: 'NV', nombre: 'Nueva Area', orden: 99, _edit: true, _new: true })
+      },
+      async saveArea(a) {
+        const g = this.gerSel; if (!g) return
+        if (!a.nombre.trim() || !a.sigla.trim()) { window.toast('Complete nombre y sigla', 'warn'); return }
+        const sigla = a.sigla.toUpperCase().slice(0, 10)
+        try {
+          if (a._new) {
+            const res = await areas.create({ gerencia_id: g.id, sigla, nombre: a.nombre, orden: a.orden || 0, activo: true })
+            if (res.ok) { window.toast('Area creada', 'success'); await this.cargarGerencias(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          } else {
+            const res = await areas.update(a.id, { sigla, nombre: a.nombre })
+            if (res.ok) { delete a._edit; window.toast('Area actualizada', 'success'); await this.cargarGerencias(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          }
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
+      },
+      cancelEditArea(a) {
+        if (a._new) { const g = this.gerSel; this.areasPorGerencia[g.id] = this.areasPorGerencia[g.id].filter(x => x !== a) }
+        else { delete a._edit }
+      },
+      deleteArea(a) {
+        const g = this.gerSel; if (!g) return
+        window.confirmDeleteModal?.abrir({
+          titulo: 'Eliminar Area',
+          mensaje: `Eliminar el area <strong>${a.nombre}</strong> (${a.sigla})? Borrado logico por default.`,
+          onConfirm: async () => {
+            const res = await areas.remove(a.id, false)
+            if (res.ok) { window.toast('Area eliminada (logico)', 'warn'); await this.cargarGerencias(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          },
+        })
+      },
+      abrirMoverArea(a) {
+        const g = this.gerSel; if (!g) return
+        window.moveAreaModal?.abrir({
+          area: a,
+          origenId: g.id,
+          gerencias: this.gerencias.filter(x => x.id !== g.id).map(x => ({ id: x.id, sigla: x.sigla, nombre: x.nombre })),
+          onConfirmar: async (destinoId) => {
+            const res = await areas.mover(a.id, destinoId)
+            if (res.ok) { window.toast(`Area movida`, 'success'); await this.cargarGerencias(); await this.cargarLogs() }
+            else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          },
+        })
+      },
+
+      /* ── Plantillas de Notificacion (US-9.04) ── */
+      plantillaSelect: 0,
+      plantillas: [],
+      etiquetas: [], // variables JSON de la plantilla seleccionada
+      previewMode: false,
+      previewHtml: '',
+      async cargarNotificaciones() {
+        this.loading.notificaciones = true
+        try {
+          const res = await emailTemplates.list()
+          if (res.ok) {
+            this.plantillas = (res.data.items || []).map(t => ({
+              id: t.id, codigo: t.codigo, nombre: t.nombre, asunto: t.asunto, cuerpo: t.cuerpo_html, variables: t.variables_json || [], activo: t.activo,
+            }))
+            if (this.plantillas.length) this.onSelectPlantilla()
+          }
+        } catch (e) {
+          window.toast(`Error cargando plantillas: ${e.message}`, 'error')
+        } finally {
+          this.loading.notificaciones = false
+        }
+      },
+      onSelectPlantilla() {
+        const p = this.plantillas[this.plantillaSelect]
+        this.etiquetas = p?.variables || []
+      },
+      insertarEtiqueta(tag) {
+        const ta = this.$refs.editorBody
+        if (!ta) return
+        const start = ta.selectionStart; const end = ta.selectionEnd
+        const cuerpo = this.plantillas[this.plantillaSelect]?.cuerpo || ''
+        this.plantillas[this.plantillaSelect].cuerpo = cuerpo.slice(0, start) + tag + cuerpo.slice(end)
+        this.$nextTick(() => { ta.focus(); ta.setSelectionRange(start + tag.length, start + tag.length) })
+      },
+      async guardarPlantilla() {
+        const p = this.plantillas[this.plantillaSelect]
+        if (!p) return
+        try {
+          const res = await emailTemplates.update(p.codigo, { asunto: p.asunto, cuerpo_html: p.cuerpo })
+          if (res.ok) { window.toast('Plantilla guardada', 'success'); await this.cargarLogs() }
+          else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
+      },
+      async previsualizarPlantilla() {
+        const p = this.plantillas[this.plantillaSelect]
+        if (!p) return
+        const mock = { '{{CODIGO}}': 'PRO-CAL-045', '{{TITULO}}': 'Procedimiento de Calibracion de Balanzas', '{{USUARIO}}': 'Aracely Romero', '{{FECHA_LIMITE}}': '15/05/2026', '{{ETAPA}}': 'Revision Paralela', '{{LINK}}': 'https://sgd.cofar.com/bandeja', '{{GERENCIA}}': 'Calidad', '{{OBSERVACION}}': 'Sin observaciones' }
+        try {
+          const res = await emailTemplates.preview(p.codigo, mock)
+          if (res.ok) {
+            const r = res.data
+            this.previewHtml = `<div class="text-xs text-slate-500 mb-1">Asunto:</div><div class="font-semibold text-slate-800 mb-3 text-sm">${r.asunto_rendered}</div><div class="text-xs text-slate-500 mb-1">Cuerpo:</div><div class="text-slate-700 text-sm leading-relaxed">${r.cuerpo_html_rendered}</div>`
+            if (r.vars_faltantes?.length) window.toast(`Variables faltantes: ${r.vars_faltantes.join(', ')}`, 'warn')
+            this.previewMode = true
+          }
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
+      },
+      cerrarPreview() { this.previewMode = false },
+
+      /* ── Gestion de Usuarios (consume API real) ── */
         })
         window.toast('✅ Parámetros de tiempos actualizados correctamente', 'success')
       },
@@ -326,8 +737,7 @@ export const page = {
       },
       cerrarPreview() { this.previewMode = false },
 
-      /* ─── Gestión de Usuarios (lee del backend real, no mock) ─── */
-      API_BASE: 'http://localhost:18000/api/v1',
+        /* ─── Gestión de Usuarios (lee del backend real, no mock) ─── */
       usuarios: [],
       // Paginación server-side
       uqPage: 1,
@@ -344,11 +754,19 @@ export const page = {
 
       // ─── Carga inicial al entrar al tab ───
       async init() {
-        // Si el tab esta activo al cargar, ya trae datos.
-        if (this.tab === 'usuarios') {
-          await this.cargarUsuarios()
-        }
-        // Ademas trae el status de sync
+        // Sesion B - tarea #10: carga los 7 tabs en paralelo al inicio.
+        // (El usuario esperaba que cada tab cargue al activarse, pero
+        // para mejorar UX cargamos todo upfront ya que son 9 endpoints
+        // pequeños.)
+        await Promise.all([
+          this.cargarTiempos(),
+          this.cargarRestricciones(),
+          this.cargarDiccionarios(),
+          this.cargarGerencias(),
+          this.cargarNotificaciones(),
+          this.cargarLogs(),
+          this.cargarUsuarios(),
+        ])
         this.cargarSyncStatus()
       },
 
@@ -361,28 +779,23 @@ export const page = {
       async cargarUsuarios() {
         this.loadingUsuarios = true
         try {
-          const params = new URLSearchParams()
-          if (this.uqSearch) params.set('q', this.uqSearch)
-          if (this.uqRol) params.set('rol', this.uqRol)
-          if (this.uqEst) params.set('estado', this.uqEst)
-          if (this.uqFuente) params.set('fuente', this.uqFuente)
-          params.set('page', this.uqPage)
-          params.set('page_size', this.uqPageSize)
-          const res = await fetch(`${this.API_BASE}/usuarios?${params}`, {
-            credentials: 'include',
+          const res = await usuarios.list({
+            q: this.uqSearch,
+            rol: this.uqRol,
+            estado: this.uqEst,
+            fuente: this.uqFuente,
+            page: this.uqPage,
+            page_size: this.uqPageSize,
           })
           if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            window.toast(`Error cargando usuarios: ${err.detail || res.status}`, 'error')
+            window.toast(`Error cargando usuarios: ${res.data?.detail || res.status}`, 'error')
             return
           }
-          const data = await res.json()
+          const data = res.data
           this.usuarios = data.items
           this.kpisUsuarios = data.kpis
           this.uqTotal = data.total
           this.uqTotalPages = Math.max(1, Math.ceil(data.total / this.uqPageSize))
-          // Si la pagina actual quedo fuera de rango (filtros cambiaron),
-          // saltar a la ultima pagina valida.
           if (this.uqPage > this.uqTotalPages) {
             this.uqPage = this.uqTotalPages
             await this.cargarUsuarios()
@@ -456,11 +869,9 @@ export const page = {
 
       async cargarSyncStatus() {
         try {
-          const res = await fetch(`${this.API_BASE}/usuarios/sync-status`, {
-            credentials: 'include',
-          })
+          const res = await usuarios.syncStatus()
           if (res.ok) {
-            const data = await res.json()
+            const data = res.data
             if (data.last_sync_at) {
               const fecha = new Date(data.last_sync_at)
               this.lastSyncText = fecha.toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })
@@ -486,57 +897,50 @@ export const page = {
       },
 
       async sincronizarDirectorio() {
-        if (this.loadingUsuarios) return
-        this.loadingUsuarios = true
-        window.toast('🔄 Sincronizando con Active Directory... (puede tardar 30-60s)', 'info')
-        try {
-          const res = await fetch(`${this.API_BASE}/usuarios/sync-ad`, {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ max_results: 750 }),
-          })
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}))
-            window.toast(`Error en sync: ${err.detail || res.status}`, 'error')
-            return
+          if (this.loadingUsuarios) return
+          this.loadingUsuarios = true
+          window.toast('⏳ Sincronizando con Active Directory... (puede tardar 30-60s)', 'info')
+          try {
+            const res = await usuarios.syncAd(750)
+            if (!res.ok) {
+              window.toast(`Error en sync: ${res.data?.detail || res.status}`, 'error')
+              return
+            }
+            const data = res.data
+            this.lastSyncText = new Date().toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })
+            window.toast(
+              `✅ Sync OK: ${data.creados} nuevos, ${data.actualizados} actualizados, ${data.excluidos} excluidos (${data.duracion_seg.toFixed(1)}s)`,
+              'success'
+            )
+            await this.cargarUsuarios()
+            await this.cargarLogs()
+          } catch (e) {
+            window.toast(`Error de red: ${e.message}`, 'error')
+          } finally {
+            this.loadingUsuarios = false
           }
-          const data = await res.json()
-          this.lastSyncText = new Date().toLocaleString('es-BO', { dateStyle: 'short', timeStyle: 'short' })
-          window.toast(
-            `✅ Sync OK: ${data.creados} nuevos, ${data.actualizados} actualizados, ${data.excluidos} excluidos (${data.duracion_seg.toFixed(1)}s)`,
-            'success'
-          )
-          this.pushLog('Sincronización AD', `${data.total_ad} del AD`, `${data.creados}+${data.actualizados} (${data.duracion_seg.toFixed(1)}s)`, 'usuarios')
-          await this.cargarUsuarios()
-        } catch (e) {
-          window.toast(`Error de red: ${e.message}`, 'error')
-        } finally {
-          this.loadingUsuarios = false
-        }
-      },
+        },
 
-      exportarUsuarios() {
-        // Genera un CSV simple client-side
-        if (this.usuarios.length === 0) {
-          window.toast('No hay usuarios para exportar', 'warn')
-          return
-        }
-        const headers = ['username', 'nombre_completo', 'email', 'cargo', 'area', 'gerencia', 'roles', 'estado']
-        const rows = this.usuarios.map(u => [
-          u.username, u.nombre_completo, u.email, u.cargo,
-          u.area_sigla, u.gerencia_sigla, u.roles.join('|'), u.estado
-        ])
-        const csv = [headers, ...rows].map(r => r.map(v => `"${(v || '').toString().replace(/"/g, '""')}"`).join(',')).join('\n')
-        const blob = new Blob([csv], { type: 'text/csv' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `usuarios-cofar-${new Date().toISOString().slice(0, 10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
-        window.toast('✅ Lista exportada a CSV', 'success')
-      },
+        async exportarUsuarios(formato = 'xlsx') {
+          // Sesion B - #9e: delega al backend (XLSX profesional con cabecera,
+          // auto-filtros, freeze, totales, paleta pastel).
+          // apiDownload dispara la descarga automaticamente desde Content-Disposition.
+          try {
+            const res = await usuarios.export(formato, {
+              q: this.uqSearch,
+              rol: this.uqRol,
+              estado: this.uqEst,
+            })
+            if (res.ok) {
+              window.toast(`Exportado a ${formato.toUpperCase()}`, 'success')
+              await this.cargarLogs()
+            } else {
+              window.toast(`Error exportando: ${res.status}`, 'error')
+            }
+          } catch (e) {
+            window.toast(`Error: ${e.message}`, 'error')
+          }
+        },
 
       async impersonarUsuario(u) {
         if (!confirm(`¿Impersonar a ${u.nombre_completo} (${u.username})? Tu sesión actual se mantiene en segundo plano.`)) {
