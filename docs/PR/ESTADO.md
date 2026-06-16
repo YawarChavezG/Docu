@@ -166,6 +166,55 @@ PATCH /api/v1/estados/{id}                                (NUEVO)
 DELETE /api/v1/estados/{id}                               (NUEVO)
 ```
 
+---
+
+## 🐛 Bugs conocidos / Pendientes de fix
+
+> **Backlog de issues identificados durante sesiones de desarrollo.**
+> Cada bug tiene: severidad, impacto, workaround actual, sesion sugerida para resolver.
+> Agregar aqui cualquier nuevo bug发现的. No son bloqueantes pero conviene resolverlos en algun momento.
+
+| # | Bug | Severidad | Impacto | Workaround | Sesion sugerida |
+|---|---|---|---|---|---|
+| B1 | `areas.sigla UNIQUE` global impide re-crear un area con la misma sigla despues de borrado logico | 🟡 Media | UX: usuario no puede "revivir" un area con sigla identica | PATCH con sigla nueva antes de borrar, o fixear el modelo a `UniqueConstraint('gerencia_id', 'sigla')` | Sesion B (tarea #9d) |
+| B2 | `Gerencia.areas` tiene `cascade="all, delete-orphan"` en la relacion ORM | 🟡 Media | Si se hace DELETE fisico de un Gerencia desde el ORM, se borran las areas hijas. Incompatible con borrado logico. | El router usa solo borrado logico (activo=false). NO hay DELETE fisico en la API. | Sesion B (tarea #9d) |
+| B3 | NO existe middleware CSRF en backend (solo se setea cookie en `/login`) | 🟠 Alta | El header `X-CSRF-Token` que envia `api.js` no se valida en el backend. Vector de CSRF si el sitio se sirve desde otro origen. | Confiar en que `allow_origins` de CORS este bien configurado y `credentials: include` funcione. | Sesion B (seguridad hardening, despues de CSP) |
+| B4 | `build-error` de Vite falla por `manualChunks` como objeto en `vite.config.js` (no funcion). Preexistente. | 🟢 Baja | Solo afecta `npm run build` de frontend. El dev server (HMR) funciona. | Cambiar `manualChunks` a funcion en `frontend/vite.config.js`. | Sesion B (cuando se haga build de produccion) |
+| B5 | `frontend/src/data/*.js` aun tiene datos hardcoded del mock legacy | 🟡 Media | Componentes que importen de ahi muestran datos desactualizados, no los del backend. | El refactor de `Parametrizacion.js` a `apiFetch` (Sesion B tarea #10) cubre los principales. | Sesion B (tarea #10) |
+| B6 | PowerShell + `http.client` filtra cookies `#HttpOnly_` en scripts de validacion | 🟢 Baja | Solo afecta a tests manuales. NO al backend ni al frontend. | Usar `urllib.request.Request` con headers manuales o el script `test_*.py` que ya tiene el fix. | N/A (solo tooling) |
+| B7 | Modelos SQLAlchemy NO tienen `__repr__` consistente (algunos si, otros no) | 🟢 Baja | UX: logs de SQLAlchemy muestran `<Modelo at 0x...>` en vez de algo legible | Agregar `def __repr__` a los modelos que faltan. | Sesion B (cleanup) |
+| B8 | `auth.py` logica de password dummy `cofar.2026` hardcoded | 🟠 Alta (en QAS) | En DES esta OK, pero si llega a QAS con `LDAP_ENABLED=false` se acepta cualquier pass. | Verificar que `LDAP_ENABLED=true` en QAS/PRD. Ya documentado. | Pre-deployment QAS |
+
+### Bugs corregidos durante sesion 5 (referencia historica, ya no aplicar)
+
+1. SQLAlchemy 2.0 rechaza `description=` en `String()`/`Text()` → quitado.
+2. `usuario_roles` se importa de `app.models.usuario`, NO de `rol.py` → fix en import.
+3. Bug de doble endpoint `list_matriz` en matriz_enrutamiento_eto.py → reescrito limpio.
+4. Metodo inventado `activo_disponibilidad()` en seed original → eliminado.
+
+---
+
+## 📋 Tareas de Sesion B (UI + tests + bulk) — proxima sesion
+
+| # | Tarea | Archivo | US | Estimado |
+|---|---|---|---|---|
+| B-T1 | Refactor `Parametrizacion.js` para usar los 28 endpoints nuevos con `apiFetch` | `frontend/src/pages/Parametrizacion.js` | 9.01-9.06 | 2-3h |
+| B-T2 | Tests pytest de los endpoints nuevos (80% coverage) | `backend/tests/` | 9.01-9.06 | 2-3h |
+| B-T3 | Asignacion masiva desde `USUARIOS EXISTENTES A ABRIL.xlsx` (730 usuarios) | nuevo `POST /api/v1/admin/asignar-roles-desde-matriz` | 9.05 | 1-2h |
+| B-T4 | `GET /api/v1/audit-log` con filtros | `app/api/v1/audit_log.py` | 9.05 | 1h |
+| B-T5 | Operaciones jerarquicas areas (`mover`, `promover-a-gerencia`, `DELETE logico`) | `app/api/v1/areas.py` (extender) | 9.06 | 1h |
+| B-T6 | Override vacaciones + export Excel/CSV | `PATCH /usuarios/{id}` + `GET /usuarios/export` | 9.05 | 1-2h |
+
+**Total Sesion B:** 6 tareas, ~8-12h estimadas. Plan en `docs/PR/INICIO-SESION.md` (cheat sheet de skills).
+
+### Bugs a resolver en Sesion B (de la tabla de arriba)
+
+- **B1** en tarea B-T5 (operaciones jerarquicas areas): cambiar a `UniqueConstraint('gerencia_id', 'sigla')`.
+- **B3** y **B8** como parte de "seguridad hardening" (no en alcance B, pero prioritario pre-QAS).
+- **B5** se resuelve naturalmente con tarea B-T1 (refactor Parametrizacion.js).
+- **B4** cuando se haga el primer build de produccion.
+- **B2, B6, B7**: cleanup opcional, no bloquea nada.
+
 ## Decisiones tomadas (ADRs)
 - ADR-001 a ADR-012 (ver `DECISIONES.md`)
 - ADR-013 (en draft sesión 4): **Backend fuera de Docker en DES por VPN FortiClient**
