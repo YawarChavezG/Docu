@@ -53,8 +53,10 @@ function normalizePath(path) {
   if (!path) return API_BASE
   if (/^https?:\/\//i.test(path)) return path // absoluta, dejar como esta
   if (path.startsWith('/api/')) return path
-  // Si el path arranca con '/', unir a API_BASE sin el '/api/v1' al final
-  const base = API_BASE.replace(/\/api\/v\d+\/?$/, '')
+  // Si el path NO trae el prefijo /api/v1, agregarselo.
+  // Convencion del codebase: el caller puede omitir el prefijo y se concatena
+  // automaticamente. API_BASE ya termina en /api/v1.
+  const base = API_BASE.endsWith('/') ? API_BASE.slice(0, -1) : API_BASE
   return path.startsWith('/') ? `${base}${path}` : `${base}/${path}`
 }
 

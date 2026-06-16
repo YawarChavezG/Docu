@@ -27,6 +27,18 @@ import {
   auditLog,
   usuarios,
 } from '../services/parametrizacionApi.js'
+import {
+  ParametrosGlobalesDB,
+  exclusionTiposDB,
+  tiposExcluiblesDB,
+  analistasETODB,
+  estadosProcesoParamDB,
+  etiquetasPlantillaDB,
+  gerenciasParamDB,
+  matrizETOParamDB,
+  plantillasNotificacionParamDB,
+  tiposDocParamDB,
+} from '../data/parametrosSistema.js'
 
 export const page = {
   init() {
@@ -122,7 +134,10 @@ export const page = {
       async cargarTiempos() {
         this.loading.tiempos = true
         try {
-          const res = await configGlobal.list('VIGENCIA')
+          // Traer TODAS las claves de configuracion (no filtrar por categoria)
+          // porque en la BD 'plazo_revision_aprobacion_dias' esta en FLUJO
+          // y 'plazo_control_lectura_dias' en VIGENCIA. Mejor mergear todo.
+          const res = await configGlobal.list()
           if (res.ok) {
             const cfg = (res.data.items || []).reduce((acc, c) => { acc[c.clave] = c.valor; return acc }, {})
             this.tiempos = {
@@ -136,7 +151,7 @@ export const page = {
           const tdRes = await tiposDocumento.list()
           if (tdRes.ok) {
             this.vigencias = (tdRes.data.items || []).map(t => ({
-              tipo: t.nombre, codigo: t.codigo, codigo_doc: t.codigo_doc,
+              id: t.id, tipo: t.nombre, codigo: t.codigo, codigo_doc: t.codigo_doc,
               anios: t.indefinido ? 'Indefinido' : (t.periodo_vigencia || 0),
             }))
           }
@@ -164,7 +179,7 @@ export const page = {
 
       /* ── Restricciones (US-9.02) ── */
       restricciones: { maxAdjuntos: 20, maxSizeMB: 20, maxDescargasDia: 10, bandejaRegistros: 10 },
-      chips: [], // tipos excluidos de limite de descarga (US-9.02)
+      chips: [...exclusionTiposDB], // tipos excluidos de limite de descarga (US-9.02) — fallback del mock hasta que cargueRestricciones() sobreescriba con datos del backend
       async cargarRestricciones() {
         this.loading.restricciones = true
         try {
@@ -335,13 +350,43 @@ export const page = {
         try {
           const res = await gerencias.list('', 1, 200)
           if (res.ok) {
-            this.gerencias = (res.data.items || []).map(g => ({ id: g.id, sigla: g.sigla, nombre: g.nombre, activo: g.activo, orden: g.orden, areas_count: g.areas_count }))
+            // Mapear response del backend a la estructura que espera el template.
+            // El template usa `g.areas.length`, `g.cod`, `gerSel.areas`, `a.n`, `a.c`
+            // (legacy de la version mock-only). Adaptamos el shape para que
+            // funcione con los datos REALES del backend.
+            this.gerencias = (res.data.items || []).map(g => ({
+              id: g.id,
+              sigla: g.sigla,
+              nombre: g.nombre,
+              cod: g.sigla,           // alias para `g.cod` en el template
+              activo: g.activo,
+              orden: g.orden,
+              areas_count: g.areas_count ?? 0,
+              areas: [],              // se llena async abajo; evita undefined en el template
+            }))
             if (this.gerencias.length && !this.gerSelId) this.gerSelId = this.gerencias[0].id
-            // Cargar areas de cada gerencia
-            for (const g of this.gerencias) {
-              const ar = await areas.list('', g.id)
-              if (ar.ok) this.areasPorGerencia[g.id] = (ar.data.items || []).map(a => ({ id: a.id, sigla: a.sigla, nombre: a.nombre, activo: a.activo, orden: a.orden, usuarios_count: a.usuarios_count, _new: false }))
-            }
+            // Cargar areas de cada gerencia en paralelo (Promise.all)
+            await Promise.all(this.gerencias.map(async (g) => {
+              try {
+                const ar = await areas.list('', g.id)
+                if (ar.ok) {
+                  const list = (ar.data.items || []).map(a => ({
+                    id: a.id,
+                    sigla: a.sigla,
+                    nombre: a.nombre,
+                    n: a.nombre,           // alias para `a.n` en el template
+                    c: a.sigla,            // alias para `a.c` en el template
+                    activo: a.activo,
+                    orden: a.orden,
+                    usuarios_count: a.usuarios_count,
+                    _new: false,
+                    _edit: false,
+                  }))
+                  g.areas = list
+                  this.areasPorGerencia[g.id] = list
+                }
+              } catch { /* ignore individual failure */ }
+            }))
           }
         } catch (e) {
           window.toast(`Error cargando gerencias: ${e.message}`, 'error')
@@ -489,7 +534,7 @@ export const page = {
       cerrarPreview() { this.previewMode = false },
 
       /* ── Gestion de Usuarios (consume API real) ── */
-        })
+      guardarTiempos() {
         window.toast('✅ Parámetros de tiempos actualizados correctamente', 'success')
       },
       guardarSemaforizacion() {
@@ -1132,7 +1177,7 @@ export const page = {
         <div class="mt-3">
           <label class="form-label text-[10.5px]">Tipos excluidos del límite de descarga</label>
           <div class="flex flex-wrap gap-1.5 mb-2">
-            <template x-for="chip in chips" :key="chip">
+            <template x-for="(chip, idx) in chips" :key="idx + '-' + chip">
               <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] bg-blue-50 text-blue-700 border border-blue-200">
                 <span x-text="chip"></span>
                 <button @click="quitarChip(chip)" class="text-red-500 hover:text-red-700 font-bold leading-none cursor-pointer">✕</button>
@@ -1142,7 +1187,7 @@ export const page = {
           <div class="flex gap-2">
             <select x-model="nuevoChip" class="form-input text-xs w-auto min-w-[140px]">
               <option value="">Seleccionar tipo...</option>
-              <template x-for="t in _tiposExcluibles" :key="t">
+              <template x-for="(t, idx) in chips" :key="idx + '-' + t">
                 <option :value="t" x-text="t"></option>
               </template>
             </select>
@@ -1168,7 +1213,7 @@ export const page = {
         <table class="data-table">
           <thead><tr><th>Tipo</th><th>Código</th><th class="w-20"></th></tr></thead>
           <tbody>
-            <template x-for="t in tiposDocs" :key="t.cod + t.tipo">
+            <template x-for="t in tiposDocs" :key="t.id">
               <tr>
                 <template x-if="tipoEditing === t">
                   <td colspan="2" class="py-1.5">
@@ -1214,7 +1259,7 @@ export const page = {
         <table class="data-table">
           <thead><tr><th>Estado</th><th>Contexto</th><th class="w-20"></th></tr></thead>
           <tbody>
-            <template x-for="e in estados" :key="e.est + e.ctx">
+            <template x-for="e in estados" :key="e.id">
               <tr>
                 <template x-if="estadoEditing === e">
                   <td class="py-1.5">
@@ -1274,12 +1319,12 @@ export const page = {
             </tr>
           </thead>
           <tbody>
-            <template x-for="m in matrizETO" :key="m.gerencia">
+            <template x-for="m in matrizETO" :key="m.id">
               <tr>
                 <td class="font-bold text-slate-800" x-text="m.gerencia"></td>
                 <td>
                   <select class="form-input text-xs" x-model="m.analista">
-                    <template x-for="a in analistas" :key="a"><option :value="a" x-text="a"></option></template>
+                    <template x-for="a in analistas" :key="a.id || a.username"><option :value="a.username" x-text="a.nombre || a.username"></option></template>
                   </select>
                 </td>
                 <td class="text-center">
@@ -1291,7 +1336,7 @@ export const page = {
                 <td>
                   <select x-show="!m.disponible" class="form-input text-xs" x-model="m.delegado">
                     <option value="">— Seleccionar —</option>
-                    <template x-for="a in analistas" :key="a"><option :value="a" x-text="a"></option></template>
+                    <template x-for="a in analistas" :key="a.id || a.username"><option :value="a.username" x-text="a.nombre || a.username"></option></template>
                   </select>
                   <span x-show="m.disponible" class="text-[11px] text-slate-400">—</span>
                 </td>
@@ -1325,7 +1370,7 @@ export const page = {
                :class="gerSelId===g.id ? 'bg-blue-50 border-l-[3px] border-brand-500' : 'hover:bg-slate-50 border-l-[3px] border-transparent'"
                class="cursor-pointer px-3.5 py-3 border-b border-slate-100 transition-colors">
             <div class="text-xs font-semibold text-slate-800" x-text="g.nombre"></div>
-            <div class="text-[10.5px] text-slate-400 mt-0.5" x-text="g.areas.length + ' área(s) · Cód: ' + g.cod"></div>
+            <div class="text-[10.5px] text-slate-400 mt-0.5" x-text="(g.areas_count ?? 0) + ' área(s) · Cód: ' + g.sigla"></div>
           </div>
         </template>
       </div>
@@ -1337,7 +1382,7 @@ export const page = {
             <template x-if="!gerEditMode">
               <div>
                 <div class="text-[13px] font-bold text-slate-800" x-text="gerSel?.nombre"></div>
-                <div class="text-[11px] text-slate-400 mt-0.5" x-text="'Código: ' + gerSel?.cod"></div>
+                <div class="text-[11px] text-slate-400 mt-0.5" x-text="'Código: ' + gerSel?.sigla"></div>
               </div>
             </template>
             <template x-if="gerEditMode">
@@ -1363,13 +1408,13 @@ export const page = {
           </div>
         </div>
         <div class="flex items-center justify-between mb-2.5 pb-2.5 border-b border-slate-100">
-          <span class="text-[11px] font-bold text-slate-600">Áreas / Sub-unidades (<span x-text="gerSel?.areas.length"></span>)</span>
+          <span class="text-[11px] font-bold text-slate-600">Áreas / Sub-unidades (<span x-text="areasGerSel.length"></span>)</span>
           <button @click="addArea()" class="btn btn-sm text-emerald-700 border-emerald-200 text-[11px]">+ Nueva Área</button>
         </div>
         <table class="data-table">
           <thead><tr><th>Nombre del Área</th><th>Código</th><th class="w-28"></th></tr></thead>
           <tbody>
-            <template x-for="a in gerSel?.areas" :key="a.n + a.c">
+            <template x-for="a in areasGerSel" :key="a.id">
               <tr>
                 <template x-if="a._edit">
                   <td class="py-1"><input type="text" x-model="a.n" class="form-input text-[11px] py-1" placeholder="Nombre del área"></td>
@@ -1415,7 +1460,7 @@ export const page = {
       <!-- Lista -->
       <div class="card-base p-0 overflow-hidden">
         <div class="px-3.5 py-3 border-b border-slate-100 text-[11px] font-bold text-slate-600">📧 Plantillas de Email</div>
-        <template x-for="(p,i) in plantillas" :key="i">
+        <template x-for="(p,i) in plantillas" :key="p.id || i">
           <div @click="plantillaSelect=i; previewMode=false"
                :class="plantillaSelect===i ? 'bg-blue-50 border-l-[3px] border-brand-500' : 'hover:bg-slate-50 border-l-[3px] border-transparent'"
                class="cursor-pointer px-3.5 py-2.5 border-b border-slate-100 transition-colors">
@@ -1529,6 +1574,7 @@ export const page = {
               <th>Colaborador</th>
               <th class="w-32">Rol</th>
               <th>Área / Gerencia</th>
+              <th class="w-28">Cód. SAP</th>
               <th class="w-20">Estado</th>
               <th>Sincronizado</th>
               <th class="text-center w-44">Acciones</th>
@@ -1559,6 +1605,10 @@ export const page = {
                   <div x-show="u.ad_info" class="text-[10px] text-slate-400 truncate max-w-[200px]" :title="u.ad_info" x-text="u.ad_info"></div>
                 </td>
                 <td>
+                  <span x-show="u.ad_postal_code" class="text-[11px] font-mono text-slate-700" x-text="u.ad_postal_code"></span>
+                  <span x-show="!u.ad_postal_code" class="text-[10px] text-amber-600" title="Sin codigo SAP (postalCode vacio en AD)">⚠ falta</span>
+                </td>
+                <td>
                   <span :class="u.estado === 'activo' ? 'badge badge-green' : 'badge badge-gray'" class="text-[10px]" x-text="u.estado"></span>
                   <div x-show="u.ausente" class="text-[10px] text-amber-600 mt-0.5">En vacaciones</div>
                 </td>
@@ -1574,13 +1624,13 @@ export const page = {
               </tr>
             </template>
             <tr x-show="!loadingUsuarios && usuarios.length === 0">
-              <td colspan="6" class="text-center text-slate-400 py-8">
+              <td colspan="7" class="text-center text-slate-400 py-8">
                 <div class="text-[12px] mb-2">No hay usuarios cargados.</div>
                 <button @click="sincronizarDirectorio()" class="btn btn-sm btn-primary text-[11px]">Sincronizar AD ahora</button>
               </td>
             </tr>
             <tr x-show="loadingUsuarios">
-              <td colspan="6" class="text-center text-slate-400 py-6 text-[11px]">
+              <td colspan="7" class="text-center text-slate-400 py-6 text-[11px]">
                 <div class="flex items-center justify-center gap-2">
                   <div class="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
                   <span>Cargando usuarios...</span>
@@ -1693,7 +1743,7 @@ export const page = {
             </tr>
           </thead>
           <tbody>
-            <template x-for="h in logsFiltrados" :key="h.fecha + h.parametro + h.anterior">
+            <template x-for="h in logsFiltrados" :key="h.id">
               <tr>
                 <td class="text-slate-500" x-text="h.fecha"></td>
                 <td>

@@ -598,7 +598,7 @@ async def export_usuarios(
     headers = [
         "ID", "Username", "Nombre Completo", "Inic.", "Email", "Cargo",
         "Area", "Gerencia (sigla)", "Gerencia", "Estado", "Ausente",
-        "Delegacion", "Roles", "Modulos", "Cod. SAP (AD)", "Ultimo Sync AD",
+        "Delegacion", "Roles", "Modulos", "Cód. SAP", "Ultimo Sync AD",
     ]
 
     # Alinear: ID y fechas centrados/right, resto izquierda
