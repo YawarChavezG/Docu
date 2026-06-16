@@ -66,6 +66,56 @@ IMPORTANTE: usa SIEMPRE el stack de 21 skills instaladas en .opencode/skills/. M
 
 ---
 
+## ⚠️ CÓMO ENCONTRAR SKILLS Y AGENTS (lección aprendida sesión 5 — 2026-06-15)
+
+> **Las skills y agents del plugin ECC NO se descubren automaticamente con el tool `skill`.**
+> Hay que buscarlos en el filesystem antes de usarlos.
+
+### Skills (21 archivos en `.opencode/skills/`)
+
+| Tipo | Ubicación | Cómo se invoca |
+|---|---|---|
+| **Skills del proyecto (curadas)** | `.opencode/skills/<nombre>/SKILL.md` | Leer el archivo directo con `read`. El tool `skill` puede NO listarlas (encontrarás solo `customize-opencode`). |
+| **Agents del plugin ECC** | `.opencode/node_modules/ecc-universal/agents/<nombre>.md` | Invocar con `task --subagent_type=<nombre>`. Ej: `python-reviewer`, `database-reviewer`, `code-reviewer`, `security-reviewer`. |
+| **INSTRUCTIONS operativo** | `.opencode/instructions/INSTRUCTIONS.md` | Leer directo. Lista los 26 comandos slash y los 26 agents del plugin ECC v2.0.0. |
+
+### Skill `git-workflow` (CRÍTICA — antes de cada commit)
+
+Path: `.opencode/skills/git-workflow/SKILL.md`. **Siempre leerla antes de un commit.** Checklist de validación:
+
+1. **Conventional Commits**: `feat(scope):`, `fix(scope):`, `docs(scope):`, `chore(scope):`, `refactor(scope):`, `test(scope):`, `perf(scope):`, `ci(scope):`, `revert(scope):`. Subject imperativo, <50 chars ideal.
+2. **Sin secretos**: `grep -i 'password\|secret\|token\|api[_-]\?key\|credential' <archivos_nuevos>` antes de commitear. Solo deben aparecer keywords de la skill (p.ej. `csrf_token` nombre de cookie, `credentials` opción de fetch).
+3. **Archivos correctos**: NO `node_modules/`, `.env`, `dist/`, `__pycache__/`, `*.log`, PDFs/XLSXs de diseño.
+4. **Commit atómico**: 1 feature = 1 commit. NO mega-commits con archivos no relacionados.
+5. **Branch correcta**: `epica-X/rama-X` (no `main` directamente, salvo cierre de épica con PR).
+
+### Agentes del plugin ECC (CRÍTICOS para esta sesión A)
+
+| Agent | Path | Cuándo invocar |
+|---|---|---|
+| `python-reviewer` | `.opencode/node_modules/ecc-universal/agents/python-reviewer.md` | **SIEMPRE antes de commit con código Python nuevo** (tareas #2 a #9c) |
+| `database-reviewer` | `.opencode/node_modules/ecc-universal/agents/database-reviewer.md` | Para SQLAlchemy 2.0 + migraciones Alembic |
+| `code-reviewer` | `.opencode/node_modules/ecc-universal/agents/code-reviewer.md` | Review genérico cross-stack |
+| `security-reviewer` | `.opencode/node_modules/ecc-universal/agents/security-reviewer.md` | Solo cuando hay código sensible (auth, cookies, CSRF, secrets) |
+| `docs-lookup` | `.opencode/node_modules/ecc-universal/agents/docs-lookup.md` | Cuando hay duda de sintaxis de una librería (usa Context7) |
+
+### Flujo recomendado para cada tarea (sesión A)
+
+```
+1. Leer 2-3 skills relevantes (read del SKILL.md)
+2. Plan: anotar archivos a crear/modificar + queries de validación
+3. Codear
+4. Validar empíricamente (curl, SELECT, logs Docker)
+5. Invocar `python-reviewer` agent sobre el código nuevo
+6. Releer skill `git-workflow` → checklist
+7. git add + commit conventional
+8. Actualizar ESTADO.md y BITACORA.md → commit docs
+```
+
+```
+
+---
+
 ## Atajos rápidos (para usar en cualquier momento)
 
 ### Verificar que el stack está OK
