@@ -33,6 +33,7 @@ from app.models.configuracion_global import (  # noqa: F401
     TipoConfiguracion,
     CategoriaConfiguracion,
 )
+from app.models.feriado import Feriado, TipoFeriado  # noqa: F401
 
 
 __all__ = [
@@ -57,4 +58,6 @@ __all__ = [
     "ConfiguracionGlobal",
     "TipoConfiguracion",
     "CategoriaConfiguracion",
+    "Feriado",
+    "TipoFeriado",
 ]
