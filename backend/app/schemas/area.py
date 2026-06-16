@@ -14,7 +14,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class AreaBase(BaseModel):
     gerencia_id: int = Field(ge=1, description="FK a gerencias.id (debe existir)")
     sigla: str = Field(min_length=2, max_length=10, pattern=r"^[A-Z0-9_-]+$",
-                        description="Sigla unica global (mayusculas)")
+                        description="Sigla unica POR GERENCIA (mayusculas). Puede repetirse entre gerencias distintas.")
     nombre: str = Field(min_length=3, max_length=150)
     orden: int = Field(default=0, ge=0, le=999)
     jefe_id: Optional[int] = Field(default=None, ge=1,
@@ -35,6 +35,21 @@ class AreaUpdate(BaseModel):
     orden: Optional[int] = Field(default=None, ge=0, le=999)
     jefe_id: Optional[int] = Field(default=None, ge=1)
     activo: Optional[bool] = None
+
+
+# ─── Inputs para operaciones jerarquicas (Sesion B - tarea #9d) ───
+
+class AreaMoverRequest(BaseModel):
+    """Body para POST /areas/{id}/mover."""
+    gerencia_id_destino: int = Field(ge=1, description="FK a gerencias.id destino")
+
+
+class AreaPromoverRequest(BaseModel):
+    """Body para POST /areas/{id}/promover-a-gerencia.
+    Convierte esta area en la primera area de una nueva gerencia."""
+    sigla_gerencia: str = Field(min_length=2, max_length=10, pattern=r"^[A-Z0-9]+$",
+                                 description="Sigla de la nueva gerencia (unica global)")
+    nombre_gerencia: str = Field(min_length=3, max_length=150)
 
 
 # ─── Outputs ───
