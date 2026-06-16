@@ -32,6 +32,7 @@ from app.models.firma_digital import FirmaDigital  # noqa: E402,F401
 from app.models.log_sync_ad import LogSyncAd  # noqa: E402,F401
 from app.models.configuracion_global import ConfiguracionGlobal  # noqa: E402,F401
 from app.models.feriado import Feriado  # noqa: E402,F401
+from app.models.email_template import EmailTemplate  # noqa: E402,F401
 
 # ─── Alembic Config ───
 config = context.config

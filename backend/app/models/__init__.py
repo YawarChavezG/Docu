@@ -34,6 +34,7 @@ from app.models.configuracion_global import (  # noqa: F401
     CategoriaConfiguracion,
 )
 from app.models.feriado import Feriado, TipoFeriado  # noqa: F401
+from app.models.email_template import EmailTemplate, CodigoPlantilla  # noqa: F401
 
 
 __all__ = [
@@ -60,4 +61,6 @@ __all__ = [
     "CategoriaConfiguracion",
     "Feriado",
     "TipoFeriado",
+    "EmailTemplate",
+    "CodigoPlantilla",
 ]
