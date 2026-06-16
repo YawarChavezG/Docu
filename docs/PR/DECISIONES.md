@@ -288,3 +288,107 @@ LDAP_BASE_DN=OU=Oficina Central,DC=COFAR,DC=COM
 - Asumimos que la resolución DNS del contenedor no podía alcanzar los DNS de COFAR. **Incorrecto**: con `dns: [172.16.10.50, ...]` explícito, sí los alcanza.
 
 **Lo que aprendimos:** el ping-test rápido desde un contenedor Alpine (`docker run --rm alpine ping 172.16.10.17`) en 30 segundos demostró que el problema NO existía. **Lección para futuras sesiones: testear la asunción antes de aceptarla como verdad.**
+
+---
+
+## ADR-014: AuditLog append-only via `write_audit()` no-bloqueante (2026-06-15, sesión 6)
+
+**Contexto:** Los 8 routers de parametrización (gerencias, areas, feriados, email-templates, matriz-eto, tipos-doc, estados, configuracion-global) necesitan dejar rastro de auditoría de quién-modificó-qué-cuándo. Las opciones eran: (a) logging a archivo, (b) tabla `audit_log` con insert en cada mutación, (c) trigger SQL en la tabla destino.
+
+**Decisión:** **Tabla `audit_log` + helper `write_audit()` invocado manualmente en cada router después del commit de la operación.**
+
+**Consecuencia:**
+- ✅ Atomicidad controlada: `write_audit` + `db.delete` o `db.add` + un solo `db.commit()` (operación + audit atómicos). Si la operación falla, el audit NO se escribe (no hay "huérfanos" en audit_log).
+- ✅ No-bloqueante: `write_audit` solo recibe los datos ya en memoria, no hace queries extras.
+- ✅ Queryable: `GET /api/v1/audit-log?accion=&recurso=&usuario=&fecha_desde=&fecha_hasta=&limit=&offset=` para el frontend.
+- ✅ Estructura flexible: `detalles` es JSONB para guardar contexto variable (old_value, new_value, ip, etc.).
+- ❌ NO captura cambios directos a BD (solo via API). Si alguien edita con psql, no se audita.
+- ❌ Cada router debe recordar invocar `write_audit()` — disciplina manual.
+
+**Patrón canónico (replicado en 8 routers):**
+```python
+async def update_xxx(id, payload, request, db):
+    user = await require_eto_or_admin(request, db)
+    obj = await db.get(Xxx, id)
+    if not obj:
+        raise HTTPException(404)
+    old_data = {...obj.__dict__}
+    obj.field = payload.field
+    await write_audit(db, user, "update", "xxx", id, old=old_data, new=payload.dict())
+    await db.commit()
+    return obj
+```
+
+---
+
+## ADR-015: `areas.sigla` UNIQUE(gerencia_id, sigla) en vez de global (2026-06-15, sesión 6)
+
+**Contexto:** El bug B1 reportado: el `UniqueConstraint('sigla')` global impedía "revivir" un área con la misma sigla después de un borrado lógico (UPDATE activo=True). En QAS se necesitaba reasignar `TIC` a otra gerencia distinta.
+
+**Decisión:** **`UniqueConstraint('gerencia_id', 'sigla')` (compuesto) en `areas`**, no global. Migración Alembic 010 aplicada.
+
+**Consecuencia:**
+- ✅ Permite revivir un área con la misma sigla en otra gerencia sin conflictos.
+- ✅ Refleja la realidad organizacional: la sigla `TIC` puede existir en 2 gerencias distintas.
+- ❌ Migración de datos requerida en BD si existían duplicados previos (verificada antes de aplicar: 0 duplicados).
+- ❌ El router debe validar unicidad compuesta (ya lo hace via IntegrityError → 409).
+
+---
+
+## ADR-016: Mapeo EXPLÍCITO de normalización de módulos (no `replace(" ", "_")`) — 2026-06-16, sesión 8
+
+**Contexto:** El Excel de la matriz de abril usa nombres de módulos con espacios y partículas ("BANDEJA DE TAREAS", "CONSULTAR DOCUMENTOS"). El replace naive `" ".replace("_")` fallaba en "BANDEJA DE TAREAS" → "BANDEJA_TAREAS" (drop de "DE"). Necesitábamos un mapeo confiable y mantenible.
+
+**Decisión:** **Diccionario EXPLICITO `MODULO_NORMALIZATION` en `matriz_import_service.py` con 9 entradas hardcoded.**
+
+```python
+MODULO_NORMALIZATION: Dict[str, str] = {
+    "BANDEJA DE TAREAS": "BANDEJA_TAREAS",  # drop "DE"
+    "MI BANDEJA": "MI_BANDEJA",
+    "CONSULTAR DOCUMENTOS": "CONSULTAR_DOCUMENTOS",
+    "MIS EVALUACIONES": "MIS_EVALUACIONES",
+    "ASISTENTE IA": "ASISTENTE_IA",
+    "NUEVA SOLICITUD": "NUEVA_SOLICITUD",
+    "PLANTILLAS DOCUMENTALES": "PLANTILLAS_DOCUMENTALES",
+    "PARAMETRIZACION": "PARAMETRIZACION",
+    "REPORTES": "REPORTES",
+}
+```
+
+**Consecuencia:**
+- ✅ 100% predecible: cada texto del Excel tiene UNA entrada explícita.
+- ✅ Si COFAR agrega un módulo nuevo, agregar 1 línea en lugar de reescribir la lógica.
+- ✅ Documentado en `docs/PR/MATRIZ-ABRIL-MAPEO.md` § 7.
+- ❌ Hardcoded: si cambia la nomenclatura de COFAR, hay que editar el dict.
+- ❌ NO detecta typos en el Excel (no hace fuzzy match).
+
+---
+
+## ADR-017: Preferencia por `id ASC` cuando hay duplicados de `ad_postal_code` (2026-06-16, sesión 8)
+
+**Contexto:** 5 códigos COFAR del Excel (`visitador`, `promotor`, `sadministrativo`, `jadministrativo`, `lalave`, `ebejar`, `cmendoza`) tenían 2 usuarios en BD: el stub de DES (creado en sesión 5) y el real (sincronizado de AD después). El dict comprehension tomaba el último procesado (el stub, que ya tenía rol) y los reales quedaban sin asignar.
+
+**Decisión:** **`ORDER BY id ASC` y tomar el primero** (heurística: los reales se crearon primero en el sync AD, los stubs después con el seed).
+
+**Consecuencia:**
+- ✅ 717/729 usuarios matchearon correctamente (98.4%).
+- ✅ El stub de DES queda "ensuciado" con el rol del Excel (mala suerte — es coherente con la realidad, en QAS no hay stubs).
+- ✅ Duplicados se reportan como warning en logs del import.
+- ❌ Heurística frágil: si en QAS un usuario real tiene id mayor al stub, falla (pero no aplica, no hay stubs en QAS).
+- ❌ NO resuelve el problema de fondo: ¿por qué hay 2 usuarios con el mismo `ad_postal_code`?
+
+---
+
+## ADR-018: Skip delegado con warning (2026-06-16, sesión 8)
+
+**Contexto:** 156 usuarios del Excel requieren delegado (`¿REQUIERE DELEGADO? = SI`), pero solo 17 con nombre concreto en la columna `NOMBRE DELEGADO` (11%). El plan original (D2) proponía fuzzy match con threshold 0.85, pero el delegado es una decisión humana sensible (revisor de backups en aprobación de documentos) — un match incorrecto es peor que un delegado NULL.
+
+**Decisión:** **`delegado_id` NUNCA se asigna en el import**. Todos los 156 usuarios quedan con `estado_delegacion='PENDIENTE'`. Backlog deuda #13.
+
+**Consecuencia:**
+- ✅ Cero riesgo de asignación incorrecta de revisor de backups.
+- ✅ El estado `PENDIENTE` es visible en la UI (campo `requiere_delegado=True` + `estado_delegacion='PENDIENTE'` = "necesita asignación manual").
+- ✅ Backlog explícito en ESTADO.md (#13) y BITACORA.md (sesión 8).
+- ❌ El usuario `aromero` (ETO) tiene `delegado_id=NULL` después del import (ya estaba así pre-import).
+- ❌ Los flujos R3/R4 que dependen de delegado se romperán hasta resolver #13.
+- 🔴 **BLOQUEANTE para R3** (aprobación paralela) — pero no para R2 (creación de documentos no requiere delegado).

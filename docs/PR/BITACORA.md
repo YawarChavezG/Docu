@@ -509,3 +509,111 @@ audit_log: 29 (todas las mutaciones de sesion 6 + 9e)
 
 (Esto es BUENO: confirma que la pagina CARGA del backend cuando existe, y usa
 fallback del mock solo si no existe. Es la mejora clave del fix.)
+
+---
+
+## Sesion 8 — 2026-06-16 (martes PM) — Import matriz de abril 730 usuarios
+
+> Sesion dedicada a cerrar la tarea #12 (asignacion masiva desde el Excel
+> `USUARIOS EXISTENTES A ABRIL.xlsx`). Pivote de sesion 6: script CLI
+> standalone (sin endpoint, sin UI). Skip delegado con warning (deuda #13).
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 12.1 | Analisis Excel + mapeo COFAR/modulos/roles | (con 12.4) | `docs/PR/MATRIZ-ABRIL-MAPEO.md` con 729 filas, 5/5 roles OK, 2 normalizaciones (BANDEJA_DE_TAREAS, CONSULTAR_DOCUMENTOS), 717/729 matchean BD |
+| 12.2 | `backend/app/services/matriz_import_service.py` | (con 12.4) | 3 funciones + orquestador: `parsear_excel`, `match_usuarios`, `aplicar_asignaciones`, `run_import`. Dataclasses: `MatrizRow`, `MatchResult`, `ImportResult` |
+| 12.3 | `backend/scripts/run_matriz_import.py` | (con 12.4) | CLI argparse con `--excel --dry-run --update-existing --verbose --yes`. Confirmacion interactiva. Exit codes 0/1/2. Reporta counts antes/despues |
+| 12.4 | Ejecucion real + validacion empirica | (con 12.4) | 10 -> 730 usuarios con rol (+716). 3,312 modulos asignados. 12 unmatched. Idempotente verificado (3ra corrida = 0 cambios) |
+| 12.5 | Re-tests pytest #11 en paralelo | (con 12.4) | 123/123 passing en 11.38s — import no rompio nada |
+
+### Logros tecnicos
+
+1. **716 usuarios del Excel** ahora tienen rol + modulos + flags asignados.
+2. **3,312 asociaciones N:M** (roles + modulos) insertadas con `ON CONFLICT DO NOTHING`.
+3. **0 errores de catalogo** (5/5 roles + 9/11 modulos del Excel matchean).
+4. **Idempotencia verificada**: 3 corridas consecutivas dieron 716/4/0 asignaciones.
+5. **5 sub-tareas** ejecutadas en ~2 horas (vs 4-5h estimadas inicialmente).
+
+### Bugs detectados y corregidos durante la sesion
+
+1. **MODULO_NORMALIZATION con `replace(" ", "_")` falla en "BANDEJA DE TAREAS"** ->
+   la BD tiene `BANDEJA_TAREAS` (sin "DE"). Cambiado a mapa EXPLICITO de 9 entradas.
+2. **OUTER JOIN retornaba `rol_id=None` para usuarios sin rol** -> mi codigo lo
+   contaba como "ya tiene rol" (set no vacio con None). Fix: `if rol_id is None: continue`.
+3. **Dict comprehension pisaba usuarios duplicados** -> 5 COFARs tienen 2 usuarios
+   en BD (stub de DES + real). El dict tomaba el ultimo procesado (el stub, que ya
+   tenia rol). Fix: `ORDER BY id ASC` y reportar duplicados como warning.
+4. **Pytest no en venv del contenedor** -> pytest esta en `backend/.venv` del host
+   Windows. Cambio a ejecutar desde el host con `backend\.venv\Scripts\python -m pytest`.
+
+### Trampas/ensenanzas documentadas (para el futuro)
+
+1. **5 COFARs tienen 2 usuarios en BD** (visitador/promotor/sadministrativo/jadministrativo/lalave/ebejar/cmendoza
+   son stubs; los reales son ntorrrico/fvargas/rlimachiq/jadministrativo). Heuristica:
+   preferir el `id` mas bajo (los reales se crearon primero).
+2. **El Excel tiene 729 filas, NO 730 como decia el plan original** (4 filas vacias al final).
+3. **0 ADMIN en la matriz** (era 1 esperado). El `admin` del stub DES NO es afectado.
+4. **156 usuarios requieren delegado, pero solo 17 con nombre concreto** (11%). Plan
+   es **SKIP delegado con warning**, queda como deuda tecnica #13.
+5. **3 stubs de DES quedan con `estado_delegacion='pendiente'`** (inconsistente con
+   `requiere_delegado=False`). Esto es preexistente del seed de sesion 5, no es
+   bug del import.
+
+### Estado de la BD al cierre de sesion 8
+
+```
+usuarios.total:               764
+usuarios.con_rol:             730 (10 originales + 716 del Excel + 4 stubs DES con rol)
+usuarios sin rol:             34 (los 12 COFARs sin match + 22 extras)
+usuario_roles.total:          730
+usuario_modulos.total:        3,345 (34 originales + 3,311 nuevos)
+
+Distribucion de roles (post-import):
+  VISUALIZADOR (CL-EVAL)             567 (573 esperados - 6 sin match)
+  ELABORADOR - REVISOR               143 (146 esperados - 3 sin match)
+  ELABORADOR - REVISOR - APROBADOR    10 (8 + 2 preexistentes)
+  ETO                                  4 (2 + 2 preexistentes: aromero, cecEspinoza, aracely)
+  ADMIN                                2 (0 del Excel + 2 preexistentes)
+
+Estado de delegacion:
+  pendiente + requiere_delegado=true:  151 (los 156 no-VISUALIZADOR - 5 que ya tenian delegado)
+  pendiente + requiere_delegado=false:   3 (stubs DES: solicitante, elaborador_revisor, elaborador_revisor_aprobador)
+  na + requiere_delegado=false:        572 (VISUALIZADORES)
+```
+
+### Decisiones tomadas en esta sesion (ADRs nuevos en draft)
+
+- **ADR-016 (en draft)**: Mapeo EXPLICITO de normalizacion de modulos (no `replace(" ", "_")`).
+  "BANDEJA DE TAREAS" -> "BANDEJA_TAREAS" (drop "DE"). Documentado en MAPEO § 7.
+- **ADR-017 (en draft)**: Preferencia por `id ASC` cuando hay duplicados de
+  `ad_postal_code`. Heuristica: los reales se crearon primero. Documentado en
+  service docstring y MAPEO § 3 (R1).
+- **ADR-018 (en draft)**: Skip delegado con warning. Coincide con pivot de
+  sesion 6. 156/156 quedan con `estado_delegacion='pendiente'`. Backlog #13.
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + import matriz:** 28/28 tareas (100%).
+- **R2:** 0/21 (sigue bloqueado por R2 mismo, no por R1).
+- **Total:** 28/48 (58%) + 4 bonus.
+- **Migraciones Alembic:** 10 aplicadas (001 a 010). 0 nuevas en esta sesion.
+- **Endpoints totales:** 49+ REST. Sin cambios en esta sesion.
+- **Datos totales:** 764 usuarios, 730 con rol, 3,345 asociaciones N:M.
+
+### Proxima sesion (sesion 9) — TBD
+
+Opciones para retomar:
+
+1. **R2 — Wizard de creacion** (tareas #23+): empezar con los 19 modelos SQLAlchemy
+   de Documentos/Workflow/Archivos/Soporte/Miscelaneos. Migracion 011. Endpoints
+   `/api/v1/documentos` (CRUD borrador). Riesgo: 2-3 sesiones intensivas.
+2. **#13 — Deuda delegado**: implementar match desde AD `manager` attribute o
+   desde la BD con fuzzy matching + threshold 0.85 (plan original D2). Pequeño.
+3. **#14 — Cargos a areas**: seed de mapeo POSICION -> area_id. Tabla nueva o
+   columna calculada. Mediano.
+4. **#19-21 — Security hardening**: CSP, DOMPurify, rate limit. Backlog R1.
+
+Recomendacion: cerrar #13 y #14 (deudas chicas) antes de empezar R2 (que es
+largo y mejor con todo R1 limpio).

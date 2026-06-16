@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-16 (sesión 6 — UI + tests + bulk al 67% de lo planeado)
+> Última actualización: 2026-06-16 (sesión 8 — import matriz abril 730 usuarios, R1+EPICA9 100% cerrada)
 
 ## Versión actual
-**v0.3.0-dev** (salto por funcionalidades de audit-log, export XLSX, refactor Parametrizacion)
+**v0.4.0-dev** (salto por import masivo de matriz abril 730 usuarios)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
@@ -47,7 +47,7 @@
 | 19 | Sanear 4 x-html con DOMPurify | ❌ | — | (no verificado — buscar `x-html` en `frontend/src/pages/*.js`) |
 | 20 | Agregar CSP meta tag | ❌ | — | (no verificado) |
 | 21 | Rate limit con slowapi | ❌ | — | (no implementado) |
-| 22 | **TESTING R1** | ❌ | — | `backend/tests/` existe pero VACÍO. Sin tests automatizados. Tarea #11 de Sesion B CANCELADA por el usuario. |
+| 22 | **TESTING R1** | ✅ | 16-jun | `backend/tests/` poblado. **123/123 tests passing en 11.38s** (commit `e13761c`, sesión 7). Cobertura routers auth + usuarios + parametrización. |
 
 ### R2 — Wizard de creación
 
@@ -87,17 +87,17 @@
 ---
 
 ## Progreso R1
-**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** = **27/27 tareas R1 + EPICA9 (100%)**
-Backend ÉPICA 9 + audit + export + refactor Parametrizacion: CERRADO al 100%.
+**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** = **29/29 tareas R1 + EPICA9 (100%)**
+Backend ÉPICA 9 + frontend EPICA 9 + audit + export + refactor Parametrizacion + tests pytest + import matriz: CERRADO al 100%.
 
 ## Progreso R2
-**0/21 tareas pendientes** (bloqueado por: tests pytest pendientes para R1 — cancelado en sesion 6)
+**0/21 tareas pendientes** (R1 ya NO es bloqueante. R2 puede arrancar.)
 
 ## Total
-**27/48 tareas (56%)** + 4 bonus ya entregados
+**29/48 tareas (60%)** + 4 bonus ya entregados + import matriz abril
 
 ## Tablas de BD
-**18/28 migradas** (16 originales + 6 nuevas en sesión 5: configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados; +1 nueva en sesión 6: **audit_log**; total 18 con migración Alembic aplicada)
+**18/28 migradas** (16 originales + 6 nuevas en sesión 5: configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados; +1 nueva en sesión 6: **audit_log**; total 18 con migración Alembic aplicada). 0 nuevas en sesiones 7 y 8.
 
 ## Servicios backend implementados
 
@@ -199,13 +199,13 @@ DELETE /api/v1/estados/{id}                               (NUEVO)
 | # | Tarea | Estado | Commit | Evidencia |
 |---|---|---|---|---|
 | B-T1 | Refactor `Parametrizacion.js` para usar los endpoints nuevos con `apiFetch` | ✅ | `52cc80c` | Nuevo `frontend/src/services/parametrizacionApi.js` con 30+ funciones. `Parametrizacion.js` ya NO importa de `data/parametrosSistema.js` (verificado con grep). 7 tabs cargan del backend en paralelo. |
-| B-T2 | Tests pytest de los endpoints nuevos (80% coverage) | ❌ CANCELADA | — | Usuario decidio detener la sesion tras #9e. `backend/tests/` sigue VACIO. |
-| B-T3 | Asignacion masiva desde `USUARIOS EXISTENTES A ABRIL.xlsx` (730 usuarios) | ❌ CANCELADA | — | Usuario decidio detener la sesion tras #9e. Endpoint nuevo no creado. |
+| B-T2 | Tests pytest de los endpoints nuevos (80% coverage) | ✅ | `e13761c` | 123/123 tests passing en 11.38s. Commit "test(backend): tests pytest 80% routers - Sesion 7 cierre R1". Sesion 7. |
+| B-T3 | Asignacion masiva desde `USUARIOS EXISTENTES A ABRIL.xlsx` (730 usuarios) | ✅ | (sesion 8) | `backend/app/services/matriz_import_service.py` (415 lineas) + `backend/scripts/run_matriz_import.py` (204 lineas, CLI argparse) + `docs/PR/MATRIZ-ABRIL-MAPEO.md` (169 lineas). 716 usuarios asignados, 3,312 modulos. Idempotente verificado. |
 | B-T4 | `GET /api/v1/audit-log` con filtros | ✅ | `33c3fef` | `app/api/v1/audit_log.py` + `app/models/audit_log.py` + migración 009. Helper `app/core/audit.py:write_audit()`. 8 routers instrumentados. |
 | B-T5 | Operaciones jerarquicas areas (`mover`, `promover-a-gerencia`, `DELETE logico`) | ✅ | `79120cf` | `app/api/v1/areas.py` extendido con 2 endpoints nuevos. `DELETE ?fisico=true|false`. **Fix B1** aplicado: `UniqueConstraint('gerencia_id', 'sigla')` + migración 010. |
 | B-T6 | Override vacaciones + export Excel/CSV | ✅ | `1559cdb` | `PATCH /usuarios/{id}` (override estado/ausente/delegacion) + `GET /usuarios/export?formato=xlsx|csv`. Helper `app/core/excel_export.py` con paleta pastel, auto-width, freeze, filtros, totales. openpyxl==3.1.5 agregado a requirements. |
 
-**Total Sesion B ejecutado:** 4/6 tareas (67%). Tests y bulk cancelados por el usuario.
+**Total Sesion B ejecutado:** 6/6 tareas (100%). Sesion 7 cerro B-T2 + bugfix de B-T1. Sesion 8 cerro B-T3 con import masivo desde CLI.
 
 ### Bugs resueltos en Sesion B
 
@@ -222,39 +222,47 @@ DELETE /api/v1/estados/{id}                               (NUEVO)
 - **B8**: `auth.py` password dummy (pre-deployment QAS, documentado).
 
 ## Decisiones tomadas (ADRs)
-- ADR-001 a ADR-012 (ver `DECISIONES.md`)
-- ADR-013 (en draft sesión 4): **Backend fuera de Docker en DES por VPN FortiClient**
+- ADR-001 a ADR-018 (ver `DECISIONES.md`)
+- ADR-013: **Backend DENTRO de Docker en DES** (invalidado el draft inicial sesión 4, reescrito sesión 5 con networkingMode=mirrored + DNS custom)
+- ADR-014: AuditLog append-only via `write_audit()` no-bloqueante (sesión 6)
+- ADR-015: `areas.sigla` UNIQUE(gerencia_id, sigla) en vez de global (sesión 6)
+- ADR-016: Mapeo EXPLICITO de normalización de módulos (sesión 8)
+- ADR-017: Preferencia por `id ASC` cuando hay duplicados de `ad_postal_code` (sesión 8)
+- ADR-018: Skip delegado con warning (sesión 8, deuda #13)
 
-## Bloqueos identificados (sesión 4)
+## Bloqueos identificados
 
-1. **🔴 CRÍTICO — Sin Alembic**: los modelos están en código pero NO hay migraciones. Cada vez que se reinicia el backend los modelos se recrean desde cero (posible pérdida de datos). **Hay que arreglar ANTES de seguir con R2** o vamos a perder trabajo.
+**Al cierre de sesión 8 (2026-06-16), NO hay bloqueos críticos para arrancar R2.**
 
-2. **🟠 IMPORTANTE — Frontend sin `utils/api.js`**: la mayoría de los componentes todavía usan datos hardcoded de `frontend/src/data/*.js`. Sin el wrapper `apiFetch`, no hay forma consistente de llamar al backend.
+Bloqueos menores pre-QAS:
+- 🟠 B3: CSRF middleware ausente (seguridad pre-QAS)
+- 🟠 B8: `auth.py` password dummy `cofar.2026` (pre-deployment QAS, documentado)
 
-3. **🟡 MENOR — Tests vacíos**: `backend/tests/` está creado pero sin tests. La cobertura de R1 no es verificable automáticamente.
+Backlog menor:
+- 🟡 B2: `Gerencia.areas` cascade cleanup opcional
+- 🟡 B4: `vite.config.js` manualChunks
+- 🟡 B5-B7: cleanup varios
+- 🟡 #13: Deuda delegado (sesión 8)
+- 🟡 #14: Cargos a areas (pendiente)
 
-4. **🟡 MENOR — Sin rate limit, sin CSP, sin DOMPurify verificado**: 3 tareas de seguridad pendientes en R1.
+## Próximo paso (recomendado para sesión 9)
 
-## Próximo paso (recomendado para sesión 5)
+**R1 + EPICA9 + import matriz: 100% cerradas.** 3 caminos posibles:
 
-**Orden propuesto (no negociable, por dependencias):**
-1. **Generar migración Alembic inicial** (tarea #8) — toma 20 min, evita perder datos. **Prioridad #1.**
-2. **Crear `frontend/src/utils/api.js`** (tarea #15) — sin esto, refactorizar más pages no tiene sentido.
-3. **Endpoints de organigrama y gerencias/áreas** (tareas #11, #12) — el cliente las necesita para parametrizar.
-4. **Tests con pytest + httpx** (tarea #22) — antes de cerrar R1.
-5. **CSP + DOMPurify + rate limit** (tareas #19-21) — barra de seguridad mínima.
+1. **R2 — Wizard de creación** (tareas #23+): 19 modelos SQLAlchemy + migración 011 + endpoints `/api/v1/documentos`. 2-3 sesiones intensivas. Empezar por la **tarea #23: Schema SQLAlchemy Documentos (3 tablas)**.
+2. **#13 — Deuda delegado**: implementar match desde AD `manager` attribute o fuzzy matching + threshold 0.85. Pequeño.
+3. **#14 — Cargos a areas**: seed de mapeo POSICION → area_id. Mediano.
+4. **#19-21 — Security hardening**: CSP, DOMPurify, rate limit. Backlog R1.
+
+**Recomendación:** cerrar #13 y #14 (deudas chicas) antes de empezar R2 (que es largo y mejor con todo R1 limpio).
 
 **Lo que NO se debería hacer todavía:**
-- R2 (#23+) — depende de que R1 esté cerrada con Alembic
-- Refactor de pages no tocadas (Bandeja, Liberacion, ListaMaestra) — depende de utils/api.js
+- Refactor de pages no tocadas (Bandeja, Liberacion, ListaMaestra) — depende de R2 endpoints.
 
-## Estado de la sesión actual (4)
+## Estado de la sesión actual (8 — cierre de sesión anterior)
 
-- ✅ Investigación completa del repo
-- ✅ Investigación del plugin ECC (`ecc-universal` v2.0.0) — 26 commands, 26 agents, 11 skills por default
-- ✅ Limpieza de raíz: 20 archivos basura sacados del tracking (.err, .out, .pid, cookies, login_*, test_*, trash_*). .gitignore reforzado.
-- 🔄 Actualización de ESTADO.md con realidad (este archivo)
-- ⏳ ADR-013 sobre backend fuera de Docker
-- ⏳ Bitácora sesión 4
-- ⏳ Orquestador `scripts/start-stack-des.bat`
-- ⏳ Configurar ECC hooks en minimal
+- ✅ Sesión 5: Backend ÉPICA 9 al 100% (10 tareas, 14 commits)
+- ✅ Sesión 6: UI EPICA 9 + 3 endpoints backend nuevos (4 de 6 tareas Sesión B, 4 commits)
+- ✅ Sesión 7: Bugfix del refactor incompleto de sesión 6 (10 bugs, commit `89f5ac6`) + tests pytest 123/123 (commit `e13761c`)
+- ✅ Sesión 8: Import matriz abril 716 usuarios (service + CLI + mapeo, 5 sub-tareas en 2h)
+- ✅ Sesión 9 (ESTA): Cierre de documentación + commits finales de sesión 8 (ESTADO.md + DECISIONES.md + 2 commits)
