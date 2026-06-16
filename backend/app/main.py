@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.core.config import settings
-from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias
+from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias, areas
 
 # ─── Timezone (Bolivia = UTC-4) ───
 # Truco: pisamos el converter CLASS-attribute de logging.Formatter con
@@ -101,6 +101,7 @@ app.include_router(health.router, prefix=settings.api_v1_prefix, tags=["Health"]
 app.include_router(auth.router, prefix=settings.api_v1_prefix, tags=["Auth"])
 app.include_router(usuarios.router, prefix=settings.api_v1_prefix, tags=["Usuarios"])
 app.include_router(gerencias.router, prefix=settings.api_v1_prefix, tags=["Gerencias"])
+app.include_router(areas.router, prefix=settings.api_v1_prefix, tags=["Areas"])
 app.include_router(admin_impersonate.router, prefix=settings.api_v1_prefix)
 
 
