@@ -81,3 +81,9 @@ nohup.out
 *.nohup
 *.pdf
 *.xlsx
+
+# Screenshots de validacion visual (sesiones de QA / debugging)
+screenshots_sb/
+
+# Archivos de recuperacion de sesion (no son parte del proyecto)
+docs/PR/RETORNO_ANTERIOR_SESION.md
