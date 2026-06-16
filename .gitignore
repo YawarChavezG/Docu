@@ -42,6 +42,8 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.backup
+.env.qas
 *.pem
 *.key
 *.crt
@@ -87,3 +89,11 @@ screenshots_sb/
 
 # Archivos de recuperacion de sesion (no son parte del proyecto)
 docs/PR/RETORNO_ANTERIOR_SESION.md
+
+# Backups locales de BD (snapshots pg_dump - grandes y efimeros)
+backups/
+
+# Test artifacts sueltos
+test_served.js
+test_*.js
+test_*.py
