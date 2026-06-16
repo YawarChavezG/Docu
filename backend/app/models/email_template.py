@@ -13,8 +13,7 @@ import enum
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, DateTime, Boolean, Text, Enum as SAEnum, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import String, DateTime, Boolean, Text, JSON, Enum as SAEnum, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -42,7 +41,7 @@ class EmailTemplate(Base):
     nombre: Mapped[str] = mapped_column(String(150), nullable=False)
     asunto: Mapped[str] = mapped_column(String(500), nullable=False)
     cuerpo_html: Mapped[str] = mapped_column(Text, nullable=False)
-    variables_json: Mapped[Optional[list]] = mapped_column(JSONB, nullable=True)
+    variables_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
