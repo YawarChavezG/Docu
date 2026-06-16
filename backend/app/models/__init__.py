@@ -35,6 +35,10 @@ from app.models.configuracion_global import (  # noqa: F401
 )
 from app.models.feriado import Feriado, TipoFeriado  # noqa: F401
 from app.models.email_template import EmailTemplate, CodigoPlantilla  # noqa: F401
+from app.models.matriz_enrutamiento_eto import (  # noqa: F401
+    MatrizEnrutamientoEto,
+    DisponibilidadEto,
+)
 
 
 __all__ = [
@@ -63,4 +67,6 @@ __all__ = [
     "TipoFeriado",
     "EmailTemplate",
     "CodigoPlantilla",
+    "MatrizEnrutamientoEto",
+    "DisponibilidadEto",
 ]
