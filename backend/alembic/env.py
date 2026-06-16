@@ -35,6 +35,7 @@ from app.models.feriado import Feriado  # noqa: E402,F401
 from app.models.email_template import EmailTemplate  # noqa: E402,F401
 from app.models.matriz_enrutamiento_eto import MatrizEnrutamientoEto  # noqa: E402,F401
 from app.models.tipo_documento import TipoDocumento  # noqa: E402,F401
+from app.models.estado import Estado  # noqa: E402,F401
 
 # ─── Alembic Config ───
 config = context.config
