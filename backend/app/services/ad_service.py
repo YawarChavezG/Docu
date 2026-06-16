@@ -68,8 +68,8 @@ def _get_excluded_samaccountnames() -> List[str]:
     return [s.strip().lower() for s in settings.ldap_excluded_samaccountnames.split(",") if s.strip()]
 
 
-def _build_server() -> Server:
-    """Construye un Server ldap3 a partir de la config."""
+def build_server() -> Server:
+    """Construye un Server ldap3 a partir de la config del .env."""
     if settings.ldap_use_ssl:
         return Server(
             host=settings.ldap_server,
@@ -123,7 +123,7 @@ def ldap_bind(username: str, password: str) -> Tuple[bool, str]:
         return False, "Usuario o contraseÃ±a vacÃ­os"
 
     try:
-        server = _build_server()
+        server = build_server()
         user_dn = _build_user_dn(username)
 
         conn = Connection(
@@ -160,7 +160,7 @@ def ldap_bind_service_account() -> Optional[Connection]:
         return None
 
     try:
-        server = _build_server()
+        server = build_server()
         conn = Connection(
             server,
             user=settings.ldap_bind_user,

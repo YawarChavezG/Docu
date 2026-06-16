@@ -221,7 +221,10 @@ services:
       dockerfile: Dockerfile
     container_name: sgd-celery-beat
     restart: unless-stopped
-    command: celery -A app.workers.celery_app beat --loglevel=info
+    # -s fuerza el schedule file a /app/storage (escribible por sgduser).
+    # Sin esto celery-beat intenta escribir en CWD (/app) que es propiedad de root
+    # porque la imagen base hace COPY . /app antes de USER sgduser.
+    command: celery -A app.workers.celery_app beat --loglevel=info -s /app/storage/celerybeat-schedule
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
@@ -229,6 +232,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
     volumes:
       - ../backend:/app
+      - backend_storage:/app/storage
     depends_on:
       postgres:
         condition: service_healthy

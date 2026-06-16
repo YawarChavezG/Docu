@@ -26,6 +26,7 @@ NO comparar uac contra una lista hardcodeada; usar siempre bit-mask.
 """
 import sys
 import csv
+import os
 from pathlib import Path
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent
@@ -39,7 +40,7 @@ if env_path.exists():
 
 from ldap3 import Connection
 from app.core.config import settings
-from app.services.ad_service import _build_server
+from app.services.ad_service import build_server
 
 # CORRECCIÓN CRÍTICA: Se añade "userAccountControl" a la lista para que el AD lo devuelva
 ATRIBUTOS = [
@@ -79,7 +80,7 @@ def _es_cuenta_deshabilitada(uac_raw) -> bool:
         return False
 
 
-server = _build_server()
+server = build_server()
 conn = Connection(
     server, user=settings.ldap_bind_user, password=settings.ldap_bind_password,
     auto_bind=True, read_only=True, receive_timeout=30,
@@ -219,7 +220,12 @@ csv_cols = [
     "givenName", "department", "sAMAccountName", "mobile", "postalCode",
     "mail", "company", "info", "userAccountControl",
 ]
-out_path = BACKEND_DIR / "scripts" / "usuarios_sap_FINAL2026.csv"
+# Output path: configurable via env var, default /app/storage/ (writable por sgduser
+# en QAS donde /app/scripts/ es propiedad de root via bind mount).
+# Si se quiere el path legacy, set SYNC_AD_OUTPUT_DIR=/app/scripts/.
+out_dir = Path(os.environ.get("SYNC_AD_OUTPUT_DIR", "/app/storage"))
+out_dir.mkdir(parents=True, exist_ok=True)
+out_path = out_dir / "usuarios_sap_FINAL2026.csv"
 with open(out_path, "w", encoding="utf-8-sig", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=csv_cols, delimiter=";", quoting=csv.QUOTE_MINIMAL)
     writer.writeheader()
