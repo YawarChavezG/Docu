@@ -128,7 +128,7 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 | **Para limpiar código muerto** | (built-in: `refactor-cleaner` agent) | "Invocá refactor-cleaner sobre el directorio backend/app/api/v1/." |
 | **Al cerrar sesión** | `doc-updater` (agent) + `git-workflow` | "Actualizá ESTADO.md y BITACORA.md, después hacé commit con git-workflow." |
 
-### Skills por TIPO de TAREA (las 11 del plan actual)
+### Skills por TIPO de TAREA (las 12 del plan actual)
 
 | # | Tarea concreta | Skills a invocar |
 |---|---|---|
@@ -143,6 +143,7 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 | **9** | `GET /api/v1/audit-log` (con filtros) | `fastapi-patterns`, `api-design`, `postgres-patterns` |
 | **10** | Refactor `Parametrizacion.js` para consumir los 7 endpoints | `frontend-design-direction`, `frontend-a11y`, `api-design`, `python-reviewer` (verificar contratos) |
 | **11** | Tests pytest de los 7 endpoints nuevos | `tdd-workflow`, `tdd-mattpocock`, `verification-loop` |
+| **12** | **Asignación masiva de roles/módulos desde USUARIOS EXISTENTES A ABRIL.xlsx** (730 usuarios, 5 roles, 10 módulos) | `database-migrations`, `fastapi-patterns`, `api-design`, `python-reviewer` (agent) — ver `docs/PR/MATRIZ-ABRIL-ASIGNACION.md` |
 
 ### Skills por TIPO de TAREA (catálogo general, para futuras sesiones)
 
