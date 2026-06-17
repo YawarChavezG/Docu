@@ -2241,3 +2241,19 @@ Segun `docs/PR/R2-PLAN-EJECUCION.md` § 4.2:
 10. **Commit + docs + ADR-042 en DECISIONES.md**: 20min
 
 Estimado: 5.5h.
+
+### Handoff para sesion 22
+
+Se creo `docs/PR/SESION-22-HANDOFF.md` con:
+- Prompt de inicio de sesion listo para copiar/pegar
+- Estado verificado de git, BD, stack, tests (10 docs, 33 tests, alembic b88801d59687)
+- Resumen completo de sesion 21
+- 4 ADRs candidatos (042-045) para formalizar
+- 5 riesgos pendientes (R1 firma 2FA atomica es el critico)
+- Plan operativo de 10 sub-tareas de FASE 2 con tiempo estimado
+- Detalle de cada tarea (schemas, endpoints, archivos a crear/modificar)
+- 30+ tests a escribir
+- 5 problemas conocidos con workarounds
+- Convenciones del codebase (backend, frontend, git)
+- Checklist pre-inicio (5 min)
+- Criterio de cierre de FASE 2

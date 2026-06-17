@@ -140,6 +140,8 @@
 ## Progreso R2
 **7/21 tareas R2 completadas (Fase 1 cerrada en sesion 21, branch `r2/wizard-y-version-editable`)**. Plan completo + 2 fases documentado en `docs/PR/R2-PLAN-EJECUCION.md`. 33 tests pytest nuevos, 100% verde. 10 documentos sembrados idempotentemente. Regla del usuario "VENCIDO → APROBADO u OBSOLETO" validada.
 
+**Handoff para sesion 22:** `docs/PR/SESION-22-HANDOFF.md` (con prompt de inicio, plan de FASE 2, 5 riesgos, 4 ADRs candidatos, 30+ tests pendientes, criterios de cierre).
+
 ## Total
 **38/49 tareas (78%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 5 tareas nuevas sesión 16 + 1 tarea nueva sesión 18 (refresh bug fix) = **86%**
 
