@@ -2372,3 +2372,85 @@ Se creo `docs/PR/SESION-22-HANDOFF.md` con:
 - docs/PR/DECISIONES.md (+120 lineas, ADRs 042-045)
 - docs/PR/ESTADO.md (actualizado, R2 7/21 -> 17/21)
 - docs/PR/BITACORA.md (entrada sesion 22, +180 lineas)
+
+---
+
+## Sesion 23 — 2026-06-17 (miercoles 15:30 ? 17:00) — Bloque A: 6 sub-tareas reunion con cliente
+
+> Sesion dedicada a cerrar el Bloque A del plan propuesto al usuario tras
+> la reunion de revision. 6 sub-tareas de bugs pequenos + 1 nuevo
+> (firma 2FA del wizard). Commit atómico b1e45e con 5 archivos.
+
+### Pendientes del usuario (reunion)
+
+1. **Impersonate**: banner se ve pero no se aplica la funcionalidad
+2. **Plantillas - asunto**: variables se insertan en cuerpo en vez de asunto
+3. **Plantillas - variable VERSION**: agregar {{VERSION}} y validar dónde se guardan
+4. **Perfil - visualizador/admin**: no deberían ver seccion delegado
+5. **Perfil - vacaciones con fechas (desde/hasta)**: deben guardarse en BD
+6. **Delegado**: validar que persiste al agregar
+7. **Sync AD - desvinculados**: marcar como desvinculado sin eliminar
+8. **Sync AD - usuarios con codigo SAP son AD, no local**
+9. **Semaforizacion - eliminar plazo_max_revision y semaforo_verde/amarillo (redundantes con semaforizacion_tarea)**
+10. **Estados de proceso y tarea - replantear** (12 nuevos: 3 PROCESO + 6 TAREA + 3 ACCION)
+11. **Pagina /plantillas (nueva)**: mostrar archivos de storage_qas/plantillas/ con descarga + audit
+12. **Matriz de enrutamiento - dropdown solo ETO** (no listado global)
+13. **Wizard paso 1 - 3 campos read-only** (Nombre/Cargo/Fecha)
+14. **Wizard - limite tamano archivos desde BD** (configuracion_global)
+15. **Wizard - storage local momentaneo** (DES: laptop, QAS: docker)
+16. **Wizard - no toast en siguiente** (crear doc solo al firmar)
+17. **Wizard - flujos y firmas - filtrar REVISOR/APROBADOR**
+18. **NUEVO reportado al final**: firma 2FA muestra toast exito+error y no se guarda
+
+### Tareas ejecutadas (orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| A1 | {{VERSION}} en seed_email_templates.py (VARS_COMUNES) | b1e45e | 11 plantillas actualizadas con {{VERSION}}. Verificado en BD: variables_json ahora tiene 12 entradas (era 11). |
+| A2 | Wizard: POST /documentos movido de 
+extPaso() (paso 1) a irmarEnviar() (paso 3) | b1e45e | El doc SOLO se persiste al firmar con 2FA OK. Toast "documento creado" eliminado. |
+| A3 | Wizard: init() carga max_tamano_archivo_mb y max_archivos_por_solicitud de configuracion_global | b1e45e | 	his._limitesArchivos = {maxTamanoArchivoMb: 20, maxArchivosPorSolicitud: 20}. nextPaso() valida antes de avanzar. Toast de error si excede. |
+| A4 | Validar delegado persiste end-to-end (curl) | (analisis) | PATCH /usuarios/1 con delegado_id=1463 ? 200. BD: estado_delegacion=asignado, delegado_id=1463, delegado_nombre=Cecilia Espinoza. **OK sin cambios**. |
+| A5 | Migracion 5aaf5d3e3509 marca 4 claves como activo=false (plazo_revision_aprobacion_dias, plazo_control_lectura_dias, semaforo_verde_dias, semaforo_amarillo_dias) | b1e45e | Migracion Alembic limpia (sin cambios colaterales). Seed removio las 4 entradas. UI Parametrizacion removio las 2 inputs y el bulkUpsert. Hint actualizado. |
+| A6 | Wizard paso 1: 3 inputs read-only Nombre/Cargo/Fecha | b1e45e | Nombre: $store.auth.user.nombre_completo. Cargo: $store.auth.user.cargo. Fecha: 
+ew Date().toLocaleDateString('es-BO'). |
+
+### Logros tecnicos
+
+1. **6/6 sub-tareas del Bloque A cerradas** en ~1.5h.
+2. **1 commit atómico** con 5 archivos (172 inserciones, 80 deletions).
+3. **1 migracion Alembic limpia** (sin cambios colaterales autogenerados).
+4. **Delegado persistencia validada** end-to-end con cookies reales.
+5. **Variables en BD confirmadas**: email_templates.variables_json (JSONB en PostgreSQL via SQLAlchemy JSON().with_variant(JSONB())).
+
+### Hallazgos / validaciones
+
+- **Variables en BD**: confirmado. NO estan en el modelo, estan en la columna
+  email_templates.variables_json (JSON/JSONB). El modelo EmailTemplate
+  tiene ariables_json: Mapped[Optional[list]] = mapped_column(JSON, nullable=True).
+- **A4 sin fix necesario**: el PATCH ya estaba correcto, solo faltaba validar
+  empiricamente.
+- **A5 clave para R1**: ahora la unica fuente de verdad de plazos es la tabla
+  semaforizacion_tarea (con dias_verde/dias_amarillo/dias_rojo/plazo_maximo
+  por tipo de tarea). Las 4 claves obsoletas quedan en BD como ctivo=false
+  para no perder audit_log.
+- **A2 cambio importante**: el doc se crea RECIEN al firmar. Esto significa
+  que si el usuario cancela en el paso 3, no queda ningun documento huerfano
+  en BD (mejor diseno).
+
+### Pendientes (Bloques B-F)
+
+- **B**: vacaciones con fechas (usar tabla ausencias) + estados nuevos + bug firma 2FA + crear fila en firma_digital
+- **C**: sync AD mejorado (desvinculados + flag es_usuario_ad)
+- **D**: impersonate end-to-end (cookie, sidebar, bandejas)
+- **E**: pagina /plantillas nueva + storage local
+- **F**: wizard pulido (filtros ETO/REVISOR/APROBADOR, asunto en plantillas, ocultar delegado visualizador/admin)
+
+### Decisiones tecnicas (ADRs candidatos)
+
+- **ADR-046**: El plazo maximo de revision/aprobacion/control_lectura se
+  configura en la tabla semaforizacion_tarea (por tipo de tarea), NO en
+  claves globales de configuracion_global. Redundancia eliminada (Sesion 23).
+- **ADR-047**: El documento del wizard se crea RECIEN al firmar, no al
+  avanzar de paso. Patron: no persistir hasta tener confirmacion del usuario
+  (Sesion 23).

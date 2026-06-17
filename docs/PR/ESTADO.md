@@ -1,10 +1,12 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 22 — **R2 FASE 2 cerrada: storage + POST/enviar/bandejas + refactor wizard + 31 tests nuevos**)
+> Última actualización: 2026-06-17 (sesión 23 — **Bloque A cerrado: 6 sub-tareas, 1 commit atómico**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
+
+**Sesión 23 (2026-06-17)**: Bloque A cerrado al 100% (6 sub-tareas, commit `fb1e45e`). Ramas sin cambios.
 
 **Sesión 21 (2026-06-17)**: R2 arranca oficialmente con la rama `r2/wizard-y-version-editable`. Se cierra FASE 1 (modelos + endpoints + seed + tests). Tag no bumpeado todavía (Fase 2 + deploy QAS pendiente).
 
@@ -92,6 +94,14 @@
 | N34 | Banner sticky de impersonate en AppLayout | ✅ | 17-jun | Banner TOP fixed con gradiente amber→orange→red, visible en todas las paginas autenticadas. Padding-top dinamico. Boton "Terminar Impersonate" via CustomEvent. Commit `4763ff9`. |
 | N35 | Frontend impersonarUsuario + stopImpersonate | ✅ | 17-jun | Validaciones frontend (rol + no-auto). refreshFromBackend en vez de window.location.hash. Boton Impersonar solo visible para admin/eto. Commit `df4aceb` (impersonarUsuario/stopImpersonate) + `4763ff9` (handler del store). |
 | **Sesion 18 (refresh bug #15 RESUELTO)** | | | | |
+| N36 | Fix refresh bug: race auth.init vs initRouter | ✅ | 17-jun | 3 cambios: (1) auth.js init() restaura SINCRONO desde localStorage + flag isReady. (2) router/index.js guard !isReady con loader (no redirige durante init). (3) debug page /_debug/session permanente. 6/6 smoke tests Chrome MCP. Commit `733e8b6` |
+| **Sesion 23 (Bloque A — reunion con cliente)** | | | | |
+| A1 | {{VERSION}} en variables_json de email_templates | ✅ | 17-jun | 11 plantillas actualizadas con {{VERSION}}. Variable agregada al seed y persistida en BD. |
+| A2 | Wizard: no toast en 'Siguiente' del paso 1 + creacion movida al firmar | ✅ | 17-jun | POST /documentos se ejecuta en firmarEnviar (paso 3) despues de validar password 2FA. Toast de "documento creado" eliminado. |
+| A3 | Wizard: limite de tamano/cantidad archivos (frontend usa BD) | ✅ | 17-jun | init() carga max_tamano_archivo_mb y max_archivos_por_solicitud de configuracion_global. nextPaso() valida antes de avanzar. |
+| A4 | Delegado persiste end-to-end | ✅ | 17-jun | Validado con curl: PATCH /usuarios/1 con delegado_id=1463 (cecEspinoza) → 200, estado_delegacion=asignado, delegado_id=1463, delegado_nombre=Cecilia Espinoza. |
+| A5 | Semaforizacion: eliminar 4 claves redundantes de configuracion_global | ✅ | 17-jun | Migracion `5aaf5d3e3509` marca activo=false. Seed removidas. UI Parametrizacion > Tiempos y SLAs removio las 2 inputs y el bulkUpsert. Unica fuente de verdad: tabla `semaforizacion_tarea`. |
+| A6 | Wizard: 3 campos read-only en paso 1 (Nombre/Cargo/Fecha) | ✅ | 17-jun | 3 inputs disabled con $store.auth.user.nombre_completo, $store.auth.user.cargo, new Date().toLocaleDateString('es-BO'). |
 | N36 | Fix refresh bug: race auth.init vs initRouter | ✅ | 17-jun | 3 cambios: (1) auth.js init() restaura SINCRONO desde localStorage + flag isReady. (2) router/index.js guard !isReady con loader (no redirige durante init). (3) debug page /_debug/session permanente. 6/6 smoke tests Chrome MCP. Commit `733e8b6` |
 
 ### R2 — Wizard de creación
