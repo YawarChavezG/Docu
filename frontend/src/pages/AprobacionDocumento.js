@@ -627,7 +627,7 @@ export const page = {
     <button x-show="paso>1" class="btn" @click="prevPaso()">Anterior</button>
     <div class="flex-1"></div>
     <div x-show="paso<3" class="flex items-center gap-2.5">
-      <span class="text-[11px] text-slate-400" x-show="!documentoId">Se persistira el documento al avanzar</span>
+      <span class="text-[11px] text-slate-400">El documento se persistira al firmar (paso 3)</span>
       <button class="btn btn-primary" @click="nextPaso()" :disabled="submitting">
         <span x-text="submitting ? 'Creando...' : 'Siguiente'"></span>
       </button>
