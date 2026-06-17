@@ -124,6 +124,9 @@ class Usuario(Base):
     ad_postal_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Fecha del último sync que actualizó este usuario desde AD
     ad_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Sesion 23 / Bloque C2: true si el usuario fue importado/creado desde el AD.
+    # False si fue creado manualmente o sembrado como stub de DES.
+    es_usuario_ad: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
     # ─── Auditoría ───
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)

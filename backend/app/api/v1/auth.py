@@ -251,6 +251,7 @@ async def login(
                 ad_postal_code=attrs.get("postalCode") or None,
                 ad_last_synced_at=datetime.utcnow(),
                 estado=EstadoUsuario.ACTIVO,
+                es_usuario_ad=True,  # Sesion 23 / Bloque C2
             )
             db.add(user)
             await db.commit()

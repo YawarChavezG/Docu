@@ -101,6 +101,7 @@ class SyncAdResponse(BaseModel):
     sin_cambios: int
     excluidos: int
     errores: int
+    desvinculados: int = 0  # Sesion 23 / Bloque C1
     duracion_seg: float
     warnings: list[str] = []
 
@@ -317,6 +318,12 @@ async def sync_ad(
     """
     Sincroniza usuarios desde el AD real de COFAR a la BD local.
     Solo ADMIN.
+
+    Sesion 23 / Bloque C1: despues de actualizar/crear los usuarios del AD,
+    tambien marca como DESVINCULADO a los usuarios de la BD que tienen
+    codigo SAP (ad_postal_code) y que NO aparecen en el AD (porque la
+    cuenta fue deshabilitada o eliminada del AD). NUNCA se eliminan
+    fisicamente (preservar audit_log y referencias historicas).
     """
     await _require_admin(request, db)
     if not settings.ldap_enabled:
@@ -330,6 +337,13 @@ async def sync_ad(
     ad_users = result["items"]
     excluded_count = payload.max_results - len(ad_users)
     warnings = result.get("warnings", [])
+
+    # Set de sAMAccountNames que SI estan en el AD (despues de filtros de n8n)
+    sams_en_ad = set()
+    for ad_user in ad_users:
+        sam = ad_user.get("sAMAccountName")
+        if sam and not sam.endswith("$"):
+            sams_en_ad.add(sam.lower())
 
     # Importar la helper de iniciales del auth.py
     from app.api.v1.auth import _calcular_iniciales
@@ -427,10 +441,15 @@ async def sync_ad(
                     ad_last_synced_at=datetime.utcnow(),
                     estado=EstadoUsuario.ACTIVO,
                     estado_delegacion=EstadoDelegacion.NA,
+                    es_usuario_ad=True,  # Sesion 23 / Bloque C2
                 )
                 db.add(user)
                 creados += 1
             else:
+                # Sesion 23 / Bloque C1: si el usuario estaba DESVINCULADO
+                # y vuelve a aparecer en el AD, reactivarlo.
+                if existing.estado == EstadoUsuario.DESVINCULADO:
+                    existing.estado = EstadoUsuario.ACTIVO
                 changed = False
                 if email and existing.email != email:
                     existing.email = email; changed = True
@@ -477,12 +496,36 @@ async def sync_ad(
             errores += 1
             await db.rollback()
 
+    # ─── Sesion 23 / Bloque C1: marcar como desvinculados a los que NO
+    # aparecen en el AD pero SI estaban en la BD con codigo SAP.
+    # Solo se marcan usuarios que:
+    #   - Tienen codigo SAP (ad_postal_code IS NOT NULL, usuarios de AD)
+    #   - Su username (sAMAccountName) NO esta en el set de AD ahora
+    #   - Actualmente estan en estado 'activo' o 'inactivo' (no desvinculado ya)
+    # NUNCA se eliminan fisicamente.
+    desvinculados = 0
+    bd_con_sap = (await db.execute(
+        select(Usuario).where(
+            Usuario.ad_postal_code.isnot(None),
+            Usuario.estado.in_([EstadoUsuario.ACTIVO, EstadoUsuario.INACTIVO]),
+        )
+    )).scalars().all()
+    for u in bd_con_sap:
+        if u.username.lower() not in sams_en_ad:
+            u.estado = EstadoUsuario.DESVINCULADO
+            u.ad_last_synced_at = datetime.utcnow()
+            desvinculados += 1
+            logger.info(
+                f"Sync AD: usuario {u.username} (id={u.id}, SAP={u.ad_postal_code}) "
+                f"marcado como DESVINCULADO (no aparece en AD actual)"
+            )
+
     await db.commit()
     duracion = (datetime.utcnow() - t0).total_seconds()
     logger.info(
         f"Sync AD: {len(ad_users)} del AD, {creados} creados, {actualizados} actualizados, "
         f"{sin_cambios} sin cambios, {excluidos_por_filtro} excluidos por filtro, "
-        f"{errores} errores, {duracion:.1f}s"
+        f"{errores} errores, {desvinculados} desvinculados, {duracion:.1f}s"
     )
     return SyncAdResponse(
         total_ad=len(ad_users),
@@ -491,6 +534,7 @@ async def sync_ad(
         sin_cambios=sin_cambios,
         excluidos=excluded_count,
         errores=errores,
+        desvinculados=desvinculados,
         duracion_seg=duracion,
         warnings=warnings,
     )
