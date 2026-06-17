@@ -1,13 +1,13 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 17 — Cierre R1: Matriz ETO + Previsualizar + Impersonate)
+> Última actualización: 2026-06-17 (sesión 18 — Fix refresh bug #15 + debug page `/_debug/session`)
 
 ## Versión actual
-**v1.0.0-dev** (sesión 17: **R1 CERRADO al 100%**. Matriz ETO: dropdowns muestran analistas/delegados correctamente (fix del quirk Alpine 3 con options dinámicas). Plantillas: eliminada opción "Previsualizar" (-30 líneas, Tiptap es WYSIWYG). Impersonate: funcional con banner sticky TOP + audit dedicado (recurso='impersonate', accion IMPERSONATE_START/STOP). ADMIN y ETO pueden impersonar. Validaciones no-auto + no-doble-impersonate. 7 entradas en audit_log validadas. **R1 listo para R2**.)
+**v1.0.0-dev** (sesión 18: **Refresh bug #15 RESUELTO definitivamente** (deuda arrastrada desde sesión 14, 4 sesiones). Causa raíz: race entre `auth.init()` async (no awaited) y `initRouter()` (siguiente microtask). Router veía `isAuthenticated=false` en el primer tick porque `/me` estaba en vuelo → redirigía a `/login`. Fix de 3 cambios: (1) `auth.js` restaura sincrónicamente desde localStorage + flag `isReady`, (2) `router/index.js` guard `!isReady` con loader, (3) debug page permanente `/_debug/session` para diagnóstico futuro. 6/6 smoke tests con Chrome MCP pasaron. R1 sigue al 100%.)
 
 ## Objetivo inmediato
-**R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
+**R1 cerrado al 100% + R2 desbloqueado** (1 día restante del plazo original)
 
 ---
 
@@ -87,6 +87,8 @@
 | N33 | Impersonate funcional: ADMIN/ETO + no-auto + audit dedicado | ✅ | 17-jun | Backend admin_impersonate acepta ETO. Validaciones no-auto + no-doble-impersonate. write_audit con recurso='impersonate' + accion dedicada IMPERSONATE_START/STOP. Bugfix preexistente ad_user['dn']. Commit `4763ff9`. |
 | N34 | Banner sticky de impersonate en AppLayout | ✅ | 17-jun | Banner TOP fixed con gradiente amber→orange→red, visible en todas las paginas autenticadas. Padding-top dinamico. Boton "Terminar Impersonate" via CustomEvent. Commit `4763ff9`. |
 | N35 | Frontend impersonarUsuario + stopImpersonate | ✅ | 17-jun | Validaciones frontend (rol + no-auto). refreshFromBackend en vez de window.location.hash. Boton Impersonar solo visible para admin/eto. Commit `df4aceb` (impersonarUsuario/stopImpersonate) + `4763ff9` (handler del store). |
+| **Sesion 18 (refresh bug #15 RESUELTO)** | | | | |
+| N36 | Fix refresh bug: race auth.init vs initRouter | ✅ | 17-jun | 3 cambios: (1) auth.js init() restaura SINCRONO desde localStorage + flag isReady. (2) router/index.js guard !isReady con loader (no redirige durante init). (3) debug page /_debug/session permanente. 6/6 smoke tests Chrome MCP. Commit `733e8b6` |
 
 ### R2 — Wizard de creación
 
@@ -126,7 +128,7 @@
 ---
 
 ## Progreso R1
-**38/38 tareas R1 + EPICA9 + Parametrizacion (100% CERRADO)** = **41/41 con la sesión 17 (Matriz ETO + Previsualizar + Impersonate)**. Tests pytest 123/123.
+**38/38 tareas R1 + EPICA9 + Parametrizacion (100% CERRADO)** = **41/41 con la sesión 17 (Matriz ETO + Previsualizar + Impersonate) + sesión 18 (Refresh bug #15 RESUELTO)** = **42/42**. Tests pytest 123/123.
 
 ## Progreso QAS
 **8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 8 seeds (incluye `seed_configuracion_global.py` en sesión 14) + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
@@ -135,7 +137,7 @@
 **0/21 tareas pendientes** (R1 ya NO es bloqueante. QAS es reproducible 1-click. R2 puede arrancar.)
 
 ## Total
-**38/49 tareas (78%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 5 tareas nuevas sesión 16
+**38/49 tareas (78%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 5 tareas nuevas sesión 16 + 1 tarea nueva sesión 18 (refresh bug fix) = **86%**
 
 ## Tablas de BD
 **21/28 migradas** (16 originales + 6 sesión 5 + 1 sesión 6 + 1 sesión 9 + 3 sesión 13/14: refactor tipos_documento + semaforizacion_tarea + expand plantillas enum).
