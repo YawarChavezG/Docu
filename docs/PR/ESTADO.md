@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 19 — **DEPLOY QAS v1.0.0-qas: 12/12 validaciones PASS**)
+> Última actualización: 2026-06-17 (sesión 20 — **Fixes preventivos deploy: 6 fixes + .dockerignore + validate-qas.sh + plan reescrito**)
 
 ## Versión actual
-**v1.0.0-qas** (tag creado en sesión 19). Sesión 19 ejecutó el plan `PLAN-DEPLOY-QAS-SESION18.md` completo. Deploy del código R1+R1-fixes (22 commits desde último deploy QAS) en `https://sgdqas.cofar.com.bo`. 3 migraciones Alembic aplicadas (010 → 013). 8 seeds idempotentes. Sync AD real contra DC `10.10.0.2` (753 usuarios). nginx + healthchecks + CSRF + CORS todos OK. **12/12 validaciones A-L PASS.** Tag `v1.0.0-qas` con resumen del release.)
+**v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.)
 
 ## Objetivo inmediato
 **R1 cerrado al 100% + R2 desbloqueado** (1 día restante del plazo original)

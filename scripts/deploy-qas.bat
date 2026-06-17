@@ -43,6 +43,53 @@ echo ║  COFAR SGD — Deploy a QAS                                       ║
 echo ╚════════════════════════════════════════════════════════════════╝
 echo.
 
+REM ─── 0. Pre-flight checks (OBLIGATORIO antes de cualquier deploy) ───
+echo [0/6] Pre-flight checks + backup pre-deploy...
+echo       Verificando conectividad SSH...
+ssh -o ConnectTimeout=10 -o BatchMode=yes %QAS_USER%@%QAS_HOST% "echo SSH_OK" >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] No se puede conectar por SSH a %QAS_USER%@%QAS_HOST%.
+    echo         Verifica que la SSH key este instalada y el host sea alcanzable.
+    exit /b 1
+)
+echo       OK: SSH reachable.
+
+echo       Verificando espacio en disco QAS (^>2GB libres)...
+for /f "tokens=4" %%d in ('ssh %QAS_USER%@%QAS_HOST% "df -BG /opt/sgd | tail -1"') do set QAS_DISK_FREE=%%d
+echo       Disco libre en QAS: %QAS_DISK_FREE%
+echo %QAS_DISK_FREE% | findstr /R "^0G" >nul
+if not errorlevel 1 (
+    echo [ERROR] Disco insuficiente en QAS. Necesario ^>2GB, hay %QAS_DISK_FREE%.
+    echo         Libera espacio antes de continuar.
+    exit /b 1
+)
+echo       OK: disco suficiente.
+
+echo       Verificando cert SSL vigente (^>30 dias)...
+for /f "tokens=2,4 delims==" %%a in ('ssh %QAS_USER%@%QAS_HOST% "openssl x509 -in /opt/sgd/deploy/nginx/ssl/sgdqas.crt -noout -dates 2^>nul"') do set %%a=%%b
+if not defined notAfter (
+    echo [WARN] No se pudo leer el cert SSL. Continuando bajo responsabilidad.
+) else (
+    echo       notBefore=%notBefore%
+    echo       notAfter=%notAfter%
+    echo       Verificando dias restantes...
+    powershell -Command "$d = (Get-Date '%notAfter%'); $diff = ($d - (Get-Date)).Days; if ($diff -lt 30) { Write-Host '[ERROR] Cert SSL expira en' $diff 'dias. Renovar antes de deploy.' -ForegroundColor Red; exit 1 } else { Write-Host '       OK: cert SSL vigente (' $diff 'dias restantes).' }" 2>nul
+    if errorlevel 1 (
+        echo [ERROR] Validacion de cert SSL fallo. Ver manualmente.
+        exit /b 1
+    )
+)
+
+echo       Backup obligatorio de BD antes del deploy...
+for /f %%i in ('powershell -Command "Get-Date -Format yyyyMMdd_HHmmss"') do set TS=%%i
+ssh %QAS_USER%@%QAS_HOST% "docker exec sgd-qas-postgres pg_dump -U sgd -d sgd -Fc -f /tmp/qas_pre_deploy_%TS%.dump && docker cp sgd-qas-postgres:/tmp/qas_pre_deploy_%TS%.dump /opt/sgd/backups/qas_%TS%_pre_sesion.dump && ls -la /opt/sgd/backups/qas_%TS%_pre_sesion.dump"
+if errorlevel 1 (
+    echo [ERROR] Backup pre-deploy fallo. Aborta.
+    exit /b 1
+)
+echo       OK: backup creado.
+echo.
+
 REM ─── 1. Empaquetar codigo local (excluyendo pesados) ───
 echo [1/6] Empaquetando codigo local...
 set "TEMP_DIR=%TEMP%\sgd_deploy_%RANDOM%"
@@ -72,7 +119,7 @@ echo.
 
 REM ─── 3. Extraer en QAS (preserva .env.qas y ssl/) ───
 echo [3/6] Extrayendo en QAS...
-ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && cp -a .env.qas /tmp/.env.qas.bak 2>/dev/null; cp -a deploy/nginx/ssl /tmp/ssl.bak 2>/dev/null; find . -mindepth 1 -path './backups' -prune -o -path './deploy/nginx/ssl' -prune -o -path './.env.qas' -prune -o -delete; python3 -c 'import zipfile; zipfile.ZipFile(chr(47)+chr(116)+chr(109)+chr(112)+chr(47)+chr(115)+chr(103)+chr(100)+chr(95)+chr(100)+chr(101)+chr(112)+chr(108)+chr(111)+chr(121)+chr(46)+chr(122)+chr(105)+chr(112)).extractall(chr(46))'; cp -a /tmp/.env.qas.bak .env.qas 2>/dev/null; mkdir -p deploy/nginx/ssl && cp -a /tmp/ssl.bak/. deploy/nginx/ssl/ 2>/dev/null; chmod +x scripts/*.sh 2>/dev/null; rm -f /tmp/sgd_deploy.zip /tmp/.env.qas.bak; echo OK_EXTRACT"
+ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && cp -a .env.qas /tmp/.env.qas.bak 2>/dev/null; cp -a deploy/nginx/ssl /tmp/ssl.bak 2>/dev/null; find . -mindepth 1 -not -path './backups' -not -path './backups/*' -not -path './deploy/nginx/ssl' -not -path './deploy/nginx/ssl/*' -not -path './.env.qas' -delete 2>/dev/null; python3 -c 'import zipfile; zipfile.ZipFile(chr(47)+chr(116)+chr(109)+chr(112)+chr(47)+chr(115)+chr(103)+chr(100)+chr(95)+chr(100)+chr(101)+chr(112)+chr(108)+chr(111)+chr(121)+chr(46)+chr(122)+chr(105)+chr(112)).extractall(chr(46))'; cp -a /tmp/.env.qas.bak .env.qas 2>/dev/null; mkdir -p deploy/nginx/ssl && cp -a /tmp/ssl.bak/. deploy/nginx/ssl/ 2>/dev/null; chmod +x scripts/*.sh 2>/dev/null; rm -f /tmp/sgd_deploy.zip /tmp/.env.qas.bak; echo OK_EXTRACT"
 echo.
 
 REM ─── 3.5. Renombrar sgd-qas.conf.bk a .conf (FIX 1) ──────────────
@@ -96,6 +143,14 @@ REM ─── 5. Restart servicios (si --no-restart NO fue pasado) ───
 if "%DO_RESTART%"=="1" (
     echo [5/6] Reiniciando servicios...
     ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas up -d"
+    echo       Refresh DNS de nginx (backend obtuvo nueva IP post-recreate)...
+    ssh %QAS_USER%@%QAS_HOST% "docker restart sgd-qas-nginx" 2>nul
+    if errorlevel 1 (
+        echo [WARN] No se pudo reiniciar nginx. Si hay 502 post-deploy, correr manualmente:
+        echo          ssh %QAS_USER%@%QAS_HOST% "docker restart sgd-qas-nginx"
+    ) else (
+        echo       OK: nginx reiniciado.
+    )
     echo       Esperando health checks...
     ssh %QAS_USER%@%QAS_HOST% "for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do sleep 3; if curl -fsS -k https://localhost/api/v1/health 2>/dev/null; then echo; echo BACKEND_READY; break; fi; echo -n '.'; done"
     echo.

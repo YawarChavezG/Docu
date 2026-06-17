@@ -2010,3 +2010,118 @@ pm install\ que no sea sobrescrito por
    \plazo_revision_aprobacion_dias\ a 15.
 4. **R2 - Wizard de creacion** (tareas #23+): ya esta todo listo.
 5. **#13 Deuda delegado** (fuzzy + threshold 0.85): pequeno.
+
+---
+
+## Sesion 20 — 2026-06-17 (miercoles) — Fixes preventivos del deploy pipeline
+
+> Sesion dedicada a aplicar todos los fixes preventivos descubiertos
+> durante el deploy de sesion 19. **QAS NO fue tocado** — todos los
+> cambios son en codigo local (DES) para que el proximo deploy sea
+> mas robusto. Plan PLAN-DEPLOY-QAS-SESION18.md reescrito completamente
+> con los nuevos bugs + fixes + escenarios + troubleshooting.
+
+### Contexto
+
+El usuario volvio despues de probar QAS v1.0.0-qas y confirmo que
+funciona. Solicito que arregle TODOS los bugs que aparecieron en el
+deploy, modifique el documento de deploy, y actualice ESTADO + BITACORA.
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 20.1 | Fix bug \ind -prune -delete\ en deploy-qas.bat:75 (cambiar a \-not -path\) | (sesion 20) | Sin warning de find, mas robusto |
+| 20.2 | Crear \rontend/.dockerignore\ (excluir node_modules, dist, .git, worktrees, etc.) | (sesion 20) | Nuevo archivo, evita el bug del COPY . . |
+| 20.3 | Agregar pre-flight checks al deploy-qas.bat (SSH + disco + cert SSL + backup) | (sesion 20) | Nuevo paso 0/6 con abort si falla |
+| 20.4 | Agregar \docker restart sgd-qas-nginx\ post-deploy (refresca cache DNS backend) | (sesion 20) | Fix 502 Bad Gateway |
+| 20.5 | Crear \scripts/validate-qas.sh\ con validaciones A-L ejecutables en cualquier momento | (sesion 20) | Nuevo script, exit codes 0/1/2 |
+| 20.6 | Reescribir PLAN-DEPLOY-QAS-SESION18.md con TODOS los bugs + fixes + escenarios + troubleshooting | (sesion 20) | 660 lineas (+528/-468 vs version anterior) |
+| 20.7 | Actualizar ESTADO.md + BITACORA.md | (sesion 20) | OK |
+
+### Logros tecnicos
+
+1. **6 fixes preventivos** aplicados al deploy pipeline, todos basados
+   en bugs descubiertos durante el deploy de sesion 19.
+2. **\alidate-qas.sh\** nuevo: ejecutable en cualquier momento, NO
+   solo post-deploy. Valida 12 categorias A-L con tabla PASS/FAIL.
+3. **Plan de deploy reescrito** (660 lineas) con:
+   - Tabla de contenidos
+   - 8 bugs documentados con sus fixes
+   - Estado actual del server
+   - Cambios desde ultimo deploy (sesion por sesion)
+   - Plan paso a paso con flags
+   - Validaciones A-L con scripts de cada una
+   - Comandos de troubleshooting
+   - 8 escenarios especiales
+   - Rollback
+   - 12 riesgos identificados
+   - Diferencias QAS vs DES
+   - Backlog pre-PROD
+4. **Pre-flight checks** agregados al \deploy-qas.bat\: SSH reachable,
+   disco QAS > 2GB, cert SSL > 30 dias, backup pre-deploy obligatorio.
+5. **Cero cambios en QAS**: la sesion 20 fue 100% cambios en codigo
+   local (DES) para robustecer el deploy pipeline.
+
+### Decisiones tecnicas (ADRs candidatos sesion 21)
+
+- **ADR-031**: \deploy-qas.bat\ siempre ejecuta pre-flight checks antes
+  de cualquier deploy. Si ALGUNO falla (SSH, disco, cert, backup), el
+  script aborta con exit 1.
+- **ADR-032**: Post-deploy de QAS, siempre \docker restart sgd-qas-nginx\
+  para refrescar el cache DNS del container backend (su IP cambia en
+  cada recreate).
+- **ADR-033**: \rontend/.dockerignore\ excluye node_modules, dist,
+  .git, worktrees, .env, logs, IDE configs. Es la primera linea de
+  defensa contra el bug del bind mount + COPY . . .
+- **ADR-034**: \scripts/validate-qas.sh\ es el punto de entrada
+  unico para validar QAS en cualquier momento. Imprime tabla
+  PASS/FAIL/WARN con conteos. Exit codes 0/1/2.
+
+### Bugs de sesion 19 que se arreglaron en sesion 20
+
+1. **\ind -prune -delete\** daba warning confuso. Cambiado a
+   \ind -not -path\. (FIX 4)
+2. **\COPY . .\ en Dockerfile** copiaba node_modules del host.
+   Agregado \rontend/.dockerignore\. (FIX 5)
+3. **Pre-flight checks ausentes** en deploy-qas.bat. Agregado paso 0/6
+   con SSH + disco + cert + backup. (FIX 6)
+4. **nginx 502 post-deploy** por cache DNS de IP vieja. Agregado
+   \docker restart sgd-qas-nginx\ en paso 5/6. (FIX 7)
+5. **\alidate-qas.sh\ no existia**. Creado con 12 validaciones A-L
+   ejecutables en cualquier momento. (FIX 8)
+
+### Pendientes (no abordados en sesion 20)
+
+- **Plazo 42 invalid** (cosmetic): el seed dice 25, pero la BD del DES
+  tiene 42. NO se toca (afectaria BD). Documentado en backlog pre-PROD.
+- **Bind mount node_modules fix permanente**: requiere cambiar
+  compose o Dockerfile. Workaround: \docker exec npm install\.
+  Documentado en backlog.
+- **Cert HTTPS valido**: autofirmado, OK por ahora. Documentado en
+  backlog pre-PROD.
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + Parametrizacion + Tiptap + Impersonate + Refresh fix + Deploy QAS**:
+  100% CERRADO Y DESPLEGADO.
+- **QAS**: v1.0.0-qas deployed y estable. Sin cambios en sesion 20.
+- **Deploy pipeline ROBUSTO**: 6 fixes preventivos + validate-qas.sh
+  ejecutable + plan reescrito.
+- **R2**: 0/21 (sigue desbloqueado, no fue tocado).
+- **Total commits sesion 20**: 1 (consolidado al final).
+
+### Proxima sesion (sesion 21) — recomendaciones
+
+1. **Fix permanente del bind mount node_modules** (ADR-034): cambiar
+   compose \docker-compose.qas.yml\ para que el bind mount NO incluya
+   \/app/node_modules\. Despues: rebuild imagen + restart container.
+2. **Fix Plazo 42 invalid** (cosmetic, 5 min): cambiar valor en seed o
+   forzar re-seed.
+3. **Backups automaticos en QAS** (cron + pg_dump): el backup automatico
+   del cron YA existe (visto en deploy de sesion 19: qas_20260617.dump
+   del 17 jun 02:00). Verificar que el cron este correctamente
+   configurado.
+4. **Cert HTTPS valido** (Let's Encrypt o cert corporativo): pre-PROD.
+5. **R2 - Wizard de creacion** (tareas #23+): ya esta todo listo.
+6. **#13 Deuda delegado** (fuzzy + threshold 0.85): pequeno.

@@ -1,600 +1,660 @@
-# PLAN DEPLOY QAS — Sesión 18
+# PLAN DEPLOY QAS — Versión consolidada (sesiones 18-20)
 
-> **Propósito:** Plan completo (sin ejecutar todavía) para desplegar la versión R1 cerrada (sesión 18 con refresh fix) en https://sgdqas.cofar.com.bo, validando que TODO funcione: código nuevo, librerías (openpyxl, tiptap, alpine, dompurify, xlsx, ldap3, etc.), datos de la BD, sync AD real, fix refresh post-refresh, impersonate, Tiptap, etc.
+> **Propósito:** Plan completo, ejecutable y verificado, para desplegar el código R1+R1-fixes en `https://sgdqas.cofar.com.bo`. Incluye los bugs descubiertos durante el deploy de sesión 19 y los fixes preventivos aplicados en sesión 20.
 >
-> **Diferencia clave QAS vs DES:** QAS conecta al DC en `10.10.0.2` (no al RODC `172.16.10.17` que usamos en DES), porque la VPN de COFAR no enruta al RODC desde el server QAS.
+> **Diferencias QAS vs DES:**
+> - QAS conecta al DC `10.10.0.2` (no al RODC `172.16.10.17` que usa DES).
+> - QAS usa HTTPS con cert autofirmado.
+> - QAS NO importa la matriz abril (solo en DES).
+> - QAS ejecuta 8 seeds (incluido `seed_configuracion_global.py`).
 >
-> **Estado actual de QAS** (inspeccionado por SSH en sesión 18):
-> - 8 contenedores Up, backend healthy, 14h uptime
-> - BD head alembic: `b397cd9bfb91` (010) ← **DES está en 6451593bcab5 (013), faltan 3 migraciones**
-> - Falta tabla `semaforizacion_tarea` ← QAS no la tiene
-> - `tipos_documento` aún tiene columna `codigo_doc` (será removida por migración 011)
-> - `configuracion_global`: 0 filas ← **seed no se corrió**
-> - `email_templates`: 6 (DES tiene 10, con enum expandido en migración 013)
-> - Login + /me funciona con cookies HttpOnly
-> - 754 usuarios sincronizados desde AD
-> - `sgd-qas.conf` activo en conf.d/ (no .bk, quedó del deploy pre-sesión 14)
+> **URL post-deploy:** https://sgdqas.cofar.com.bo
+>
+> **Tiempo total estimado:** 60-75 min (incluyendo 3 fixes preventivos de sesión 20).
 
 ---
 
-## 1. Estado actual DEL SERVIDOR QAS (lectura SSH, NO ejecución)
+## 0. TABLA DE CONTENIDOS
 
-### 1.1 Stack Docker
+1. [Pre-requisitos](#1-pre-requisitos)
+2. [Bugs conocidos con fix aplicado en sesión 20](#2-bugs-conocidos-con-fix-aplicado)
+3. [Estado actual del servidor QAS](#3-estado-actual-del-servidor-qas)
+4. [Cambios desde último deploy QAS](#4-cambios-desde-último-deploy-qas)
+5. [Plan de deploy paso a paso](#5-plan-de-deploy-paso-a-paso)
+6. [Validaciones A-L (12 categorías)](#6-validaciones-a-l)
+7. [Comandos de troubleshooting](#7-comandos-de-troubleshooting)
+8. [Escenarios especiales](#8-escenarios-especiales)
+9. [Rollback](#9-rollback)
+10. [Riesgos identificados](#10-riesgos-identificados)
+11. [Diferencias QAS vs DES esperadas](#11-diferencias-qas-vs-des)
+12. [Backlog pre-PROD](#12-backlog-pre-prod)
+13. [Resumen ejecutivo](#13-resumen-ejecutivo)
+
+---
+
+## 1. PRE-REQUISITOS
+
+Antes de empezar, verificar que TODO esté listo:
+
+| # | Requisito | Comando de verificación |
+|---|---|---|
+| 1 | Docker Desktop corriendo local | `docker info` |
+| 2 | Stack DES local Up (no bloqueante) | `docker ps --filter "name=sgd-"` (debería mostrar 8 contenedores DES + 8 backup) |
+| 3 | SSH key instalada para QAS | `ssh -o BatchMode=yes sistemas@sgdqas.cofar.com.bo "echo OK"` debe responder `OK` |
+| 4 | `.env.qas` existe en `/opt/sgd/` del QAS | `ssh sistemas@sgdqas.cofar.com.bo "ls -la /opt/sgd/.env.qas"` |
+| 5 | Docker ya instalado en QAS | `ssh sistemas@sgdqas.cofar.com.bo "docker --version"` debe responder `Docker 29.x` |
+| 6 | Working tree limpio en DES | `git status` debe decir `nothing to commit, working tree clean` |
+| 7 | Cert autofirmado en QAS | `ssh sistemas@sgdqas.cofar.com.bo "ls /opt/sgd/deploy/nginx/ssl/sgdqas.crt"` debe existir |
+| 8 | Compress-Archive O Python disponible local | `python -c "import shutil; print('OK')"` debe responder `OK` |
+
+Si ALGUNO falla, NO continuar. Resolver primero.
+
+---
+
+## 2. BUGS CONOCIDOS CON FIX APLICADO
+
+Estos son los bugs que se descubrieron durante el deploy de sesión 19 y los fixes preventivos aplicados en sesión 20. **El plan actual los tiene todos resueltos.**
+
+### 2.1 FIX 1: rename sgd-qas.conf.bk → sgd-qas.conf (sesión 19, commit `5b22bde`)
+
+**Bug:** El repo tenía `sgd-qas.conf` con sufijo `.bk` para que nginx en DES no lo cargara. Pero al deployar a QAS, nginx solo carga archivos `*.conf` (no `*.conf.bk`), por lo que QAS quedaba sin server block → `ERR_CONNECTION_REFUSED`.
+
+**Fix:** agregado paso `3.5/6` en `deploy-qas.bat` que renombra el archivo post-extracción:
+```bat
+ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf; fi"
 ```
-sgd-qas-backend         Up 14h (healthy)    8000/tcp
-sgd-qas-celery-beat     Up 13h (unhealthy)  8000/tcp   (no healthcheck definido, normal)
-sgd-qas-celery-worker   Up 14h (unhealthy)  8000/tcp   (no healthcheck definido, normal)
-sgd-qas-frontend        Up 14h              5173/tcp
-sgd-qas-mailhog         Up 14h              1025/tcp, 8025/tcp
-sgd-qas-nginx           Up 14h              0.0.0.0:80->80, 0.0.0.0:443->443
-sgd-qas-postgres        Up 14h (healthy)
-sgd-qas-redis           Up 14h (healthy)
+
+### 2.2 FIX 2: `INSTRUCTIVO_TECNICO` codigo=6 vs 15 (sesión 19, commit `5b22bde`)
+
+**Bug:** La migración 011 (`6b244889632f`) reasigna `INSTRUCTIVO_TECNICO` de codigo 6 → 15 para resolver UNIQUE constraint con `INSTRUCTIVO`. Pero el seed `seed_tipos_documento.py` seguía sembrándolo con codigo=6. En QAS (orden migración → seed, primera vez), el seed regresaba silenciosamente 15 → 6.
+
+**Fix:** modificado el seed (línea 36):
+```python
+# Antes:
+(6,  "INSTRUCTIVO_TECNICO", ...)
+# Después:
+(15, "INSTRUCTIVO_TECNICO", ...)
 ```
 
-### 1.2 BD (alembic head 010 `b397cd9bfb91`, **3 migraciones atrasadas**)
+### 2.3 FIX 3: `/worktrees` inválido en robocopy (sesión 19, commit `d183ead`)
 
-| Tabla | QAS count | DES count | Delta |
-|---|---|---|---|
-| roles | 5 | 5 | ✓ |
-| modulos | 11 | 11 | ✓ |
-| gerencias | 10 | 14 | +4 (DES tiene extras de pruebas) |
-| areas | 50 | 56 | +6 (DES tiene extras) |
-| **usuarios** | **754** | 764 | +10 (DES tiene 10 stubs extra de pruebas manuales) |
-| **tipos_documento** | 13 | 14 | +1 (DES tiene 1 extra) |
-| estados | 5 | 5 | ✓ |
-| feriados | 20 | 23 | +3 (DES tiene 3 extras) |
-| **email_templates** | **6** | **11** | **+5 (migración 013 expande enum 6→10)** |
-| matriz_eto | 10 | 10 | ✓ |
-| **configuracion_global** | **0** | **11** | **FALTA seed_configuracion_global.py** |
-| audit_log | 1 | ~50 | 1 vs muchos (DES tiene mucha actividad) |
-| **semaforizacion_tarea** | **NO EXISTE** | 4 | **Falta migración 012** |
-| alembic | b397cd9bfb91 (010) | 6451593bcab5 (013) | **3 migraciones pendientes** |
+**Bug:** El comando `robocopy frontend ... /XD node_modules .git dist .agents .claude /worktrees /NFL ...` fallaba porque `/worktrees` no es parámetro válido de robocopy (debería ser `worktrees` sin slash). Robocopy abortaba silenciosamente y el frontend NUNCA se copiaba. Bug arrastrado desde sesión 14 (4 deploys con frontend desactualizado).
 
-### 1.3 Tablas faltantes / diferentes
-- QAS NO tiene `semaforizacion_tarea` (migración 012 la crea)
-- QAS `tipos_documento` aún tiene columna `codigo_doc` (migración 011 la elimina)
-- QAS `email_templates.codigo` es enum con 6 valores; DES tiene 10 valores (migración 013)
+**Fix:** cambiar a `worktrees` (sin slash) en `deploy-qas.bat` línea 51.
 
-### 1.4 Configuración (.env.qas)
-- `ENVIRONMENT=qas`
-- `LDAP_SERVER=10.10.0.2` ← DC interno, no RODC ← **CRÍTICO**
-- `LDAP_BIND_USER=soporteglpi@cofar.com` (service account COFAR)
-- `LDAP_ENABLED=true`
-- `GRAPH_ENABLED=false` (no M365 aún, esperado)
-- `SMTP_ENABLED=false` (usa MailHog interno, esperado)
-- `CORS_ORIGINS=https://sgdqas.cofar.com.bo,http://localhost:5173,http://localhost:8080`
-- SSL cert autofirmado vigente (365 días desde 16-jun)
+### 2.4 FIX 4: `find -prune -delete` (sesión 20)
 
-### 1.5 nginx conf.d en QAS (dentro del container)
-- `sgd-qas.conf` (2726 bytes, activo) ← quedó del deploy pre-sesión 14
-- `sgd.conf` (2617 bytes, TAMBIÉN cargado) ← server block de DES, no debería estar en QAS (code smell preexistente)
-- El archivo en repo `deploy/nginx/conf.d/sgd-qas.conf.bk` está deshabilitado en DES pero al deployarlo a QAS nginx NO lo cargaría (sufijo .bk)
+**Bug:** El comando `find . -mindepth 1 -path './backups' -prune -o -path './deploy/nginx/ssl' -prune -o -path './.env.qas' -prune -o -delete` da un warning `find: The -delete action automatically turns on -depth, but -prune does nothing when -depth is in effect`. En deploys anteriores el comportamiento fue correcto (los backups no se borraron), pero el código es FRÁGIL.
 
-### 1.6 Validación HTTP desde afuera (curl)
-- `GET /api/v1/health` → 200 OK `{"status":"ok","service":"cofar-sgd-api","database":"ok"}`
-- `GET /` (frontend) → 200 OK HTML Vite
-- `POST /api/v1/login` con aromero local → 200 OK + cookies + user JSON ✓
-- `GET /api/v1/me` con cookies → 200 OK con user completo ✓
+**Fix:** cambiar a `find -not -path` que NO usa `-prune`:
+```bash
+find . -mindepth 1 \
+  -not -path './backups' -not -path './backups/*' \
+  -not -path './deploy/nginx/ssl' -not -path './deploy/nginx/ssl/*' \
+  -not -path './.env.qas' \
+  -delete 2>/dev/null
+```
 
----
+### 2.5 FIX 5: `frontend/.dockerignore` (sesión 20)
 
-## 2. Cambios desde último deploy QAS (commit 9e2dbbd, sesión 11)
+**Bug:** El `COPY . .` en el Dockerfile del frontend incluía `node_modules/` del contexto (si existía en el host de `npm ci` local), sobrescribiendo el `node_modules/` que `npm install` había creado. Luego el bind mount del compose `../frontend:/app` pisaba todo en runtime, dejando el container con `node_modules` vacío.
 
-22 commits, **33 archivos cambiados, 3,512 líneas añadidas, 939 removidas** (rama `epica-1/rama-1`):
+**Fix:** crear `frontend/.dockerignore` con exclusiones de `node_modules`, `dist`, `.git`, worktrees, etc.
 
-### 2.1 Backend (Python)
-- **3 migraciones Alembic nuevas** (críticas para QAS):
-  - `6b244889632f` refactor tipos_documento: codigo int UNIQUE + slug + nombre UNIQUE, drop codigo_doc
-  - `f04b96c6dff2` add semaforizacion_tarea table (4 endpoints nuevos)
-  - `6451593bcab5` expand plantillas enum to 10 codes
-- `app/api/v1/admin_impersonate.py` (134 cambios) — impersonate funcional
-- `app/api/v1/audit_log.py` (122) — GET /api/v1/audit-log con filtros
-- `app/api/v1/semaforizacion_tarea.py` (179 nuevo) — 4 endpoints
-- `app/api/v1/tipos_documento.py` (67) — refactor
-- `app/api/v1/usuarios.py` (9) — PATCH /{id} con rol_codigo/delegado_id
-- `app/main.py` (3) — startup CORS X-CSRF-Token
-- `app/models/__init__.py` (3) — registra semaforizacion_tarea
-- `app/models/email_template.py` (34) — enum 10 codigos
-- `app/models/semaforizacion_tarea.py` (85 nuevo)
-- `app/models/tipo_documento.py` (44) — drop codigo_doc
-- `app/schemas/semaforizacion_tarea.py` (50 nuevo)
-- `app/schemas/tipo_documento.py` (23)
-- `app/services/impersonate_service.py` (2)
-- `app/scripts/seed_configuracion_global.py` (101 nuevo) ← **CRÍTICO: QAS no lo tiene**
-- `app/scripts/seed_email_templates.py` (328) — 10 plantillas
-- `app/scripts/seed_tipos_documento.py` (61) — refactor
+### 2.6 FIX 6: pre-flight checks en `deploy-qas.bat` (sesión 20)
 
-### 2.2 Frontend (JS/HTML)
-- `package.json` (6) — Tiptap 3.26.1 deps (5 paquetes)
-- `package-lock.json` (856) — lockfile actualizado
-- `src/components/PlantillaEditor.js` (60 nuevo) — wrapper Tiptap
-- `src/layouts/AppLayout.js` (44) — banner impersonate sticky
-- **`src/pages/DebugSession.js` (350 nuevo)** ← debug page /_debug/session
-- `src/pages/Parametrizacion.js` (1373) — refactor masivo Tiptap + filtros
-- **`src/router/index.js` (57)** ← **fix refresh bug #15**
-- `src/services/parametrizacionApi.js` (15) — API client
-- **`src/store/auth.js` (88)** ← **fix refresh bug #15 (cache + isReady)**
-- `src/utils/config.js` (14) — API_BASE relativa
+**Bug:** El script original NO validaba pre-flight (SSH, disco, cert SSL, backup) antes de empezar. El plan `PLAN-DEPLOY-QAS-SESION18.md` sección 3.1 los listaba como obligatorios, pero el script no los ejecutaba.
 
-### 2.3 Deploy
-- `deploy/docker-compose.yml` (79) — env vars con defaults
-- `deploy/nginx/conf.d/{sgd-qas.conf => sgd-qas.conf.bk}` (rename)
-- `deploy/nginx/conf.d/sgd.conf` (8) — rate limit burst=20→100
-- `deploy/nginx/nginx.conf` (5) — rate limit zones
+**Fix:** agregar paso `0/6` "Pre-flight checks + backup pre-deploy" que valida:
+1. Conectividad SSH (timeout 10s)
+2. Espacio en disco QAS > 2GB
+3. Cert SSL vigente > 30 días
+4. Backup pre-deploy obligatorio (pg_dump + docker cp)
 
-### 2.4 Dependencias (importante para que la imagen rebuild funcione)
-- `backend/requirements/base.txt` — openpyxl==3.1.5 agregado (ya está)
-- `frontend/package.json` — @tiptap/* 3.26.1 agregados (5 paquetes)
-- `frontend/package-lock.json` — regenerado
-- **NO hay nuevas deps de Python** (alembic, fastapi, sqlalchemy, ldap3, openpyxl ya estaban)
+Si ALGUNO falla, el script aborta con `exit /b 1`.
 
-### 2.5 Resumen de qué hace falta en QAS
-- 3 migraciones pendientes (010 → 013)
-- 1 seed nuevo (configuracion_global)
-- Código de: impersonate, audit_log, semaforizacion_tarea, tipos_documento refactor, plantillas 10, Tiptap, refresh fix, DebugSession
-- 5 paquetes npm nuevos (Tiptap 3.26.1)
-- Rebuild de imagen Docker backend + frontend (cambios en requirements + package.json)
+### 2.7 FIX 7: `docker restart sgd-qas-nginx` post-deploy (sesión 20)
+
+**Bug:** Después del deploy, el container backend se recrea con nueva IP en la red Docker. Nginx cachea la IP del upstream `backend:8000` y sigue intentando la IP vieja → `502 Bad Gateway`.
+
+**Fix:** agregar `docker restart sgd-qas-nginx` después del `up -d` en `deploy-qas.bat` (paso 5/6).
+
+### 2.8 FIX 8: `scripts/validate-qas.sh` (sesión 20)
+
+**Nuevo:** script ejecutable en cualquier momento en QAS que valida las 12 categorías A-L. Imprime tabla PASS/FAIL con conteos y exit codes:
+- `0` = todas PASS
+- `1` = alguna FAIL
+- `2` = error de conexión
+
+**Uso:**
+```bash
+ssh sistemas@sgdqas.cofar.com.bo "bash /opt/sgd/scripts/validate-qas.sh"
+```
 
 ---
 
-## 3. PLAN DE DEPLOY (sin ejecutar)
+## 3. ESTADO ACTUAL DEL SERVIDOR QAS (lectura SSH, NO ejecución)
 
-### 3.1 PRE-FLIGHT (verificaciones previas, todas de solo lectura)
+### 3.1 Stack Docker esperado
+
+```
+sgd-qas-nginx          Up X (healthy)    0.0.0.0:80->80, 0.0.0.0:443->443
+sgd-qas-celery-beat    Up X (unhealthy)  8000/tcp   (sin healthcheck, normal)
+sgd-qas-celery-worker  Up X (unhealthy)  8000/tcp   (sin healthcheck, normal)
+sgd-qas-backend        Up X (healthy)    8000/tcp
+sgd-qas-frontend       Up X              5173/tcp
+sgd-qas-mailhog        Up X              1025/tcp, 8025/tcp
+sgd-qas-postgres       Up X (healthy)
+sgd-qas-redis          Up X (healthy)
+```
+
+### 3.2 BD esperada (alembic head post-deploy R1)
+
+| Tabla | Count esperado |
+|---|---|
+| roles | 5 |
+| modulos | 11 |
+| gerencias | 10 |
+| areas | 50 |
+| usuarios | ≥750 (4 stubs DES + ≥746 AD) |
+| tipos_documento | 13 (INSTRUCTIVO_TECNICO.codigo = 15) |
+| estados | 5 |
+| feriados | 20 |
+| email_templates | 10 (después de migración 013) |
+| matriz_enrutamiento_eto | 10 |
+| configuracion_global | 11 (NUEVO desde sesión 12) |
+| semaforizacion_tarea | 4 (NUEVO desde sesión 13) |
+| audit_log | ≥1 (1 por cada mutación) |
+| alembic | `6451593bcab5` (head 013) |
+
+### 3.3 Variables críticas esperadas en `.env.qas`
 
 ```bash
-# 1. Conectividad SSH + espacio en disco
-ssh sistemas@sgdqas.cofar.com.bo "df -h /opt/sgd && free -h && docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Size}}'"
-
-# 2. Verificar .env.qas (NO TOCAR, solo leer)
-ssh sistemas@sgdqas.cofar.com.bo "grep -E '^(LDAP_SERVER|LDAP_BIND|JWT_SECRET|POSTGRES_PASSWORD|CORS_ORIGINS|ENVIRONMENT)' /opt/sgd/.env.qas | sed 's/PASSWORD=.*/PASSWORD=***/; s/SECRET=.*/SECRET=***/'"
-
-# 3. Verificar cert SSL vigente
-ssh sistemas@sgdqas.cofar.com.bo "openssl x509 -in /opt/sgd/deploy/nginx/ssl/sgdqas.crt -noout -dates -subject"
-
-# 4. Backup de BD (OBLIGATORIO antes de cualquier cambio)
-ssh sistemas@sgdqas.cofar.com.bo "cd /opt/sgd && docker exec sgd-qas-postgres pg_dump -U sgd -d sgd -Fc -f /tmp/qas_pre_deploy.dump && docker cp sgd-qas-postgres:/tmp/qas_pre_deploy.dump /opt/sgd/backups/qas_$(date +%Y%m%d_%H%M%S)_pre_sesion18.dump && ls -la /opt/sgd/backups/"
-
-# 5. Backup de nginx configs actuales
-ssh sistemas@sgdqas.cofar.com.bo "cp -a /opt/sgd/deploy/nginx/conf.d /tmp/conf.d.bak.$(date +%Y%m%d_%H%M%S) && cp -a /opt/sgd/deploy/nginx/nginx.conf /tmp/nginx.conf.bak.$(date +%Y%m%d_%H%M%S) && echo BACKUP_NGINX_OK"
-
-# 6. Validar que el head de DES está 3 commits adelante de QAS
-#    (lo confirmamos via git log en DES — QAS no tiene git)
-#    DES head: 1186fab
-#    QAS en BD: b397cd9bfb91 (010)
-#    DES en BD: 6451593bcab5 (013)
+ENVIRONMENT=qas
+LDAP_ENABLED=true
+LDAP_SERVER=10.10.0.2  # DC interno, no RODC
+LDAP_BIND_USER=soporteglpi@cofar.com
+GRAPH_ENABLED=false
+SMTP_ENABLED=false
+CORS_ORIGINS=https://sgdqas.cofar.com.bo,http://localhost:5173,http://localhost:8080
+POSTGRES_DB=sgd
 ```
 
-**Criterio de Go/No-Go:**
-- ✅ Disco QAS > 2 GB libres (las imágenes Docker pueden pesar 500MB c/u)
-- ✅ Cert SSL vigente > 30 días
-- ✅ Backup de BD exitoso y descargable
-- ✅ Todos los contenedores "Up" (celery-W/B "unhealthy" es esperado, no bloqueante)
+### 3.4 Cert SSL esperado
 
-### 3.2 FIXES PRE-DEPLOY (en DES, ANTES de subir a QAS)
+- Subject: `C=BO, ST=La_Paz, L=La_Paz, O=COFAR, OU=SIGDOC, CN=sgdqas.cofar.com.bo`
+- notAfter: > 30 días desde el deploy
+- Vigencia: 365 días desde generación
 
-**FIX 1: deploy-qas.bat — rename de nginx config**
+### 3.5 nginx configs esperadas
 
-`scripts/deploy-qas.bat` línea 75: el find/delete actual borra `conf.d/` y luego extrae del zip que tiene `sgd-qas.conf.bk` (sufijo que nginx no carga). Necesito agregar rename post-extracción:
-
-```bat
-REM DespuEs de la linea de extract (linea 75) y ANTES del build:
-ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf; echo RENAMED_BK_TO_CONF; fi"
+```
+/etc/nginx/conf.d/sgd-qas.conf   (activo, server block QAS)
+/etc/nginx/conf.d/sgd.conf       (preexistente, catch-all DES — code smell, documentar)
 ```
 
-**FIX 2: start-stack-qas.sh — verificar que seed_configuracion_global.py está en REQUIRED_FILES**
+**NUNCA debe haber `*.conf.bk`** en `/etc/nginx/conf.d/`.
 
-Verificar que la lista REQUIRED_FILES (líneas 99-109) ya incluye `seed_configuracion_global.py` — ya está desde sesión 12. OK.
+---
 
-Verificar que SEEDS array (líneas 211-220) lo incluye — ya está. OK.
+## 4. CAMBIOS DESDE ÚLTIMO DEPLOY QAS
 
-**FIX 3: .env.qas en QAS — verificar LDAP_SERVER=10.10.0.2**
+Para cada deploy, listar:
+- Commits nuevos (vs último deploy)
+- Archivos cambiados
+- Migraciones nuevas
+- Seeds nuevos/modificados
+- Dependencias nuevas
 
-Ya está correcto (verificado en 1.4). OK.
+Ejemplo (sesión 19):
 
-**FIX 4: nueva flag para NO sobreescribir sgd.conf en QAS**
+| Categoría | Cambio | Commit |
+|---|---|---|
+| Backend | admin_impersonate refactor | (sesión 17) |
+| Backend | audit_log.py + write_audit() helper | (sesión 6) |
+| Backend | semaforizacion_tarea.py | (sesión 13) |
+| Backend | tipos_documento refactor (codigo int + slug) | (sesión 13) |
+| Backend | email_template enum expandido 6→10+1 | (sesión 13) |
+| Backend | refresh fix + impersonate | (sesión 17-18) |
+| Frontend | Tiptap 3.26.1 (5 paquetes) | (sesión 14-16) |
+| Frontend | PlantillaEditor.js (closure pattern) | (sesión 16) |
+| Frontend | AppLayout.js (banner impersonate) | (sesión 17) |
+| Frontend | DebugSession.js (refresh fix diagnostic) | (sesión 18) |
+| Frontend | router/index.js (refresh fix guard isReady) | (sesión 18) |
+| Frontend | store/auth.js (init sincrono desde localStorage) | (sesión 18) |
+| Scripts | deploy-qas.bat + start-stack-qas.sh (FIX 1) | `5b22bde` |
+| Scripts | deploy-qas.bat (fix /worktrees) | `d183ead` |
+| Scripts | deploy-qas.bat (pre-flight + restart nginx) | (sesión 20) |
+| Scripts | frontend/.dockerignore | (sesión 20) |
+| Scripts | validate-qas.sh | (sesión 20) |
+| Migración | 6b244889632f refactor tipos_documento | sesión 13 |
+| Migración | f04b96c6dff2 add semaforizacion_tarea | sesión 13 |
+| Migración | 6451593bcab5 expand plantillas enum | sesión 13 |
+| Seed | seed_configuracion_global.py (11 params) | sesión 12 |
+| Dep | openpyxl==3.1.5 | sesión 6 |
+| Dep | Tiptap 3.26.1 (5 paquetes) | sesión 14-16 |
 
-El code smell preexistente: el zip incluye `sgd.conf` (que es de DES) y se monta en `/etc/nginx/conf.d/`. En QAS, `sgd.conf` también se carga (server_name `_;` catch-all). Esto es funcional pero confuso. **Decisión:** dejarlo en esta iteración (no es bloqueante), documentar en BACKLOG.
+---
 
-### 3.3 DEPLOY (modificado, con los fixes)
+## 5. PLAN DE DEPLOY PASO A PASO
+
+### 5.1 Pre-flight LOCAL (en la laptop)
+
+```powershell
+# 1. Verificar Docker
+docker info
+
+# 2. Verificar stack DES (no bloqueante)
+docker ps --filter "name=sgd-"
+
+# 3. Verificar working tree limpio
+git status
+# Esperado: "nothing to commit, working tree clean"
+
+# 4. Verificar último commit
+git log --oneline -1
+
+# 5. Verificar Python (para shutil.make_archive)
+python -c "import shutil; print('OK')"
+```
+
+### 5.2 Ejecutar deploy (en la laptop)
 
 ```cmd
+cd "C:\Users\ychavez\PROYECTOS-DOCKER\SGD-DES"
 scripts\deploy-qas.bat
 ```
 
-El script modificado automáticamente:
-1. Empaqueta código local (excluyendo node_modules, .venv, etc.)
-2. SCP a /tmp/sgd_deploy.zip
-3. Extrae en /opt/sgd (preserva .env.qas y ssl/)
-4. **FIX 1: rename sgd-qas.conf.bk → sgd-qas.conf** ← nuevo
-5. Rebuild imágenes Docker (backend: pip install -r requirements/base.txt — openpyxl está; frontend: npm install — tiptap 3.26.1 está)
-6. `docker compose up -d` (restart servicios, BD no se toca)
-7. Espera health checks
-8. Invoca start-stack-qas.sh:
-   - Verifica archivos
-   - Provisiona storage
-   - Levanta stack
-   - Espera health (postgres + backend)
-   - **Aplica permisos storage (chown 1000:1000 + chmod 755/644)**
-   - **Reinicia celery-beat**
-   - Aplica 7+1 seeds (incluyendo seed_configuracion_global) — todos idempotentes
-   - Si LDAP_ENABLED=true: corre sync_ad_oficial.py → CSV en /app/storage/
-   - Resumen con conteos de BD
+El script ejecuta automáticamente:
 
-**Tiempo estimado:** 5-8 minutos (rebuild de imágenes backend + frontend puede tomar 2-3 min, seeds + sync AD otros 2-3 min)
+1. **[0/6] Pre-flight + backup** (NUEVO sesión 20):
+   - SSH reachable
+   - Disco QAS > 2GB
+   - Cert SSL vigente > 30 días
+   - Backup pre-deploy (`pg_dump` + `docker cp`)
 
-### 3.4 POST-DEPLOY: Validación completa (smoke test exhaustivo)
+2. **[1/6] Empaquetar** código local con `robocopy` + `shutil.make_archive` (zip)
 
-**A. Validación de HEALTH (sin browser):**
-```bash
-# Health HTTPS via nginx
-curl -sk -o /dev/null -w "HTTPS health: %{http_code} (%{time_total}s)\n" https://sgdqas.cofar.com.bo/api/v1/health
-# Esperado: 200, < 1s
+3. **[2/6] SCP** del zip a QAS
 
-# Health via backend directo (interno)
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend curl -fsS http://localhost:8000/api/v1/health"
-# Esperado: 200
+4. **[3/6] Extract** con `find -not -path` (FIX 4) + `python3 zipfile.extractall`
 
-# 8 servicios Up
-ssh sistemas@sgdqas.cofar.com.bo "docker compose -f /opt/sgd/deploy/docker-compose.qas.yml --env-file /opt/sgd/.env.qas ps"
-# Esperado: 8/8 servicios Up
+5. **[3.5/6] Rename** sgd-qas.conf.bk → sgd-qas.conf (FIX 1)
+
+6. **[4/6] Rebuild** imágenes Docker con `--no-cache` (backend, celery-W, celery-B, frontend)
+
+7. **[5/6] Restart** servicios + `docker restart sgd-qas-nginx` (FIX 7) + esperar health checks
+
+8. **[6/6] `start-stack-qas.sh`** (8 seeds idempotentes + sync AD)
+
+### 5.3 Flags opcionales del script
+
+```cmd
+scripts\deploy-qas.bat                  # deploy + restart + seeds + sync AD (default)
+scripts\deploy-qas.bat --no-restart    # solo sube codigo, no restart
+scripts\deploy-qas.bat --no-seed       # deploy + restart, sin correr seeds
 ```
-
-**B. Validación de LIBRERÍAS nuevas (en container):**
-```bash
-# openpyxl (export XLSX/CSV)
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend python -c 'import openpyxl; print(openpyxl.__version__)'"
-# Esperado: 3.1.5
-
-# Tiptap (frontend) — via curl al container
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-frontend sh -c 'ls /app/node_modules/@tiptap | head -10'"
-# Esperado: core, extension-color, extension-text-style, extension-underline, pm, starter-kit
-
-# Alpine.js, DOMPurify, xlsx (frontend)
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-frontend sh -c 'cat /app/package.json | grep -E \"(alpinejs|dompurify|xlsx|@tiptap)\"'"
-# Esperado: todas las deps presentes
-```
-
-**C. Validación de MIGRACIONES (BD):**
-```bash
-# Head de alembic
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c 'SELECT version_num FROM alembic_version'"
-# Esperado: 6451593bcab5 (no b397cd9bfb91)
-
-# Tabla semaforizacion_tarea creada
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c \"SELECT count(*) FROM information_schema.tables WHERE table_name='semaforizacion_tarea'\""
-# Esperado: 1
-
-# tipos_documento sin codigo_doc, con slug
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c \"SELECT count(*) FROM information_schema.columns WHERE table_name='tipos_documento' AND column_name='codigo_doc'\""
-# Esperado: 0
-
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c \"SELECT count(*) FROM information_schema.columns WHERE table_name='tipos_documento' AND column_name='slug'\""
-# Esperado: 1
-```
-
-**D. Validación de DATOS (BD):**
-```bash
-# Conteos esperados post-seeds
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA <<'EOF'
-SELECT 'roles: ' || count(*) FROM roles
-UNION ALL SELECT 'modulos: ' || count(*) FROM modulos
-UNION ALL SELECT 'gerencias: ' || count(*) FROM gerencias
-UNION ALL SELECT 'areas: ' || count(*) FROM areas
-UNION ALL SELECT 'usuarios: ' || count(*) FROM usuarios
-UNION ALL SELECT 'tipos_documento: ' || count(*) FROM tipos_documento
-UNION ALL SELECT 'estados: ' || count(*) FROM estados
-UNION ALL SELECT 'feriados: ' || count(*) FROM feriados
-UNION ALL SELECT 'email_templates: ' || count(*) FROM email_templates
-UNION ALL SELECT 'matriz_eto: ' || count(*) FROM matriz_enrutamiento_eto
-UNION ALL SELECT 'configuracion_global: ' || count(*) FROM configuracion_global
-UNION ALL SELECT 'semaforizacion_tarea: ' || count(*) FROM semaforizacion_tarea
-UNION ALL SELECT 'audit_log: ' || count(*) FROM audit_log
-UNION ALL SELECT 'alembic: ' || version_num FROM alembic_version;
-EOF"
-
-# Esperado:
-# roles: 5
-# modulos: 11
-# gerencias: 10 (QAS tiene menos que DES porque el seed matriz abril NO se ejecuta en QAS)
-# areas: 50
-# usuarios: 754+ (sync AD puede haber agregado)
-# tipos_documento: 13
-# estados: 5
-# feriados: 20
-# email_templates: 10 (NUEVO, antes 6, seed expande enum 6→10)
-# matriz_eto: 10
-# configuracion_global: 11 (NUEVO, antes 0)
-# semaforizacion_tarea: 4 (NUEVO, antes tabla no existía)
-# audit_log: muchos (cada refresh, login, etc genera entradas)
-# alembic: 6451593bcab5
-```
-
-**E. Validación de LOGIN (BD Local + AD real):**
-```bash
-# Login con usuario BD Local (aromero) — modo dev/stub
-curl -sk -X POST https://sgdqas.cofar.com.bo/api/v1/login \
-    -H "Content-Type: application/json" \
-    -d '{"username":"aromero","password":"cofar.2026","auth_source":"local"}' \
-    -c /tmp/cookies_local.txt | jq '.message, .user.username'
-# Esperado: "Login exitoso", "aromero"
-
-# Login con usuario AD real (soporteglpi) — modo cofar
-curl -sk -X POST https://sgdqas.cofar.com.bo/api/v1/login \
-    -H "Content-Type: application/json" \
-    -d '{"username":"soporteglpi","password":"<password>","auth_source":"cofar"}' \
-    -c /tmp/cookies_ad.txt | jq '.message, .user.username'
-# Esperado: 200 OK, "soporteglpi" (usuario sincronizado de AD)
-
-# /me con cookies del login
-curl -sk https://sgdqas.cofar.com.bo/api/v1/me -b /tmp/cookies_local.txt | jq '.authenticated, .user.username'
-# Esperado: true, "aromero"
-```
-
-**F. Validación de NUEVAS FEATURES (endpoints que no existían antes):**
-```bash
-# Impersonate (necesita cookies de admin o ETO)
-curl -sk https://sgdqas.cofar.com.bo/api/v1/admin-impersonate/list -b /tmp/cookies_local.txt | jq '.items | length'
-# Esperado: > 0 (lista de usuarios impersonables)
-
-# Audit log
-curl -sk "https://sgdqas.cofar.com.bo/api/v1/audit-log?limit=5" -b /tmp/cookies_local.txt | jq '.items | length, .items[0].accion'
-# Esperado: > 0 items
-
-# Semaforizacion por tipo de tarea
-curl -sk https://sgdqas.cofar.com.bo/api/v1/semaforizacion-tarea -b /tmp/cookies_local.txt | jq '.items | length'
-# Esperado: 4 (REVISION, APROBACION, CONTROL_LECTURA, EVALUACION)
-
-# PATCH /usuarios/{id} (override estado/ausente/delegacion)
-curl -sk -X PATCH "https://sgdqas.cofar.com.bo/api/v1/usuarios/1" \
-    -H "Content-Type: application/json" \
-    -b /tmp/cookies_local.txt \
-    -d '{"ausente": false}' | jq '.username, .ausente'
-# Esperado: "aromero", false (200 OK)
-```
-
-**G. Validación del FIX REFRESH (smoke test en browser):**
-
-En Chrome DevTools MCP (usar mcp__chrome-devtools):
-1. Navegar a `https://sgdqas.cofar.com.bo/`
-2. Login con aromero / cofar.2026 / BD Local
-3. Verificar que redirige a /bandeja
-4. **Hard reload (Ctrl+Shift+R) en /bandeja**
-5. Verificar que la URL sigue en /bandeja (no salta a /login)
-6. Inspeccionar `Alpine.store('auth').isReady` → debe ser `true`
-7. Inspeccionar `Alpine.store('auth').isAuthenticated` → debe ser `true`
-8. Inspeccionar `Alpine.store('auth').user.username` → debe ser "aromero"
-9. Inspeccionar `localStorage.getItem('cofar_session')` → debe tener el JSON del user
-
-**H. Validación de PLANTILLAS (Tiptap):**
-1. En el browser, ir a /parametrizacion
-2. Click en "Plantillas de Notificacion"
-3. Verificar que se ven **11 plantillas** (no 6 — el seed expande de 6 a 10, más las que estén)
-4. Click en una plantilla, verificar que el editor Tiptap carga
-5. Verificar toolbar con B/I/U/S/H1-3/listas/code/blockquote/undo/redo
-6. Verificar que no hay error "Applying a mismatched transaction" en consola
-
-**I. Validación de IMPERSONATE:**
-1. En /parametrizacion, buscar la columna DELEGADO o la sección de usuarios
-2. Click en "Impersonar" de un usuario (como admin/eto)
-3. Verificar que aparece el banner sticky de impersonate
-4. Verificar que el audit_log tiene entradas con `recurso='impersonate'`
-
-**J. Validación de SYNC AD:**
-```bash
-# Verificar CSV generado
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend ls -la /app/storage/usuarios_sap_FINAL2026.csv 2>&1; head -3 /app/storage/usuarios_sap_FINAL2026.csv 2>&1"
-# Esperado: archivo existe, header + filas de usuarios COFAR
-
-# Conteos del sync
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend wc -l < /app/storage/usuarios_sap_FINAL2026.csv"
-# Esperado: 753+ (header + 753 usuarios aprox)
-```
-
-**K. Validación de NGINX:**
-```bash
-# HTTP → HTTPS redirect
-curl -sk -o /dev/null -w "HTTP→HTTPS redirect: %{http_code}\n" http://sgdqas.cofar.com.bo/
-# Esperado: 301
-
-# Frontend SPA sirve HTML
-curl -sk -o /dev/null -w "Frontend HTML: %{http_code}\n" https://sgdqas.cofar.com.bo/
-# Esperado: 200
-
-# API via HTTPS
-curl -sk -o /dev/null -w "API via HTTPS: %{http_code}\n" https://sgdqas.cofar.com.bo/api/v1/health
-# Esperado: 200
-
-# /mailhog/ (no debe estar en QAS, es dev only)
-curl -sk -o /dev/null -w "MailHog UI: %{http_code}\n" https://sgdqas.cofar.com.bo/mailhog/
-# Esperado: 502 o 404 (NO debe estar accesible en QAS)
-
-# Verificar que sgd-qas.conf está activo (no .bk) en el container
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-nginx ls -la /etc/nginx/conf.d/"
-# Esperado: sgd-qas.conf y sgd.conf (ambos), NUNCA .bk
-```
-
-**L. Validación de SEGURIDAD:**
-```bash
-# CORS preflight
-curl -sk -X OPTIONS https://sgdqas.cofar.com.bo/api/v1/login \
-    -H "Origin: https://sgdqas.cofar.com.bo" \
-    -H "Access-Control-Request-Method: POST" \
-    -o /dev/null -w "CORS preflight: %{http_code}\n"
-# Esperado: 200
-
-# Verificar que CSRF cookie existe (no HttpOnly)
-curl -sk -i https://sgdqas.cofar.com.bo/ 2>&1 | grep -i "set-cookie"
-# Esperado: csrf_token=... (NO HttpOnly)
-```
-
-### 3.5 POST-DEPLOY: Reporte al usuario
-
-Generar un resumen con tabla PASS/FAIL de todos los checks anteriores + capturas de pantalla (Chrome MCP) de:
-- Pantalla de login
-- Dashboard /bandeja
-- Pantalla de parametrización con Tiptap
-- Banner de impersonate (si se probó)
-- /_debug/session mostrando isReady=true, isAuthenticated=true
 
 ---
 
-## 4. Rollback (si algo falla)
+## 6. VALIDACIONES A-L (12 categorías)
 
-### 4.1 Rollback de CÓDIGO
+### 6.1 Ejecución rápida (todo en uno)
+
+```bash
+ssh sistemas@sgdqas.cofar.com.bo "bash /opt/sgd/scripts/validate-qas.sh"
+```
+
+El script imprime tabla PASS/FAIL/WARN con conteos. Exit code:
+- `0` = todas PASS
+- `1` = alguna FAIL
+- `2` = error de conexión
+
+### 6.2 Detalle de cada categoría
+
+| # | Categoría | Validación | Comando |
+|---|---|---|---|
+| A.1 | Health | Backend directo 200 | `docker exec sgd-qas-backend curl -fsS http://localhost:8000/api/v1/health` |
+| A.2 | Health | HTTPS via nginx 200 | `curl -kfsS -o /dev/null -w '%{http_code}\n' https://localhost/api/v1/health` |
+| A.3 | Health | 8 servicios Up | `docker ps --filter "name=sgd-qas-" --format '{{.Names}}' \| wc -l` |
+| B.1 | Librerías | openpyxl 3.1.5 | `docker exec sgd-qas-backend python -c 'import openpyxl; print(openpyxl.__version__)'` |
+| B.2 | Librerías | Tiptap >= 5 packages | `docker exec sgd-qas-frontend sh -c 'ls -d /app/node_modules/@tiptap/* 2>/dev/null \| wc -l'` |
+| C.1 | Migraciones | alembic 6451593bcab5 | `docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c "SELECT version_num FROM alembic_version"` |
+| C.2 | Migraciones | semaforizacion_tarea existe | `docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c "SELECT count(*) FROM information_schema.tables WHERE table_name='semaforizacion_tarea'"` |
+| C.3 | Migraciones | tipos_documento sin codigo_doc, con slug | (ver script) |
+| C.4 | Migraciones | enum email_templates con 11 valores | (ver script) |
+| D | Datos BD | 13 tablas con conteos esperados | (ver script tabla) |
+| D.13 | Datos BD | INSTRUCTIVO_TECNICO.codigo=15 | `docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c "SELECT codigo FROM tipos_documento WHERE slug='INSTRUCTIVO_TECNICO'"` |
+| E.1 | Login | BD Local (aromero) 200 | `curl -kfsS -X POST https://localhost/api/v1/login -H "Content-Type: application/json" -d '{"username":"aromero","password":"cofar.2026","auth_source":"local"}'` |
+| E.2 | Login | /me con cookies authenticated | `curl -kfsS -b /tmp/cookies.txt https://localhost/api/v1/me` |
+| F.1 | Endpoints | /audit-log 200 | `curl -kfsS -b /tmp/cookies.txt "https://localhost/api/v1/audit-log?limit=5"` |
+| F.2 | Endpoints | /semaforizacion-tarea 200 | `curl -kfsS -b /tmp/cookies.txt https://localhost/api/v1/semaforizacion-tarea` |
+| F.3 | Endpoints | /admin/impersonate/list 200 | `curl -kfsS -b /tmp/cookies.txt https://localhost/api/v1/admin/impersonate/list` (path real con slash, no guion como dice el plan original) |
+| G | Refresh fix | URL se mantiene post-reload (validar en Chrome MCP) | hard reload en /bandeja, verificar Alpine.store('auth').isReady=true |
+| H | Tiptap | 11 plantillas + toolbar completa | Click en tab Plantillas, verificar editor + toolbar |
+| I | Impersonate | Banner sticky + audit dedicado | Click en Impersonar, verificar banner |
+| J | Sync AD | CSV con >=750 lineas | `docker exec sgd-qas-backend sh -c 'wc -l < /app/storage/usuarios_sap_FINAL2026.csv'` |
+| K.1 | nginx | HTTP→HTTPS 301 | `curl -kfsS -o /dev/null -w '%{http_code}\n' http://localhost/` |
+| K.2 | nginx | HTTPS health 200 | `curl -kfsS -o /dev/null -w '%{http_code}\n' https://localhost/api/v1/health` |
+| K.3 | nginx | sgd-qas.conf activo (no .bk) | `docker exec sgd-qas-nginx ls /etc/nginx/conf.d/` |
+| L.1 | Seguridad | CORS preflight 200 | `curl -kfsS -o /dev/null -w '%{http_code}\n' -X OPTIONS https://localhost/api/v1/login -H 'Origin: https://sgdqas.cofar.com.bo' -H 'Access-Control-Request-Method: POST'` |
+| L.2 | Seguridad | CSRF cookie no HttpOnly | (ver script) |
+
+### 6.3 Validaciones que requieren Chrome MCP (no automatizables)
+
+- **G (refresh fix):** abrir Chrome en `https://sgdqas.cofar.com.bo/`, login, hard reload en /bandeja, verificar que URL no cambia a /login. Inspeccionar `Alpine.store('auth').isReady`, `isAuthenticated`, `localStorage.getItem('cofar_session')`.
+- **H (Tiptap):** ir a /parametrizacion, tab Plantillas, verificar 11 plantillas, toolbar completa (B/I/U/S/H1-3/listas/code/color/fontSize/undo/redo), 11 variables clicables.
+- **I (Impersonate):** ir a /parametrizacion, tab Gestión de Usuarios, click Impersonar, verificar banner sticky con gradiente amber→orange→red.
+
+NOTA: Chrome MCP no carga el cert autofirmado de QAS. Validar G/H/I en DES local (mismo código frontend) o en corp con VPN que acepte el cert.
+
+---
+
+## 7. COMANDOS DE TROUBLESHOOTING
+
+### 7.1 Si el pre-flight falla
+
+```bash
+# SSH no reachable
+ssh -v sistemas@sgdqas.cofar.com.bo "echo OK"
+
+# Disco bajo
+ssh sistemas@sgdqas.cofar.com.bo "du -sh /opt/sgd/* | sort -h | tail -20"
+
+# Cert SSL expirado
+ssh sistemas@sgdqas.cofar.com.bo "openssl x509 -in /opt/sgd/deploy/nginx/ssl/sgdqas.crt -noout -dates"
+# Si expira pronto: regenerar cert autofirmado (ver docs/PR/DEPLOY-QAS.md seccion SSL)
+
+# Backup pre-deploy manual
+ssh sistemas@sgdqas.cofar.com.bo "TS=\$(date -u +%Y%m%d_%H%M%S); docker exec sgd-qas-postgres pg_dump -U sgd -d sgd -Fc -f /tmp/qas_\${TS}.dump && docker cp sgd-qas-postgres:/tmp/qas_\${TS}.dump /opt/sgd/backups/ && ls -la /opt/sgd/backups/qas_\${TS}.dump"
+```
+
+### 7.2 Si el deploy falla a mitad
+
+```bash
+# Ver logs del backend
+ssh sistemas@sgdqas.cofar.com.bo "docker logs sgd-qas-backend --tail 50"
+
+# Ver logs de nginx
+ssh sistemas@sgdqas.cofar.com.bo "docker logs sgd-qas-nginx --tail 20"
+
+# Ver estado de los 8 contenedores
+ssh sistemas@sgdqas.cofar.com.bo "docker ps -a --filter name=sgd-qas- --format 'table {{.Names}}\t{{.Status}}'"
+```
+
+### 7.3 Si 502 Bad Gateway (nginx)
+
+```bash
+# El nginx cacheo IP vieja del backend
+ssh sistemas@sgdqas.cofar.com.bo "docker restart sgd-qas-nginx && sleep 5 && curl -kfsS -o /dev/null -w 'HTTPS: %{http_code}\n' https://localhost/api/v1/health"
+```
+
+### 7.4 Si Tiptap falla en frontend (node_modules vacio)
+
+```bash
+# El bind mount del compose pisa node_modules. Workaround:
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-frontend sh -c 'cd /app && npm install --no-audit --no-fund'"
+# Luego validar de nuevo:
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-frontend sh -c 'ls -d /app/node_modules/@tiptap/* | wc -l'"
+# Esperado: >= 5
+
+# PERMANENTE: ver seccion 12 backlog (cambiar Dockerfile o compose)
+```
+
+### 7.5 Si las migraciones fallan
+
+```bash
+# Ver el alembic head actual
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c 'SELECT version_num FROM alembic_version'"
+
+# Ver logs del backend al arrancar (muestra las migraciones aplicadas)
+ssh sistemas@sgdqas.cofar.com.bo "docker logs sgd-qas-backend --tail 100 | grep -i alembic"
+
+# Re-aplicar migraciones manualmente
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend alembic upgrade head"
+```
+
+### 7.6 Si un seed falla
+
+```bash
+# Re-correr el seed manualmente (es idempotente)
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend python scripts/seed_configuracion_global.py"
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend python scripts/seed_email_templates.py"
+# etc.
+```
+
+### 7.7 Si la BD se corrompe
+
+```bash
+# Restaurar desde backup pre-deploy
+TS=<TIMESTAMP_BACKUP>
+ssh sistemas@sgdqas.cofar.com.bo "cd /opt/sgd && docker cp backups/qas_\${TS}_pre_sesion.dump sgd-qas-postgres:/tmp/restore.dump && docker exec sgd-qas-postgres pg_restore -U sgd -d sgd --clean --if-exists --no-owner --role=sgd /tmp/restore.dump"
+
+# Verificar conteos
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c 'SELECT count(*) FROM usuarios'"
+```
+
+### 7.8 Verificar logs en vivo
+
+```bash
+# Backend
+ssh sistemas@sgdqas.cofar.com.bo "docker logs sgd-qas-backend -f --tail 100"
+
+# nginx
+ssh sistemas@sgdqas.cofar.com.bo "docker logs sgd-qas-nginx -f --tail 50"
+
+# Postgres
+ssh sistemas@sgdqas.cofar.com.bo "docker logs sgd-qas-postgres -f --tail 50"
+```
+
+---
+
+## 8. ESCENARIOS ESPECIALES
+
+### 8.1 Solo subir codigo (no restart)
+
+```cmd
+scripts\deploy-qas.bat --no-restart
+```
+
+Útil cuando:
+- Solo quieres actualizar archivos sin reiniciar (e.g., actualizar la imagen sin downtime)
+- Vas a reiniciar manualmente después
+
+### 8.2 Deploy sin correr seeds
+
+```cmd
+scripts\deploy-qas.bat --no-seed
+```
+
+Útil cuando:
+- Las migraciones ya están aplicadas y solo quieres re-deployar código
+- Vas a correr seeds manualmente
+
+### 8.3 Restaurar backup pre-deploy
+
+Ver sección 7.7.
+
+### 8.4 Forzar rebuild de una imagen específica
+
+```bash
+# Solo rebuild backend
+ssh sistemas@sgdqas.cofar.com.bo "cd /opt/sgd && docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --no-cache backend"
+
+# Solo rebuild frontend
+ssh sistemas@sgdqas.cofar.com.bo "cd /opt/sgd && docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --no-cache frontend"
+```
+
+### 8.5 Forzar reinicio de un servicio
+
+```bash
+# Reiniciar backend
+ssh sistemas@sgdqas.cofar.com.bo "docker compose -f /opt/sgd/deploy/docker-compose.qas.yml --env-file /opt/sgd/.env.qas restart backend"
+
+# Reiniciar nginx (refresca cache DNS)
+ssh sistemas@sgdqas.cofar.com.bo "docker restart sgd-qas-nginx"
+```
+
+### 8.6 Re-sync AD manual
+
+```bash
+# Borra el CSV y re-sincroniza
+ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-backend rm -f /app/storage/usuarios_sap_FINAL2026.csv && docker exec --env-file /opt/sgd/.env.qas sgd-qas-backend python scripts/sync_ad_oficial.py"
+```
+
+### 8.7 Re-import matriz abril (NO en QAS, solo DES)
+
+```bash
+# Solo para DES
+cd /opt/sgd  # o donde esté el repo en DES
+docker exec sgd-backend python scripts/run_matriz_import.py --excel "/ruta/al/USUARIOS EXISTENTES A ABRIL.xlsx" --update-existing
+```
+
+### 8.8 Validar QAS en cualquier momento (no solo post-deploy)
+
+```bash
+ssh sistemas@sgdqas.cofar.com.bo "bash /opt/sgd/scripts/validate-qas.sh"
+```
+
+Exit codes:
+- `0` = OK
+- `1` = alguna validación falló
+- `2` = error de conexión
+
+---
+
+## 9. ROLLBACK
+
+### 9.1 Rollback de CÓDIGO
+
 ```bash
 # En DES, volver al commit anterior al deploy
 git checkout HEAD~1
 scripts\deploy-qas.bat
 git checkout -
-
-# Si el problema fue una migración rota:
-ssh sistemas@sgdqas.cofar.com.bo "cd /opt/sgd && docker exec sgd-qas-backend alembic downgrade -1"
-# (o -2, -3 según cuántas migraciones necesite rollback)
 ```
 
-### 4.2 Rollback de BD (último recurso)
+### 9.2 Rollback de BD (último recurso)
+
 ```bash
-# Restaurar desde el backup pre-deploy
-ssh sistemas@sgdqas.cofar.com.bo "cd /opt/sgd && docker cp backups/qas_<TIMESTAMP>_pre_sesion18.dump sgd-qas-postgres:/tmp/restore.dump && docker exec sgd-qas-postgres pg_restore -U sgd -d sgd --clean --if-exists --no-owner --role=sgd /tmp/restore.dump"
-
-# Verificar conteos
-ssh sistemas@sgdqas.cofar.com.bo "docker exec sgd-qas-postgres psql -U sgd -d sgd -tA -c 'SELECT count(*) FROM usuarios'"
-# Esperado: 754 (volver al estado pre-deploy)
+TS=<TIMESTAMP_BACKUP>
+ssh sistemas@sgdqas.cofar.com.bo "cd /opt/sgd && docker cp backups/qas_\${TS}_pre_sesion.dump sgd-qas-postgres:/tmp/restore.dump && docker exec sgd-qas-postgres pg_restore -U sgd -d sgd --clean --if-exists --no-owner --role=sgd /tmp/restore.dump"
 ```
 
-### 4.3 Rollback de NGINX
+### 9.3 Rollback de NGINX
+
 ```bash
-# Restaurar configs
-ssh sistemas@sgdqas.cofar.com.bo "cp -a /tmp/conf.d.bak.<TIMESTAMP>/* /opt/sgd/deploy/nginx/conf.d/ && cp /tmp/nginx.conf.bak.<TIMESTAMP> /opt/sgd/deploy/nginx/nginx.conf && docker restart sgd-qas-nginx"
+ssh sistemas@sgdqas.cofar.com.bo "cp -a /tmp/conf.d.bak.\${TS}/* /opt/sgd/deploy/nginx/conf.d/ && cp /tmp/nginx.conf.bak.\${TS} /opt/sgd/deploy/nginx/nginx.conf && docker restart sgd-qas-nginx"
 ```
+
+### 9.4 Rollback completo (último recurso)
+
+Si NADA funciona, restaurar TODO desde el último deploy conocido:
+
+1. Rollback de código: `git checkout <commit_del_último_deploy_OK>`
+2. Re-deploy: `scripts\deploy-qas.bat --no-seed` (sin seeds para no aplicar nuevas)
+3. Restaurar BD desde backup
+4. Validar con `validate-qas.sh`
 
 ---
 
-## 5. Riesgos identificados + mitigaciones
+## 10. RIESGOS IDENTIFICADOS
 
 | # | Riesgo | Severidad | Mitigación |
 |---|---|---|---|
-| 1 | Migración 011 (refactor tipos_documento) rompe datos existentes | 🟠 Alta | El seed actualiza los datos ANTES de dropear codigo_doc. Verificar 2 veces. Backup pre-deploy obligatorio. |
-| 2 | Migración 013 (expand enum) falla porque hay datos con codigos viejos | 🟡 Media | El seed_tipos_documento.py + seed_email_templates.py ya generan los 10 codigos. Si la migración falla, downgrade -1 + restaurar backup |
-| 3 | openpyxl no se instala en rebuild (dependencias del sistema) | 🟢 Baja | Ya está en base.txt desde sesión 6. Rebuild usa el mismo Dockerfile. |
-| 4 | Tiptap 3.26.1 falla al instalar (peer deps, npm conflicts) | 🟡 Media | package-lock.json está commiteado. npm ci debería funcionar. Si falla, usar npm install --legacy-peer-deps |
-| 5 | sgd-qas.conf.bk no se renombra → nginx sin server block → ERR_CONNECTION_REFUSED | 🟠 Alta | FIX 1 en deploy-qas.bat (rename post-extract). Backup del .conf pre-deploy. |
-| 6 | Sync AD genera CSV vacio o incompleto | 🟡 Media | Validar en J.1. Si falla, QAS queda con usuarios previos (no se borra nada) |
-| 7 | CORS rompe después del deploy (frontend vs backend) | 🟢 Baja | CORS_ORIGINS en .env.qas ya tiene https://sgdqas.cofar.com.bo. Verificar en L.1 |
-| 8 | Refresh bug #15 sigue presente después del fix | 🟢 Baja | El fix está en repo y se deploya. Validar en G.1-G.8 con Chrome MCP |
-| 9 | Los 754 usuarios en QAS se duplican después de sync AD | 🟢 Baja | sync_ad_oficial.py es idempotente (sesión 11 lo verificó) |
-| 10 | celery-beat entra en loop "Permission denied" en /app/storage | 🟢 Baja | Fix de sesión 11: `-s /app/storage/celerybeat-schedule` está en docker-compose.qas.yml. start-stack-qas.sh hace chown 1000:1000 + chmod 755/644 antes de levantar. |
+| 1 | Migración 011 (refactor tipos_documento) rompe datos | 🟠 Alta | Backup pre-deploy obligatorio (FIX 6) |
+| 2 | Migración 013 (expand enum) falla | 🟡 Media | Downgrade -1 + restaurar backup |
+| 3 | openpyxl no se instala en rebuild | 🟢 Baja | requirements/base.txt commiteado, mismo Dockerfile |
+| 4 | Tiptap falla al instalar | 🟡 Media | package-lock.json commiteado, npm ci debería funcionar |
+| 5 | sgd-qas.conf.bk no se renombra | 🟠 Alta | FIX 1 (paso 3.5/6) + validación K.3 |
+| 6 | nginx cachea IP vieja del backend | 🟠 Alta | FIX 7 (docker restart sgd-qas-nginx) |
+| 7 | node_modules vacio en container | 🟠 Alta | FIX 5 (.dockerignore) + workaround `docker exec npm install` |
+| 8 | Sync AD genera CSV vacio | 🟡 Media | Validar J.1. Si falla, QAS queda con usuarios previos |
+| 9 | CORS rompe después del deploy | 🟢 Baja | CORS_ORIGINS en .env.qas tiene https://sgdqas.cofar.com.bo |
+| 10 | Refresh bug #15 sigue presente | 🟢 Baja | Fix commiteado. Validar G.1-G.8 con Chrome MCP |
+| 11 | DNS interno no responde en pre-flight (problema de red corp) | 🟡 Media | El script continúa y avisa. Validar manualmente si pasa |
+| 12 | Plazo 42 invalid (cosmetic) | 🟢 Baja | El seed dice 25, pero si se ejecutó con valor previo no se actualiza. Backlog próxima sesión |
 
 ---
 
-## 6. Tiempo estimado total
-
-| Fase | Tiempo |
-|---|---|
-| Pre-flight (verificaciones + backup) | 5 min |
-| Fix deploy-qas.bat (FIX 1) + commit | 5 min |
-| Deploy + rebuild imágenes | 5-8 min |
-| Migraciones automáticas (start-stack-qas.sh) | 1 min |
-| Seeds (8) + sync AD | 2-3 min |
-| Validación A-L completa | 15-20 min |
-| Reporte final | 5 min |
-| **Total** | **~40-50 min** |
-
----
-
-## 7. Orden de ejecución recomendado
-
-1. **DES**: Aplicar FIX 1 (rename de .bk en deploy-qas.bat) → commit
-2. **DES**: git push (si hay remote) o backup del working tree
-3. **QAS**: Pre-flight (verificaciones + backup BD)
-4. **QAS**: `scripts\deploy-qas.bat` (todo automático: deploy + rebuild + start)
-5. **QAS**: Validación A → B → C → D (HEALTH, libs, migraciones, datos)
-6. **DES/Laptop**: Validación E (login curl) + F (endpoints nuevos)
-7. **Chrome MCP**: Validación G (refresh fix) + H (Tiptap) + I (impersonate)
-8. **QAS**: Validación J (sync AD) + K (nginx) + L (seguridad)
-9. **Reporte final** al usuario con tabla PASS/FAIL + screenshots
-10. **Si TODO PASS**: commit final con tag de release + actualizar ESTADO.md + BITACORA.md
-11. **Si algún FAIL**: rollback según sección 4 + documentar
-
----
-
-## 8. Lo que NO se hace en este deploy
-
-- ❌ Cambiar a cert HTTPS válido (queda para sesión pre-PROD)
-- ❌ Cambiar a NOPASSWD sudo restringido (queda para sesión pre-PROD)
-- ❌ Cambiar password SSH (queda para sesión pre-PROD)
-- ❌ Activar GRAPH_ENABLED (Office 365) — sigue en false
-- ❌ Activar SMTP real corporativo — sigue en false (usa MailHog interno)
-- ❌ Importar matriz abril (NO se ejecuta en QAS, solo en DES)
-- ❌ Backups automáticos en cron (queda para sesión pre-PROD)
-- ❌ Monitoring Prometheus/Grafana (queda para sesión pre-PROD)
-
----
-
-## 9. Diferencias que quedarán QAS vs DES después del deploy (esperadas, NO bugs)
+## 11. DIFERENCIAS QAS VS DES ESPERADAS (NO BUGS)
 
 | Item | QAS | DES | Por qué |
 |---|---|---|---|
-| Gerencias | 10 | 14 | QAS solo siembra 10 (seed_data.py), DES tiene 4 extras de pruebas manuales |
+| Gerencias | 10 | 14 | QAS solo siembra 10 (seed_data.py), DES tiene 4 extras de pruebas |
 | Areas | 50 | 56 | Similar a gerencias |
-| Usuarios | 754 | 764 | QAS tiene 754 (4 stubs DES + 750 AD), DES tiene 10 extras de pruebas |
-| Tipos doc | 13 | 14 | Similar |
+| Usuarios | ≥750 | 764 | QAS tiene 4 stubs DES + ≥746 AD, DES tiene 10 extras de pruebas |
+| Tipos doc | 13 | 14 | Similar (INSTRUCTIVO_TECNICO puede tener diferente codigo) |
 | Feriados | 20 | 23 | Similar |
-| audit_log | Muchos | Muchos | Continúa acumulando |
+| audit_log | ≥1 | ≥50 | Continúa acumulando |
+| plazo_revision_aprobacion_dias | 25 (seed) | 42 (legacy) | Diferente: QAS ejecutó seed, DES tiene valor legacy |
 
 ---
 
-## 10. Anexo: archivos a cambiar en DES antes del deploy
+## 12. BACKLOG PRE-PROD
 
-### 10.1 `scripts/deploy-qas.bat` — agregar FIX 1
+Tareas que DEBEN hacerse antes de pasar a producción (PRD):
 
-Después de la línea 75 (extract), antes de la línea 79 (rebuild):
-
-```bat
-REM ─── 3.5. Renombrar sgd-qas.conf.bk a .conf (FIX 1) ───────────
-echo [3.5/6] Renombrando sgd-qas.conf.bk → .conf para nginx...
-ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf; echo RENAMED_BK_TO_CONF; else echo ALREADY_CONF_OR_MISSING; fi"
-echo.
-```
-
-### 10.2 Commit del fix
-```bash
-git add scripts/deploy-qas.bat
-git commit -m "fix(deploy): rename sgd-qas.conf.bk → .conf post-extract en QAS
-
-El archivo nginx sgd-qas.conf.bk existe en el repo con sufijo .bk para
-NO ser cargado en DES (donde hay sgd.conf que es catch-all). Pero al
-deployar a QAS, nginx solo carga *.conf (no *.conf.bk) → ERR_CONNECTION_REFUSED.
-
-Fix: despues de la extraccion del zip en QAS, renombrar el archivo
-.bk → .conf para que nginx lo cargue.
-
-Validado: QAS actual tiene sgd-qas.conf (no .bk) del deploy pre-sesion 14.
-Este fix previene que el proximo deploy rompa nginx."
-```
-
-### 10.3 Tag de release post-deploy exitoso
-```bash
-git tag -a v1.0.0-qas -m "R1 cerrado + refresh fix #15 deployed to QAS"
-git log --oneline -1
-```
+| # | Tarea | Sesión sugerida | Esfuerzo |
+|---|---|---|---|
+| 1 | Fix permanente bind mount node_modules (cambiar compose o Dockerfile) | 21 | 2h |
+| 2 | Cert HTTPS válido (Let's Encrypt o cert corporativo) | pre-PROD | 4h |
+| 3 | Sudo NOPASSWD restringido a comandos específicos | pre-PROD | 1h |
+| 4 | Password SSH rotada + SSH key-only (ya hecho en sesión 11) | ✅ | — |
+| 5 | Activar GRAPH_ENABLED (Office 365) | R4 | 1 semana |
+| 6 | Activar SMTP real corporativo | pre-PROD | 1h |
+| 7 | Backups automáticos en QAS (cron + pg_dump) | 21 | 1h |
+| 8 | Monitoring Prometheus/Grafana | pre-PROD | 1 día |
+| 9 | Fix Plazo 42 invalid (seed dice 25, BD tiene 42) | 21 | 5 min |
+| 10 | Code smell `sgd.conf` en QAS (catch-all de DES) | 22 | 30 min |
 
 ---
 
-## 11. Resumen ejecutivo
+## 13. RESUMEN EJECUTIVO
 
-**Lo que se va a hacer:**
-1. Fix menor en `deploy-qas.bat` (rename de nginx config)
-2. Pre-flight checks + backup de BD en QAS
-3. Deploy del código nuevo (22 commits desde sesión 11)
-4. 3 migraciones de Alembic (010 → 013)
-5. 7+1 seeds (incluyendo el faltante `seed_configuracion_global.py`)
-6. Sync AD real (DC 10.10.0.2)
-7. Validación exhaustiva de 12 categorías (A-L) con Chrome MCP
-8. Reporte final con screenshots
+### 13.1 Lo que se va a hacer (deploy típico)
 
-**Lo que está en riesgo:** 2 issues preexistentes (sgd.conf de DES en QAS, code smell) que se documentan pero NO se arreglan en este deploy.
+1. **Pre-flight** (FIX 6): SSH + disco + cert + backup
+2. **Deploy** (FIX 1+2+3+4+5+7): zip + scp + extract + rename + rebuild + restart
+3. **Migraciones**: 3 nuevas (010 → 013)
+4. **Seeds**: 8 idempotentes (incluido `seed_configuracion_global.py`)
+5. **Sync AD**: real contra DC `10.10.0.2` (≥750 usuarios)
+6. **Validación**: 12 categorías A-L (script `validate-qas.sh`)
 
-**Tiempo:** 40-50 minutos total.
+### 13.2 Lo que NO se hace en este deploy
 
-**Criterio de éxito:** TODOS los checks A-L en PASS. Si 1 falla, rollback según sección 4.
+- ❌ Cambiar a cert HTTPS válido (queda para sesión pre-PROD)
+- ❌ Cambiar a NOPASSWD sudo restringido
+- ❌ Cambiar password SSH (ya es key-only desde sesión 11)
+- ❌ Activar GRAPH_ENABLED (Office 365)
+- ❌ Activar SMTP real corporativo
+- ❌ Importar matriz abril (NO se ejecuta en QAS, solo en DES)
+- ❌ Backups automáticos en cron (queda para pre-PROD)
+- ❌ Monitoring Prometheus/Grafana
+
+### 13.3 Criterio de éxito
+
+`bash /opt/sgd/scripts/validate-qas.sh` debe retornar exit code 0 (todas las validaciones A-L PASS). Si retorna 1, rollback según sección 9.
+
+### 13.4 Tiempo estimado
+
+60-75 min total (incluyendo FIX 1+2+3+4+5+6+7+8 y validaciones).
+
+### 13.5 Archivos clave del deploy
+
+| Archivo | Función |
+|---|---|
+| `scripts/deploy-qas.bat` | Empaqueta + SCP + extract + rebuild + restart |
+| `scripts/start-stack-qas.sh` | 8 seeds + sync AD + resumen |
+| `scripts/validate-qas.sh` | 12 validaciones A-L (ejecutable en cualquier momento) |
+| `deploy/docker-compose.qas.yml` | 8 servicios, network sgd-qas-net, vol sgd-qas_* |
+| `deploy/Dockerfile` (backend) | Python 3.12 + openpyxl + alembic + uvicorn |
+| `frontend/Dockerfile` | node:22 + Vite + (después de FIX 5: respeta .dockerignore) |
+| `frontend/.dockerignore` (NUEVO sesión 20) | Excluye node_modules, dist, .git, worktrees, etc. |
+| `backend/scripts/seed_*.py` | 8 seeds idempotentes |
+| `backend/alembic/versions/*.py` | 13 migraciones (001-013) |
+| `docs/PR/PLAN-DEPLOY-QAS-SESION18.md` | Este documento |
+
+---
+
+**Fin del plan.** Para cualquier duda, revisar la bitácora de la sesión 19 (entrada completa en `docs/PR/BITACORA.md`).
