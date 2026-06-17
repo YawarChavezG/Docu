@@ -23,7 +23,7 @@ from app.models.email_template import EmailTemplate, CodigoPlantilla
 
 # Variables disponibles en TODAS las plantillas (panel UI "Etiquetas Disponibles")
 VARS_COMUNES = [
-    "{{CODIGO}}", "{{TITULO}}", "{{USUARIO}}", "{{FECHA_LIMITE}}",
+    "{{CODIGO}}", "{{TITULO}}", "{{VERSION}}", "{{USUARIO}}", "{{FECHA_LIMITE}}",
     "{{ETAPA}}", "{{LINK}}", "{{GERENCIA}}", "{{OBSERVACION}}",
     "{{REASIGNADO_POR}}", "{{TAREA}}", "{{FECHA_VENCIMIENTO}}",
 ]

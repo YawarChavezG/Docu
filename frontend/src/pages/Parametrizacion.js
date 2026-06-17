@@ -203,6 +203,9 @@ export const page = {
       },
 
       /* ── Tiempos y SLAs (US-9.01) ── */
+      // Sesion 23 / Bloque A5: plazoRevision y plazoLectura fueron removidos
+      // porque son redundantes con la tabla semaforizacion_tarea. La grilla
+      // de semaforos por tipo de tarea es la unica fuente de verdad.
       tiempos: { plazoRevision: 5, plazoLectura: 3 },
       vigencias: [],
       // Semaforizacion por tipo de tarea (sesion 13: nueva tabla)
@@ -214,15 +217,6 @@ export const page = {
       async cargarTiempos() {
         this.loading.tiempos = true
         try {
-          // Traer todas las claves de config (mezcla VIGENCIA + FLUJO).
-          const res = await configGlobal.list()
-          if (res.ok) {
-            const cfg = (res.data.items || []).reduce((acc, c) => { acc[c.clave] = c.valor; return acc }, {})
-            this.tiempos = {
-              plazoRevision: parseInt(cfg.plazo_revision_aprobacion_dias || '5', 10),
-              plazoLectura: parseInt(cfg.plazo_control_lectura_dias || '3', 10),
-            }
-          }
           // Cargar tipos-doc con periodo_vigencia para la grilla de vigencias
           const tdRes = await tiposDocumento.list()
           if (tdRes.ok) {
@@ -252,12 +246,7 @@ export const page = {
       },
       async guardarTiempos() {
         try {
-          // 1) Guardar plazos globales (bulkUpsert)
-          await configGlobal.bulkUpsert('VIGENCIA', [
-            { clave: 'plazo_revision_aprobacion_dias', valor: String(this.tiempos.plazoRevision) },
-            { clave: 'plazo_control_lectura_dias', valor: String(this.tiempos.plazoLectura) },
-          ])
-          // 2) Guardar periodo_vigencia por cada tipo de documento que haya cambiado
+          // 1) Guardar periodo_vigencia por cada tipo de documento que haya cambiado
           let cambiosVigencia = 0
           for (const v of this.vigencias) {
             const orig = (this._vigenciasOriginal || []).find(x => x.id === v.id)
@@ -272,8 +261,8 @@ export const page = {
           }
           window.toast(
             cambiosVigencia > 0
-              ? `Tiempos + ${cambiosVigencia} vigencia(s) de tipo actualizadas`
-              : 'Plazos de vigencia y lectura guardados',
+              ? `${cambiosVigencia} vigencia(s) de tipo actualizadas`
+              : 'Vigencias guardadas',
             'success'
           )
           await this.cargarLogs()
@@ -1554,17 +1543,7 @@ export const page = {
           </tbody>
         </table>
         </div>
-        <div class="form-hint mt-2">REVISION/APROBACION/CONTROL_LECTURA: 7/7/7. EVALUACION: 5/5/5. El plazo máximo por defecto es 15 días naturales.</div>
-        <div class="form-grid-2 mt-3">
-          <div>
-            <label class="form-label text-[10.5px]">Plazo máx. revisión/aprobación (días)</label>
-            <input type="number" x-model="tiempos.plazoRevision" min="1" max="30" class="form-input text-xs">
-          </div>
-          <div>
-            <label class="form-label text-[10.5px]">Plazo máx. control de lectura (días)</label>
-            <input type="number" x-model="tiempos.plazoLectura" min="15" max="60" class="form-input text-xs">
-          </div>
-        </div>
+        <div class="form-hint mt-2">REVISION/APROBACION/CONTROL_LECTURA: 7/7/7. EVALUACION: 5/5/5. El plazo máximo por defecto es 15 días naturales. Sesión 23: los plazos globales de revisión/aprobación y control de lectura fueron removidos por ser redundantes con esta grilla.</div>
       </div>
     </div>
   </div>

@@ -12,7 +12,7 @@
  *  - Paso 1: crear doc via POST antes de pasar a paso 2
  */
 import { documentos, bandejas } from '../services/documentosApi.js'
-import { tiposDocumento, gerencias as gerenciasApi, areas as areasApi, usuarios as usuariosApi, roles as rolesApi } from '../services/parametrizacionApi.js'
+import { tiposDocumento, gerencias as gerenciasApi, areas as areasApi, usuarios as usuariosApi, roles as rolesApi, configGlobal } from '../services/parametrizacionApi.js'
 
 export const page = {
   init() {
@@ -35,6 +35,9 @@ export const page = {
       tipoSolicitud: '',
       titulo: '',
       justificacion: '',
+
+      // ─── Limites de archivos (cargados de configuracion_global en init()) ───
+      _limitesArchivos: { maxTamanoArchivoMb: 20, maxArchivosPorSolicitud: 20 },
 
       // ─── Codigo automatico (del backend) ───
       codigoAuto: '---',
@@ -68,11 +71,12 @@ export const page = {
         this.cargandoCatalogos = true
         try {
           // Cargar catalogos en paralelo
-          const [tiposRes, gerRes, areasRes, usersRes] = await Promise.all([
+          const [tiposRes, gerRes, areasRes, usersRes, cfgRes] = await Promise.all([
             tiposDocumento.list(),
             gerenciasApi.list('', 1, 200),
             areasApi.list('', ''),
             usuariosApi.listActivos(''),
+            configGlobal.list('ARCHIVOS'),
           ])
           if (tiposRes.ok) this.tiposList = tiposRes.data?.items || []
           if (gerRes.ok) this.gerenciasList = gerRes.data?.items || []
@@ -84,6 +88,18 @@ export const page = {
               nombre_completo: u.nombre_completo,
               cargo: u.cargo,
             }))
+          }
+          // Cargar limites de archivos desde configuracion_global (categoria=ARCHIVOS)
+          if (cfgRes.ok && cfgRes.data?.items) {
+            for (const cfg of cfgRes.data.items) {
+              if (cfg.clave === 'max_tamano_archivo_mb') {
+                const v = parseInt(cfg.valor, 10)
+                if (!isNaN(v)) this._limitesArchivos.maxTamanoArchivoMb = v
+              } else if (cfg.clave === 'max_archivos_por_solicitud') {
+                const v = parseInt(cfg.valor, 10)
+                if (!isNaN(v)) this._limitesArchivos.maxArchivosPorSolicitud = v
+              }
+            }
           }
           // Construir arbol de difusion desde gerencias + areas
           this.arbol = (this.gerenciasList || []).map(g => ({
@@ -217,37 +233,28 @@ export const page = {
 
       // ─── Navegacion entre pasos ───
       async nextPaso() {
-        // Paso 1 -> 2: validar + crear documento en BD
+        // Paso 1 -> 2: solo validar (NO crear documento todavia, eso se hace al firmar)
         if (this.paso === 1) {
           if (!this.tipodoc || !this.gerencia || !this.area || !this.tipoSolicitud || !this.titulo.trim()) {
             window.toast?.('Complete todos los campos obligatorios del paso 1', 'warn')
             return
           }
-          // POST /documentos (solo si no hay documentoId)
-          if (!this.documentoId) {
-            this.submitting = true
-            const res = await documentos.create({
-              gerencia_id: Number(this.gerencia),
-              area_id: Number(this.area),
-              tipo_documento_id: Number(this.tipodoc),
-              titulo: this.titulo.trim(),
-              comentarios_eto: null,
-              tipo_solicitud: this.tipoSolicitud,
-            })
-            this.submitting = false
-            if (!res.ok) {
-              window.toast?.(res.message || 'Error al crear documento', 'error')
+          // Validar tamano y cantidad de archivos contra configuracion_global (A3)
+          if (this._limitesArchivos) {
+            const maxMB = this._limitesArchivos.maxTamanoArchivoMb || 20
+            const maxCant = this._limitesArchivos.maxArchivosPorSolicitud || 20
+            const total = (this.archivoPrincipal ? 1 : 0) + this.formulariosAsociados.length
+            if (total > maxCant) {
+              window.toast?.(`Excede el maximo de ${maxCant} archivos por solicitud (tiene ${total})`, 'warn')
               return
             }
-            this.documentoId = res.data.documento.id
-            this.flujoId = res.data.flujo_id
-            window.toast?.('Documento creado (codigo ' + res.data.documento.codigo_completo + '). Continuando...', 'success')
-            // Subir archivo principal si existe
-            if (this.archivoPrincipal) {
-              await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
-            }
-            for (const f of this.formulariosAsociados) {
-              await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
+            const allFiles = this.archivoPrincipal ? [this.archivoPrincipal, ...this.formulariosAsociados] : this.formulariosAsociados
+            for (const f of allFiles) {
+              const sizeMB = f.size / 1024 / 1024
+              if (sizeMB > maxMB) {
+                window.toast?.(`El archivo "${f.name}" (${sizeMB.toFixed(1)} MB) excede el maximo de ${maxMB} MB`, 'warn')
+                return
+              }
             }
           }
         }
@@ -274,22 +281,53 @@ export const page = {
           mensaje: 'Va a enviar la solicitud <strong>"' + (this.titulo || 'Nuevo Documento') + '"</strong> al flujo de Liberacion ETO. Esta accion requiere doble autenticacion.',
           onSuccess: async ({ password }) => {
             this.submitting = true
-            const res = await documentos.enviar(this.documentoId, {
-              password: password || '',
-              revisor_ids: this.revisores.map(r => r.user_id),
-              aprobador_ids: this.aprobadores.map(a => a.user_id),
-              requiere_evaluacion: this.requiereEval === 'si',
-              requiere_control_lectura: this.requiereLectura === 'si',
-              alcance_difusion_ids: this.chipsDifusion.map(c => c.id),
-              reemplaza_documento_ids: this.chipsReemplazo.length ? [] : null,
-              justificacion: this.justificacion || null,
-            })
-            this.submitting = false
-            if (res.ok) {
-              window.toast?.('Solicitud enviada a ETO correctamente.', 'success')
-              window.navigate?.('/bandeja')
-            } else {
-              window.toast?.(res.message || 'Error al enviar', 'error')
+            try {
+              // 1) Crear el documento en BD (recien al firmar, no antes)
+              if (!this.documentoId) {
+                const resCreate = await documentos.create({
+                  gerencia_id: Number(this.gerencia),
+                  area_id: Number(this.area),
+                  tipo_documento_id: Number(this.tipodoc),
+                  titulo: this.titulo.trim(),
+                  comentarios_eto: null,
+                  tipo_solicitud: this.tipoSolicitud,
+                })
+                if (!resCreate.ok) {
+                  window.toast?.(resCreate.message || 'Error al crear documento', 'error')
+                  this.submitting = false
+                  return
+                }
+                this.documentoId = resCreate.data.documento.id
+                this.flujoId = resCreate.data.flujo_id
+                // Subir archivos despues de crear
+                if (this.archivoPrincipal) {
+                  await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
+                }
+                for (const f of this.formulariosAsociados) {
+                  await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
+                }
+              }
+              // 2) Enviar a liberacion con firma 2FA
+              const res = await documentos.enviar(this.documentoId, {
+                password: password || '',
+                revisor_ids: this.revisores.map(r => r.user_id),
+                aprobador_ids: this.aprobadores.map(a => a.user_id),
+                requiere_evaluacion: this.requiereEval === 'si',
+                requiere_control_lectura: this.requiereLectura === 'si',
+                alcance_difusion_ids: this.chipsDifusion.map(c => c.id),
+                reemplaza_documento_ids: this.chipsReemplazo.length ? [] : null,
+                justificacion: this.justificacion || null,
+              })
+              this.submitting = false
+              if (res.ok) {
+                window.toast?.('Solicitud enviada a ETO correctamente.', 'success')
+                window.navigate?.('/bandeja')
+              } else {
+                window.toast?.(res.message || 'Error al enviar', 'error')
+              }
+            } catch (e) {
+              this.submitting = false
+              window.toast?.('Error inesperado: ' + (e?.message || e), 'error')
             }
           },
         })
@@ -389,6 +427,19 @@ export const page = {
       <div class="sm:col-span-2">
         <label class="form-label">Titulo del documento *</label>
         <input type="text" class="form-input text-xs" x-model="titulo" placeholder="Ej.: Procedimiento de Control de Documentos del SIG">
+      </div>
+      <!-- Sesion 23 / Bloque A6: campos read-only del solicitante -->
+      <div>
+        <label class="form-label">Nombre del solicitante</label>
+        <input type="text" :value="$store.auth?.user?.nombre_completo || ''" class="form-input bg-slate-50 text-slate-500 text-xs cursor-not-allowed" readonly tabindex="-1">
+      </div>
+      <div>
+        <label class="form-label">Cargo</label>
+        <input type="text" :value="$store.auth?.user?.cargo || ''" class="form-input bg-slate-50 text-slate-500 text-xs cursor-not-allowed" readonly tabindex="-1">
+      </div>
+      <div>
+        <label class="form-label">Fecha</label>
+        <input type="text" :value="new Date().toLocaleDateString('es-BO', { year: 'numeric', month: '2-digit', day: '2-digit' })" class="form-input bg-slate-50 text-slate-500 text-xs cursor-not-allowed" readonly tabindex="-1">
       </div>
       <div class="sm:col-span-2">
         <label class="form-label">Justificacion / motivo de la solicitud</label>
