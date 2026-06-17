@@ -75,6 +75,15 @@ echo [3/6] Extrayendo en QAS...
 ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && cp -a .env.qas /tmp/.env.qas.bak 2>/dev/null; cp -a deploy/nginx/ssl /tmp/ssl.bak 2>/dev/null; find . -mindepth 1 -path './backups' -prune -o -path './deploy/nginx/ssl' -prune -o -path './.env.qas' -prune -o -delete; python3 -c 'import zipfile; zipfile.ZipFile(chr(47)+chr(116)+chr(109)+chr(112)+chr(47)+chr(115)+chr(103)+chr(100)+chr(95)+chr(100)+chr(101)+chr(112)+chr(108)+chr(111)+chr(121)+chr(46)+chr(122)+chr(105)+chr(112)).extractall(chr(46))'; cp -a /tmp/.env.qas.bak .env.qas 2>/dev/null; mkdir -p deploy/nginx/ssl && cp -a /tmp/ssl.bak/. deploy/nginx/ssl/ 2>/dev/null; chmod +x scripts/*.sh 2>/dev/null; rm -f /tmp/sgd_deploy.zip /tmp/.env.qas.bak; echo OK_EXTRACT"
 echo.
 
+REM ─── 3.5. Renombrar sgd-qas.conf.bk a .conf (FIX 1) ──────────────
+REM    El repo tiene sgd-qas.conf con sufijo .bk para que nginx en DES
+REM    no lo cargue (ahi corre sgd.conf catch-all). Pero al deployar a
+REM    QAS, nginx solo carga archivos *.conf (no *.conf.bk), por lo
+REM    que sin este rename QAS queda sin server block -> ERR_CONNECTION_REFUSED.
+echo [3.5/6] Renombrando sgd-qas.conf.bk -> .conf para nginx...
+ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf; echo RENAMED_BK_TO_CONF; else echo ALREADY_CONF_OR_MISSING; fi"
+echo.
+
 REM ─── 4. Rebuild imagenes si hay cambios ───
 echo [4/6] Rebuild imagenes Docker (si hay cambios)...
 ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --pull --no-cache backend celery-worker celery-beat frontend 2>&1 | tail -10"

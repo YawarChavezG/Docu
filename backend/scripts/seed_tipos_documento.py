@@ -33,7 +33,7 @@ TIPOS = [
     (4,  "PLAN",                  "Plan",                        4,    None),
     (5,  "PROCEDIMIENTO",         "Procedimiento",               4,    None),
     (6,  "INSTRUCTIVO",           "Instructivo",                 4,    None),
-    (6,  "INSTRUCTIVO_TECNICO",   "Instructivo Tecnico",         None, "SOLO APLICA PARA MANTENIMIENTO"),
+    (15, "INSTRUCTIVO_TECNICO",   "Instructivo Tecnico",         None, "SOLO APLICA PARA MANTENIMIENTO"),
     (7,  "ESPECIFICACION",        "Especificacion",              4,    None),
     (9,  "PROTOCOLO",             "Protocolo",                   None, "INDEFINIDO"),
     (10, "MANUAL_PROCESO",        "Manual de Proceso",           4,    None),
