@@ -25,7 +25,6 @@ import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import { TextStyle } from '@tiptap/extension-text-style'
 import { Color } from '@tiptap/extension-color'
-import { Underline } from '@tiptap/extension-underline'
 
 /**
  * Crea e inicializa un editor Tiptap dentro de `el`.
@@ -38,10 +37,11 @@ export function initPlantillaEditor(el, initialHtml, onUpdate) {
   const editor = new Editor({
     element: el,
     extensions: [
-      StarterKit.configure({
-        // Default options OK. Heading levels 1, 2, 3.
-      }),
-      Underline,
+      // Tiptap 3.x StarterKit ya incluye Bold, Italic, Strike, Underline,
+      // Headings (H1-H6), BulletList, OrderedList, Blockquote, CodeBlock,
+      // History (undo/redo), Document, Paragraph, Text, etc.
+      // No hay que importar Underline aparte.
+      StarterKit,
       TextStyle,
       Color,
     ],
