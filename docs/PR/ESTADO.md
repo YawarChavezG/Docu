@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 23 — **Bloques A+B cerrados: 11 sub-tareas, 2 commits atómicos**)
+> Última actualización: 2026-06-17 (sesión 23 — **Bloques A+B+C cerrados: 13 sub-tareas, 3 commits atómicos**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
@@ -108,6 +108,9 @@
 | B3 | Estados: enum ACCION + data-migration a 12 nuevos | ✅ | 17-jun | Migracion 353aec067661: ALTER TYPE contexto_estado ADD VALUE 'ACCION' + 9 antiguos activo=false + 12 nuevos (3 PROCESO + 6 TAREA + 3 ACCION). envio_service.py: usa nuevo REVISION. |
 | B4 | Firma 2FA: crear fila en firma_digital | ✅ | 17-jun | envio_service.py: crea FirmaDigital(resultado_exito=true) atómico. Tambien registra FirmaDigital(resultado_exito=false, motivo_fallo=password_invalida) en intento fallido. Bug preexistente validar_password_usuario corregido (replica logica dual de auth.py). |
 | B5 | Fix doble toast en firma 2FA | ✅ | 17-jun | AuthModal.js: removido window.toast('Firma digital registrada') que se mostraba ANTES del callback onSuccess. Solo el callback muestra el resultado (éxito o error). |
+| **Sesion 23 (Bloque C — sync AD mejorado)** | | | | |
+| C1 | Sync AD: usuarios deshabilitados → estado=desvinculado | ✅ | 17-jun | usuarios.py POST /sync-ad: despues de procesar AD, busca en BD usuarios con ad_postal_code y estado activo/inactivo cuyo username no esta en AD, los marca como desvinculado. NUNCA se eliminan. Si estaba desvinculado y vuelve a AD, se reactiva. SyncAdResponse ahora incluye campo 'desvinculados'. |
+| C2 | Flag es_usuario_ad (AD vs local) | ✅ | 17-jun | Migracion 8aa4cfa0f92f: nueva columna es_usuario_ad (bool, indexed). Backfill: 754 usuarios con ad_postal_code → true, 10 sin SAP → false. auth.py y usuarios.py setean true al crear desde AD. |
 | N36 | Fix refresh bug: race auth.init vs initRouter | ✅ | 17-jun | 3 cambios: (1) auth.js init() restaura SINCRONO desde localStorage + flag isReady. (2) router/index.js guard !isReady con loader (no redirige durante init). (3) debug page /_debug/session permanente. 6/6 smoke tests Chrome MCP. Commit `733e8b6` |
 
 ### R2 — Wizard de creación

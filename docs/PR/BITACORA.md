@@ -2570,3 +2570,72 @@ ew Date().toLocaleDateString('es-BO'). |
 - 715cee2 docs(pr): sesion 23 — Bloque A cerrado
 - e795c8f fix(wizard): actualizar hint del botón Siguiente
 - 95e1b5b feat(ausencias+firmas+estados): Bloque B (5 sub-tareas)
+
+---
+
+## Sesion 23 (continuacion 2) — 2026-06-17 (miercoles 18:30 ? 19:00) — Bloque C: 2 sub-tareas (sync AD mejorado)
+
+> Sesion dedicada a cerrar el Bloque C del plan propuesto al usuario.
+> 2 sub-tareas criticas: C1 marcar desvinculados, C2 flag es_usuario_ad.
+> Commit atómico 8f5ef3a con 4 archivos (3 backend + 1 migracion).
+
+### Problemas reportados
+
+1. **Sync AD no marca desvinculados**: cuando un usuario del AD se deshabilita
+   o elimina, la BD seguia teniendolo como "activo". Queria que se marcara
+   como "desvinculado" automaticamente.
+2. **Usuarios AD vs local**: el login AD creaba usuarios con zure_oid=None
+   y solo d_postal_code lleno. El usuario queria un flag explicito
+   es_usuario_ad para distinguir.
+
+### Tareas ejecutadas (orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| C1 | POST /sync-ad: marcar desvinculados | 8f5ef3a | usuarios.py: despues de procesar AD, busca usuarios en BD con d_postal_code IS NOT NULL y estado IN (activo, inactivo) cuyo username no aparece en el resultado del AD. Los marca como estado=desvinculado. NUNCA se eliminan fisicamente. Si estaba desvinculado y vuelve a AD, se reactiva. SyncAdResponse ahora incluye campo desvinculados. |
+| C2 | Columna es_usuario_ad | 8f5ef3a | modelo Usuario: nueva columna es_usuario_ad: bool = False, indexed. Migracion 8aa4cfa0f92f: ALTER TABLE + backfill (usuarios con d_postal_code IS NOT NULL ? true). auth.py (login on-the-fly desde LDAP) y usuarios.py (sync-ad) setean es_usuario_ad=true al crear. |
+
+### Validacion empirica
+
+| Verificacion | Resultado |
+|---|---|
+| Distribucion es_usuario_ad en BD | 754 con true (los del AD), 10 con false (stubs DES + sin SAP) |
+| Usuario de prueba con SAP=99999999 | Insert OK, simularia desvinculado si NO esta en AD |
+| Codigo del query de desvinculados | OK, query con IN (activo, inactivo), NO afecta a desvinculado ya |
+| Reactivacion automatica | Si existing.estado == DESVINCULADO y vuelve a AD, se pone ACTIVO |
+
+### Hallazgos / trampas
+
+- **Validacion manual del flujo end-to-end de sync-ad requiere AD real** (no se
+  puede mockear facilmente en DES). El codigo esta correcto y revisado, pero
+  el test live se hara cuando el admin corra el sync contra el AD real
+  (proxima sesion o en QAS).
+- **El modelo Usuario tiene muchos NOT NULL**: ausente, estado_delegacion,
+  visualiza_reportes, requiere_delegado. Insertar via psql requiere todos.
+
+### Decisiones tecnicas (ADRs candidatos)
+
+- **ADR-052**: El sync AD NUNCA elimina usuarios de la BD. Si el usuario
+  ya no esta en el AD (deshabilitado o borrado), se marca como
+  estado=desvinculado para preservar audit_log, historial de bandejas,
+  aprobaciones pasadas y referencias en otras tablas (Sesion 23).
+- **ADR-053**: La columna es_usuario_ad distingue usuarios de AD
+  (sincronizados via sync-ad O creados en login on-the-fly desde LDAP) de
+  usuarios locales (stubs de DES, admin_local, sembrados manualmente).
+  Permite filtrar y reportar correctamente por fuente (Sesion 23).
+
+### Pendientes (Bloques D-F)
+
+- **D**: impersonate end-to-end (cookie, sidebar, bandejas) ~1h
+- **E**: pagina /plantillas nueva + storage local ~2h
+- **F**: wizard pulido (filtros ETO/REVISOR/APROBADOR, asunto en plantillas,
+  ocultar delegado visualizador/admin, storage local momentaneo) ~2h
+
+### Commits acumulados sesion 23
+
+- b1e45e fix(wizard+seeds+semaforos): Bloque A (6 sub-tareas)
+- 715cee2 docs(pr): sesion 23 — Bloque A cerrado
+- e795c8f fix(wizard): actualizar hint del botón Siguiente
+- 95e1b5b feat(ausencias+firmas+estados): Bloque B (5 sub-tareas)
+- 7d3fbd7 docs(pr): sesion 23 — Bloques A+B cerrados
+- 8f5ef3a feat(sync-ad): Bloque C (2 sub-tareas)
