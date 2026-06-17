@@ -51,7 +51,7 @@ export const page = {
       <div style="display:flex;gap:8px">
         <input type="text" class="form-input"
                style="flex:1;font-family:monospace;font-weight:600;text-transform:uppercase;font-size:12px"
-               placeholder="EJ: PRO-CAL-005"
+               placeholder="EJ: CC-3-005/01"
                x-model="codBuscar"
                @input="$el.value=$el.value.toUpperCase();codBuscar=$el.value"
                @keydown.enter="buscarEditable()">

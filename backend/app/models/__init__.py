@@ -46,6 +46,22 @@ from app.models.semaforizacion_tarea import SemaforizacionTarea, TipoTarea  # no
 # ─── Auditoria (EPICA 9) ───
 from app.models.audit_log import AuditLog  # noqa: F401
 
+# ─── R2: Documentos y workflow (sesion 21) ───
+from app.models.documento import (  # noqa: F401
+    Documento,
+    VigenciaDocumento,
+    EstatusDocumento,
+)
+from app.models.documento_flujo import (  # noqa: F401
+    DocumentoFlujo,
+    TipoSolicitud,
+)
+from app.models.archivo_adjunto import (  # noqa: F401
+    ArchivoAdjunto,
+    TipoAdjunto,
+    StorageBackend,
+)
+
 
 __all__ = [
     "Base",
@@ -81,4 +97,12 @@ __all__ = [
     "SemaforizacionTarea",
     "TipoTarea",
     "AuditLog",
+    "Documento",
+    "VigenciaDocumento",
+    "EstatusDocumento",
+    "DocumentoFlujo",
+    "TipoSolicitud",
+    "ArchivoAdjunto",
+    "TipoAdjunto",
+    "StorageBackend",
 ]

@@ -45,6 +45,22 @@ from app.models.feriado import Feriado  # noqa: E402
 from app.models.matriz_enrutamiento_eto import MatrizEnrutamientoEto  # noqa: E402
 from app.models.configuracion_global import ConfiguracionGlobal  # noqa: E402
 from app.models.audit_log import AuditLog  # noqa: E402
+# R2 sesion 21: modelos nuevos
+from app.models.documento import (  # noqa: E402
+    Documento,
+    VigenciaDocumento,
+    EstatusDocumento,
+)
+from app.models.documento_flujo import (  # noqa: E402
+    DocumentoFlujo,
+    TipoSolicitud,
+)
+from app.models.archivo_adjunto import (  # noqa: E402
+    ArchivoAdjunto,
+    TipoAdjunto,
+    StorageBackend as StorageBackendAdjunto,
+)
+from app.models.semaforizacion_tarea import SemaforizacionTarea  # noqa: E402
 
 from app.core.database import Base  # noqa: E402
 from app.core import database as db_module  # noqa: E402
@@ -55,6 +71,38 @@ test_engine = create_async_engine(
     echo=False,
     connect_args={"check_same_thread": False},
 )
+
+# SQLite no tiene hashtext() ni pg_try_advisory_xact_lock(). Registramos
+# stubs para que los servicios que usan advisory locks (correlativo_service)
+# funcionen en tests. La implementacion es deterministica y serial: para el
+# mismo key, siempre devuelve el mismo "lock" (que es solo un valor cualquiera).
+import hashlib
+
+
+def _sqlite_hashtext(s) -> int:
+    """Stub de Postgres hashtext(). Devuelve un int32 deterministico.
+    Acepta str o bytes porque SQLite puede pasarle cualquiera."""
+    if isinstance(s, bytes):
+        s = s.decode("utf-8")
+    h = hashlib.md5(s.encode("utf-8")).hexdigest()
+    # Primeros 8 chars como int (32 bits, mismo rango que hashtext)
+    return int(h[:8], 16) & 0x7FFFFFFF
+
+
+def _sqlite_pg_try_advisory_xact_lock(key) -> int:
+    """Stub de pg_try_advisory_xact_lock(). En SQLite los tests son single-thread,
+    asi que siempre devuelve 1 (true)."""
+    return 1
+
+
+from sqlalchemy import event
+
+
+@event.listens_for(test_engine.sync_engine, "connect")
+def _register_sqlite_functions(dbapi_conn, connection_record):
+    """Registra hashtext y pg_try_advisory_xact_lock como funciones SQLite."""
+    dbapi_conn.create_function("hashtext", 1, _sqlite_hashtext)
+    dbapi_conn.create_function("pg_try_advisory_xact_lock", 1, _sqlite_pg_try_advisory_xact_lock)
 TestSessionLocal = async_sessionmaker(
     test_engine,
     class_=AsyncSession,
