@@ -104,6 +104,7 @@ REQUIRED_FILES=(
     "${SCRIPTS_DIR}/seed_feriados.py"
     "${SCRIPTS_DIR}/seed_email_templates.py"
     "${SCRIPTS_DIR}/seed_matriz_eto.py"
+    "${SCRIPTS_DIR}/seed_configuracion_global.py"
     "${SCRIPTS_DIR}/sync_ad_oficial.py"
 )
 MISSING=()
@@ -215,6 +216,7 @@ SEEDS=(
     "seed_feriados.py:20 feriados Bolivia 2026 (11 nac + 9 dptos)"
     "seed_email_templates.py:6 plantillas de notificacion (US-9.04)"
     "seed_matriz_eto.py:10 filas matriz ETO + usuario cecEspinoza"
+    "seed_configuracion_global.py:11 parametros US-9.01+9.02 (VIGENCIA, SEMAFORO, ARCHIVOS, DESCARGAS)"
 )
 SEED_FAILED=0
 for entry in "${SEEDS[@]}"; do
@@ -231,7 +233,7 @@ done
 if [ "$SEED_FAILED" -gt 0 ]; then
     warn "${SEED_FAILED} seed(s) fallaron. Verificar manualmente: docker exec ${C_BACKEND} python scripts/seed_*.py"
 else
-    ok "7/7 seeds aplicados correctamente."
+    ok "8/8 seeds aplicados correctamente."
 fi
 
 # ─── 7. Sync AD (opcional, solo si LDAP_ENABLED=true) ───
@@ -285,6 +287,8 @@ docker exec "$C_POSTGRES" psql -U "$(grep ^POSTGRES_USER "$ENV_FILE" | cut -d= -
         SELECT '  feriados:        ' || count(*) FROM feriados;
         SELECT '  email_templates: ' || count(*) FROM email_templates;
         SELECT '  matriz_eto:      ' || count(*) FROM matriz_enrutamiento_eto;
+        SELECT '  configuracion:   ' || count(*) FROM configuracion_global;
+        SELECT '  semaforizacion:  ' || count(*) FROM semaforizacion_tarea;
         SELECT '  alembic:         ' || version_num FROM alembic_version;
     " 2>/dev/null | grep -v '^$'
 
