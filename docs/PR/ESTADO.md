@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 16 — Tiptap+Alpine root cause fixed + debug page eliminada)
+> Última actualización: 2026-06-17 (sesión 17 — Cierre R1: Matriz ETO + Previsualizar + Impersonate)
 
 ## Versión actual
-**v0.5.7-dev** (sesión 16: Tiptap+Alpine root cause FIXED. Editor en closure del factory Alpine.data (patron oficial). TextStyleKit + commands.setColor/setFontSize. @mousedown.prevent en toolbar. Persistencia validada en BD. Debug page eliminada. `Applying a mismatched transaction` RESUELTO definitivamente.)
+**v1.0.0-dev** (sesión 17: **R1 CERRADO al 100%**. Matriz ETO: dropdowns muestran analistas/delegados correctamente (fix del quirk Alpine 3 con options dinámicas). Plantillas: eliminada opción "Previsualizar" (-30 líneas, Tiptap es WYSIWYG). Impersonate: funcional con banner sticky TOP + audit dedicado (recurso='impersonate', accion IMPERSONATE_START/STOP). ADMIN y ETO pueden impersonar. Validaciones no-auto + no-doble-impersonate. 7 entradas en audit_log validadas. **R1 listo para R2**.)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
@@ -81,6 +81,12 @@
 | N28 | WSIWYG @mousedown.prevent en toolbar | ✅ | 17-jun | Aplicado a 17 botones (16 toolbar + 1 chip de variable) para evitar que roben focus del editor. |
 | N29 | Validacion persistencia Tiptap -> BD | ✅ | 17-jun | Editor -> PATCH /email-templates/{cod} -> BD verificada con `psql`. F5 + re-login recupera contenido correctamente. |
 | N30 | Validacion previsualizar con MOCK data | ✅ | 17-jun | Preview genera HTML con variables {{...}} sustituidas por mock. |
+| **Sesion 17 (cierre R1)** | | | | |
+| N31 | Fix Matriz ETO dropdowns binding (Alpine 3 quirk) | ✅ | 17-jun | Convertir analista_id/delegado_id a string en mapeo, agregar data-attrs, forzar value en await nextTick. Mismo fix al checkbox. Commit `df4aceb`. |
+| N32 | Eliminar opcion "Previsualizar" de plantillas | ✅ | 17-jun | -30 lineas netas. Estado, 2 handlers, boton, overlay, 3 x-if condicionales. Tiptap es WYSIWYG, no necesita preview. Commit `df4aceb`. |
+| N33 | Impersonate funcional: ADMIN/ETO + no-auto + audit dedicado | ✅ | 17-jun | Backend admin_impersonate acepta ETO. Validaciones no-auto + no-doble-impersonate. write_audit con recurso='impersonate' + accion dedicada IMPERSONATE_START/STOP. Bugfix preexistente ad_user['dn']. Commit `4763ff9`. |
+| N34 | Banner sticky de impersonate en AppLayout | ✅ | 17-jun | Banner TOP fixed con gradiente amber→orange→red, visible en todas las paginas autenticadas. Padding-top dinamico. Boton "Terminar Impersonate" via CustomEvent. Commit `4763ff9`. |
+| N35 | Frontend impersonarUsuario + stopImpersonate | ✅ | 17-jun | Validaciones frontend (rol + no-auto). refreshFromBackend en vez de window.location.hash. Boton Impersonar solo visible para admin/eto. Commit `df4aceb` (impersonarUsuario/stopImpersonate) + `4763ff9` (handler del store). |
 
 ### R2 — Wizard de creación
 
@@ -120,7 +126,7 @@
 ---
 
 ## Progreso R1
-**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** + **1 tarea nueva sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion + 11 parametros BD + 4 bugs preexistentes)** + **11 tareas nuevas sesión 13 (A1-A11 + refactor tipos_documento + semaforización + plantillas 10 + Tiptap deps)** + **7 commits sesión 14 (recuperación Docker + cierre de pendientes)** + **5 tareas nuevas sesión 16 (Tiptap closure fix + TextStyleKit + mousedown.prevent + persistencia BD + previsualizar mock)** = **38/38 tareas R1 + EPICA9 + Parametrizacion (100%)**
+**38/38 tareas R1 + EPICA9 + Parametrizacion (100% CERRADO)** = **41/41 con la sesión 17 (Matriz ETO + Previsualizar + Impersonate)**. Tests pytest 123/123.
 
 ## Progreso QAS
 **8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 8 seeds (incluye `seed_configuracion_global.py` en sesión 14) + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
@@ -329,7 +335,7 @@ Backlog menor:
 - ✅ Sesión 11: Automatización QAS — `start-stack-qas.sh` 1-click + fix permisos storage + refactor smell `_build_server` → `build_server`
 - ✅ **Sesión 12 (ESTA): Restaurar CRUD Parametrizacion — 2 commits (29001ae seed + 4b75cdc frontend fix) + 4 bugs preexistentes + 11 parametros BD + validacion end-to-end**
 
-## Estado de la sesion actual (16 � Tiptap+Alpine root cause)
+## Estado de la sesion actual (16 � Tiptap+Alpine root cause)
 
 - ? Sesion 15: UI/UX Vigencia + Tiptap fixes (mitigacion) + Export fixes (commit ed35e33)
 - ? **Sesion 16 (ESTA): Tiptap+Alpine root cause FIXED**

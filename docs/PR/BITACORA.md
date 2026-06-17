@@ -1610,3 +1610,125 @@ forma de wrappear el editor en un Proxy.
 4. **R2 — Wizard de creacion** (tareas #23+): ya esta todo listo.
 5. **#13 Deuda delegado** (fuzzy + threshold 0.85): ~30 min.
 6. **#14 Cargos a areas** (seed POSICION -> area_id): mediano.
+
+---
+
+## Sesion 17 - 2026-06-17 (miercoles 06:00 -> 06:25) - Cierre R1: Matriz ETO + Previsualizar + Impersonate
+
+> Sesion dedicada a cerrar los 3 ultimos pendientes identificados por el usuario
+> para dar R1 por cerrado. Todo en una sola sesion (~25 min de codigo + 30 min
+> de diagnostico con Chrome DevTools + 15 min de docs).
+
+### Problemas reportados
+1. **Matriz ETO vacia**: dropdowns de Analista ETO Asignado mostraban
+   "Seleccionar" aunque la BD tenia los analistas cargados (CAL=aromero,
+   RRH=cecEspinoza, etc.). El usuario sospechaba que "ni se ven los valores".
+2. **Previsualizar de plantillas obsoleto**: con Tiptap el editor es WYSIWYG,
+   la opcion "Previsualizar" no tiene sentido, quiere eliminarla.
+3. **Impersonate inactivo**: boton Impersonar existe en Gestion de Usuarios
+   pero el flujo end-to-end (banner, audit, refresh) no estaba conectado.
+   Solo ADMIN podia (no ETO). No habia registro en audit_log.
+
+### Diagnostico (guiado por el ritual INICIO-SESION.md)
+
+Sesion arranco con el ritual habitual (lectura de BITACORA, ESTADO,
+INICIO-SESION). Stack diagnosticado: 8 contenedores Up, backend healthy.
+
+**Bug 1**: inspeccion con Alpine.\ revelo que los datos SI se cargaban
+correctamente (matrizETO.length=10, analistas.length=4, usuariosActivos.length=200)
+pero los <select> con x-model.number="m.analista_id" no matcheaban. Causa:
+bug clasico de Alpine 3 - x-model no se re-bindea cuando las options del
+<template x-for> se cargan DESPUES del initial render. Mismo bug afecto al
+checkbox de disponibilidad.
+
+**Bug 2**: revisar dmin_impersonate.py (221 lineas, sesion 4) mostro que:
+- Solo ADMIN podia impersonar (no ETO)
+- Sin validacion de no-auto-impersonate
+- write_audit() NO se llamaba en start/stop
+- /me ya leia la cookie impersonated_user y devolvia impersonated_by
+  (auth.py:352-385), asi que la base estaba
+
+**Bug 3**: busqueda de previsualizar revelo 5 ocurrencias en
+Parametrizacion.js: estado (previewMode/previewHtml), 2 handlers
+(previsualizarPlantilla/cerrarPreview), boton, overlay, y 3 <template
+x-if="!previewMode && ...">. Limpio.
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 1 | Bug 1: Fix binding Matriz ETO | df4aceb | 3 cambios en Parametrizacion.js: (a) convertir analista_id/delegado_id a string en mapeo, (b) agregar data-matriz-id/data-matriz-select al <select>, (c) forzar el value desde cargarDiccionarios() dentro de await nextTick(). Mismo fix al checkbox. BD persistida, audit_log captura cambio. |
+| 2 | Bug 3: Eliminar Previsualizar | (mismo df4aceb) | -30 lineas netas. Removido estado, 2 handlers, boton, overlay, 3 x-if condicionales. |
+| 3 | Bug 2 front: impersonarUsuario + stopImpersonate | (mismo df4aceb) | Validaciones rol=admin/eto + no-auto-impersonate. refreshFromBackend() en vez de window.location.hash. Boton Impersonar solo visible si role=admin/eto. |
+| 4 | Bug 2 back: admin_impersonate acepta ETO + audit dedicado | 4763ff9 | ADMIN o ETO pueden impersonar. Validacion no-auto + no-doble-impersonate. write_audit() con recurso='impersonate' y accion dedicada IMPERSONATE_START/STOP. Bugfix preexistente: ad_user.get('dn',''). |
+| 5 | Bug 2 front: banner sticky en AppLayout.js | (mismo 4763ff9) | Banner TOP fixed con gradiente amber->orange->red. Visible en TODAS las paginas autenticadas. Padding-top dinamico en main. Boton "Terminar Impersonate" dispatchea evento. |
+| 6 | Bug 2 front: auth.js stopImpersonate handler | (mismo 4763ff9) | Listener del evento sgd-stop-impersonate. Metodo stopImpersonate() en el store con POST + refresh. |
+| 7 | stop() no loguea si no hay cookie | (mismo 4763ff9) | Fix de entradas huerfanas en audit_log. |
+
+### Logros tecnicos
+
+1. **3 bugs cerrados en 1 sesion** (~25 min de codigo).
+2. **2 commits atomicos**:
+   - df4aceb: 1 archivo (Parametrizacion.js, 162 lineas modificadas, +93/-69)
+   - 4763ff9: 4 archivos (backend + AppLayout + auth.js, +187/-19)
+3. **Audit log con campo dedicado**: ecurso='impersonate', ccion='IMPERSONATE_START'/'IMPERSONATE_STOP'. 7 entradas validadas (4 start + 3 stop, sin huerfanas).
+4. **Banner sticky funcional**: visible en Bandeja, Parametrizacion, y todas las paginas autenticadas. Gradiente amber->orange->red para maxima visibilidad.
+5. **Validaciones de seguridad**: no-auto-impersonate, no-doble-impersonate, solo ADMIN/ETO pueden impersonar (validado en backend + frontend).
+6. **Bug preexistente resuelto**: ad_user['dn'] -> ad_user.get('dn','') (KeyError cuando LDAP_ENABLED=true pero AD no responde).
+
+### Validacion empirica (Chrome DevTools)
+
+| Verificacion | Resultado |
+|---|---|
+| Login aromero/cofar.2026 como ETO | 200 OK + 3 cookies (csrf, session, user_id) |
+| Click tab Diccionarios y Enrutamiento | 10 filas, analistas visibles (Aracely/Cecilia), checkboxes Disponibilidad marcados |
+| Desmarcar Disp en CAL + cambiar analista + guardar | PATCH /api/v1/matriz-enrutamiento-eto/11 OK, BD persistida, audit_log capturo |
+| Boton Impersonar (frontend, aromero) | Visible solo si role=admin o role=eto (10 botones en la tabla actual) |
+| POST /admin/impersonate/start con sAMAccountName=aromero (auto) | 422 "No puede impersonarse a si mismo" |
+| POST /admin/impersonate/start con sAMAccountName=cespinoza | 200 OK, cookie impersonated_user seteada, /me devuelve cespinoza con es_impersonado=true |
+| refreshFromBackend() actualiza store | auth.user.username=cespinoza, auth.user.impersonated_by=aromero |
+| Banner sticky | display=block, texto "Impersonando a: Cecilia Andrea Espinoza Paredes (cespinoza). Sesion real: aromero" |
+| dispatchEvent sgd-stop-impersonate | POST /stop, cookie borrada, /me devuelve aromero, banner display=none despues de transicion |
+| Login como visualizador_cl + ir a /parametrizacion | Redirigido a /403 (guard del router) - RBAC OK |
+| audit_log final | 7 entradas impersonate, sin huerfanas (stop solo loguea si habia cookie) |
+
+### Decisiones tecnicas (ADRs candidatos para sesion 18)
+
+- **ADR-035**: <select x-model> con <template x-for> para options dinamicas
+  requiere re-bind imperativo en wait nextTick() post-carga de los options.
+  Alpine 3 no re-bindea automaticamente cuando las options se cargan despues
+  del initial render. Patron aplicable a cualquier select dinamico.
+
+- **ADR-036**: Impersonate en SGD es accion ADMIN o ETO (no solo ADMIN).
+  Cualquiera de los dos puede asumir temporalmente el rol de otro usuario
+  para testing, soporte, o capacitacion. Ambos eventos (start/stop) quedan
+  registrados en audit_log con campo dedicado.
+
+- **ADR-037**: El banner de impersonate vive en AppLayout (no en la pagina
+  actual) para que sobreviva a navegacion entre paginas. Se activa con
+  x-show=".auth.user?.impersonated_by" y se oculta con transicion
+  de 150ms. El boton "Terminar" usa CustomEvent (sgd-stop-impersonate)
+  porque el banner no tiene acceso directo al store.
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + Matriz ETO + Previsualizar + Impersonate**: 38+3 = **41 tareas R1 (100% cerrado)**
+- **QAS**: 8/8 (100%) sin cambios
+- **R2**: 0/21 sigue desbloqueado, listo para arrancar
+- **Total**: 41/49 (84%) + 4 bonus
+- **Migraciones Alembic**: 13 aplicadas, 0 nuevas en esta sesion
+- **Endpoints totales**: 53+ REST, 0 nuevos
+- **Tablas de BD**: 21/28 migradas, 0 nuevas
+- **audit_log**: 7 nuevas entradas (4 start + 3 stop impersonate)
+
+### Proxima sesion (sesion 18) - recomendaciones
+
+1. **R2 (Wizard de creacion)**: ya esta todo listo, sesion desbloqueada
+   oficialmente tras el cierre de R1. Estimado: 2-3 sesiones intensivas.
+2. **#13 Deuda delegado** (fuzzy + threshold 0.85): ~30 min
+3. **#14 Cargos a areas** (seed POSICION -> area_id): mediano
+4. **#15 Refresh bug** (backlog preexistente): 1-2h
+5. **#19-21 Security hardening** (CSP, DOMPurify, rate limit): pre-QAS-public
+6. **#16 Fix Plazo 42 invalido** (cosmetic, 5 min)
+
+Recomendacion: arrancar R2 ya que el R1 esta cerrado al 100%.
