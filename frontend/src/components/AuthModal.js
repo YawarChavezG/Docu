@@ -36,15 +36,15 @@ export function initAuthModal() {
 
     confirmar() {
       if (!this.pass || this.pass.trim() === '') {
-        window.toast('⚠️ Debe ingresar su contraseña para firmar.', 'warn')
+        window.toast('Debe ingresar su contrasena para firmar.', 'warn')
         return
       }
       this.submitting = true
       setTimeout(() => {
         this.submitting = false
         this.open = false
-        window.toast('✅ Firma digital registrada. Acción realizada exitosamente.', 'success')
-        if (this._onSuccess) this._onSuccess({ usuario: this.usuario, timestamp: new Date().toISOString() })
+        window.toast('Firma digital registrada. Accion realizada exitosamente.', 'success')
+        if (this._onSuccess) this._onSuccess({ usuario: this.usuario, timestamp: new Date().toISOString(), password: this.pass })
       }, 600)
     },
   }))
