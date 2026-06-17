@@ -1082,3 +1082,150 @@ Opciones:
 
 Recomendacion: arrancar con #13 (rapido, ~30 min) + backups automaticos en QAS (~45 min) + hardening. Dejar R2 y refactor para la siguiente.
 
+---
+
+## Sesion 12 — 2026-06-16 (martes PM) — Restaurar CRUD de Parametrizacion (Fase 1 PENDIENTES-R1)
+
+> Sesion dedicada a cerrar la Fase 1 (CRITICA) del documento
+> `docs/PR/PENDIENTES-R1-PARAMETRIZACION.md`: que el CRUD de la
+> pantalla de Parametrizacion deje de estar pisado por una version
+> mock heredada del refactor incompleto de sesiones 6 y 7.
+
+### Contexto de inicio
+
+Usuario volvio pidiendo retomar la tarea #8 (Alembic init), pero
+esa tarea ya esta cerrada desde sesion 5 (10 migraciones aplicadas,
+head `b397cd9bfb91`). En su lugar, se acordo trabajar sobre la
+Fase 1 del PENDIENTES-R1 (restaurar CRUD), que es la unica deuda
+critica identificada para R1.
+
+### Diagnostico (guiado por el ritual INICIO-SESION.md)
+
+1. Stack Up: 16 contenedores, backend healthy.
+2. Last commit: `9e2dbbd` (sesion 11 — automatizacion QAS 1-click).
+3. Analisis con grep del archivo `frontend/src/pages/Parametrizacion.js`
+   (2153 lineas): confirmo el bug del PENDIENTES con forma actualizada:
+   - **Una sola** declaracion `Alpine.data('paramPage', ...)` (linea 46).
+   - **Pero 12+ handlers duplicados DENTRO del mismo objeto**:
+     `guardarTiempos` 165/538, `saveTipo` 274/590, `saveEstado` 306/622,
+     `saveGer` 406/676, `saveArea` 432/706, `deleteTipo` 291/603,
+     `deleteEstado` 321/634, `deleteGer` 415/687, `deleteArea` 452/713,
+     `guardarFilaMatriz` 332/648, `guardarPlantilla` 512/758,
+     `guardarRestricciones` 215/566.
+   - **JavaScript pisa: gana la ultima declaracion** (la version mock
+     con `this.pushLog()` + `window.toast()` sin llamada al backend).
+   - Sesion 7 (commit `89f5ac6`) reimporto `ParametrosGlobalesDB`,
+     `exclusionTiposDB`, etc. del mock legacy para que la 2da declaracion
+     no rompiera, pero NO elimino la duplicacion.
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 12.1 | Diff 1ra vs 2da declaracion (no perder funcionalidad) | (analisis, sin commit) | Confirmado: la 1ra declaracion cubre todo lo de la 2da. |
+| 12.2 | Renombrar `gerEditSigla` -> `gerEditCod` (4 lugares) | (en 12.8) | Alinear con `x-model="gerEditCod"` del template. |
+| 12.3 | Cambiar `chips: [...exclusionTiposDB]` -> `chips: []` | (en 12.8) | Eliminar unico uso del mock en 1ra declaracion. |
+| 12.4 | Eliminar bloque 537-784 (segunda declaracion mock, 247 lineas) | (en 12.8) | -247 lineas, archivo pasa de 2153 -> 1897 lineas. |
+| 12.5 | Quitar imports de `data/parametrosSistema.js` (10 nombres) | (en 12.8) | Solo queda `parametrizacionApi.js`. |
+| 12.6 | Limpiar 2 lineas vacias extra + indentacion irregular | (en 12.8) | Bloque 537-538 colapsado. |
+| 12.7 | Fix dropdown Tipos Excluidos: `tiposExcluibles` getter | (en 12.8) | Ahora muestra tipos_documento activos que NO estan en chips. |
+| 12.8 | Boton cancelar area: `cancelEditArea(a)` en vez de splice | (en 12.8) | Respeta `areasPorGerencia[g.id]`. |
+| 12.9 | `backend/scripts/seed_configuracion_global.py` (11 params) | `29001ae` | Idempotente, 11 parametros (VIGENCIA, SEMAFORO, ARCHIVOS, DESCARGAS). |
+| 12.10 | Validar end-to-end con curl: 13 operaciones CRUD | (analisis) | 100% success: tipos, areas, gerencias, config, plantillas, matriz ETO, audit. |
+| 12.11 | Validar UI con Chrome DevTools | (analisis) | Login via Nginx, navegar a Parametrizacion, crear tipo #17 via UI, crear area #60 via UI, eliminar via API directa. |
+| 12.12 | Fix adicional: `addArea`/`saveArea` con aliases `a.n`/`a.c` | (en 12.8) | Template usa `x-model="a.n"` que NO se reflejaba en `a.nombre`. Ahora resuelve con `a.n ?? a.nombre`. |
+
+### Logros tecnicos
+
+1. **2 commits atomicos**: `29001ae` (seed) + `4b75cdc` (frontend fix).
+2. **-240 lineas netas** en `Parametrizacion.js` (2153 -> 1897 lineas).
+3. **CRUD 100% funcional desde la UI** en los 5 tabs afectados
+   (Tiempos/SLAs, Restricciones, Diccionarios, Gerencias/Areas,
+   Plantillas de Notificacion).
+4. **11 parametros de `configuracion_global`** sembrados
+   idempotentemente.
+5. **Audit log captura 100%** de las operaciones (63 entries durante
+   la sesion de testing, 0 perdidas).
+
+### Bugs pre-existentes corregidos durante la sesion
+
+1. **Mock duplicado en `paramPage`** (origen sesion 6 refactor
+   incompleto): handlers de save/delete/add eran pisados por la
+   version que solo hacia pushLog + toast. Ahora persisten.
+2. **Dropdown Tipos Excluidos VACIO**: el `x-for` listaba los chips
+   ya seleccionados en vez del catalogo de tipos disponibles. Ahora
+   muestra tipos_documento activos filtrados.
+3. **Cancelar area con splice inline**: el template usaba
+   `gerSel.areas.splice(...)` que respetaba `g.areas` pero no
+   `areasPorGerencia[g.id]`. Cambiado a `cancelEditArea(a)`.
+4. **Binding bidireccional a.n/a.c vs nombre/sigla**: el template
+   usaba `x-model="a.n"` pero el handler leia `a.nombre`. El usuario
+   editaba en el input, pero el save enviaba el valor original.
+   Ahora `saveArea` resuelve `(a.n ?? a.nombre ?? '').trim()`.
+5. **`gerEditSigla` vs `gerEditCod`**: el template usaba
+   `gerEditCod` pero el state tenia `gerEditSigla`. Renombrado
+   para alinearse.
+6. **5 claves de `configuracion_global` faltantes** (seeding):
+   `max_archivos_por_solicitud`, `max_tamano_archivo_mb`,
+   `max_descargas_editables_dia`, `paginacion_mi_bandeja`,
+   `tipos_excluidos_limite_descarga`. Insertadas via seed
+   idempotente.
+
+### Validacion end-to-end (curl + Chrome DevTools)
+
+| Verificacion | Resultado |
+|---|---|
+| `POST /api/v1/tipos-documento` (codigo=TEST_TEMP_001) | 200, id=16 |
+| `PATCH /api/v1/tipos-documento/16` (nombre, codigo_doc) | 200, persiste |
+| `DELETE /api/v1/tipos-documento/16` (borrado logico) | 200, activo=false |
+| `GET /api/v1/audit-log?recurso=tipo_documento&recurso_id=16` | 3 entries: CREATE, UPDATE, DELETE |
+| `POST /api/v1/gerencias` (sigla=TESTG) | 201, id=15 |
+| `POST /api/v1/areas` (gerencia_id=15, sigla=TEST) | 201, id=58 |
+| `DELETE /api/v1/areas/58` | 200, activo=false |
+| `PATCH /api/v1/configuracion-global/plazo_revision_aprobacion_dias` (valor=42) | 200, persiste |
+| `POST /api/v1/configuracion-global/bulk` (chips JSON) | 200, persiste `["PRO","INS"]` |
+| `PATCH /api/v1/email-templates/NUEVA_TAREA` (asunto) | 200, persiste |
+| `PATCH /api/v1/matriz-enrutamiento-eto/1` (DISP->AUSENTE->DISP) | 200, persiste |
+| UI: Login `aromero/cofar.2026` via Nginx `localhost:8080` | OK |
+| UI: `data.tiposDocs.length` | 14 (cargado de BD) |
+| UI: `data.gerencias.length` | 13 (cargado de BD) |
+| UI: `data.saveTipo({tipo:'UI Test Sesion 12', cod:'UITEST'})` | OK, id=17, persistido |
+| UI: `data.addArea()` + `data.saveArea({n:'UI Area Sesion 12 v2', c:'UIS2'})` | OK, id=60, persistido |
+
+### Decisiones tecnicas (ADRs candidatos para sesion 13)
+
+- **ADR-028 (en draft)**: Handlers de CRUD de Parametrizacion
+  se declaran UNA SOLA VEZ dentro del objeto de Alpine.data. La
+  duplicacion entre refactors de frontend es bug, no feature.
+  Patron de defensa: el handler async que llama al backend debe
+  ser el unico, y el template debe hacer x-model sobre los aliases
+  que el handler resuelve.
+- **ADR-029 (en draft)**: Aliases `a.n`/`a.c` en areas son
+  compatibles con backend canonico `nombre`/`sigla`. El handler
+  resuelve con `a.n ?? a.nombre` para tolerar binding bidireccional
+  del template.
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + Pantalla Parametrizacion CRUD**: 36/36 (100%).
+- **Fase 1 PENDIENTES-R1-PARAMETRIZACION.md**: ✅ cerrada.
+- **Total commits sesion 12**: 3 (29001ae, 4b75cdc, pendiente docs).
+- **Pendientes menores** (Fase 2-5 del PENDIENTES-R1, NO bloqueantes):
+  - Logs de Auditoria: paginacion 10/pag + formato fecha Bolivia + mapear shape
+  - Editor dual-mode de Plantillas de Notificacion
+  - Badge "Indefinido" en Vigencia
+
+### Proxima sesion (sesion 13) — TBD
+
+Opciones:
+1. **Cerrar Fase 2-5 del PENDIENTES-R1**: logs, editor plantillas,
+   badge Indefinido. 4-6h.
+2. **#13 Deuda delegado** (fuzzy + threshold 0.85): pequeno (~30 min).
+3. **#14 Cargos a areas**: seed POSICION -> area_id. Mediano.
+4. **Agregar `seed_configuracion_global.py` al `start-stack-qas.sh`**:
+   pequeno (~5 min), pendiente post-sesion 12.
+5. **R2 — Wizard de creacion** (tareas #23+): ya esta todo listo.
+
+Recomendacion: agregar el seed al `start-stack-qas.sh` (rapido) +
+cerrar Fase 2-5 del PENDIENTES-R1 antes de R2 (consistencia R1).
+

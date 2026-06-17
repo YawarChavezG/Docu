@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-16 (sesión 11 — automatización completa del deploy QAS: `start-stack-qas.sh` 1-click + fix permisos storage + refactor smell code)
+> Última actualización: 2026-06-16 (sesión 12 — restaurar CRUD de Parametrizacion eliminando duplicacion de handlers + seed de 11 parametros de configuracion_global + 4 bugs preexistentes corregidos)
 
 ## Versión actual
-**v0.5.3-dev** (sesión 11: automatización QAS — `scripts/start-stack-qas.sh` ejecuta 7 seeds + sync AD + URLs en 1 comando. Permisos correctos via chown 1000:1000 (no chmod 777). Refactor `_build_server` → `build_server`. ADRs 026 y 027.)
+**v0.5.4-dev** (sesión 12: CRUD 100% funcional en pantalla de Parametrizacion. Eliminada la duplicacion de handlers (segunda declaracion mock heredada de sesiones 6-7). Dropdown Tipos Excluidos muestra catalogo real. 11 parametros de configuracion_global sembrados idempotentemente. Pendientes menores: Fase 2-5 del PENDIENTES-R1-PARAMETRIZACION.md.)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
@@ -60,6 +60,9 @@
 | B10-2 | `scripts/start-stack-backup.bat` + `stop-stack-backup.bat` | ✅ | 16-jun | Orquestador automatizado: up pg/redis → cp dump → pg_restore → up resto → wait health → URLs. |
 | B10-3 | `backups/20260616_150015/` (dump + working tree) | ✅ | 16-jun | pg_dump -Fc (119KB) + 393 archivos de codigo (31.82MB total). Permite restaurar el estado exacto. |
 | B10-4 | `docs/PR/BACKUP-PARALELO.md` | ✅ | 16-jun | Doc completa: URLs, troubleshooting, limitaciones, comandos. |
+| **Tareas nuevas sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion)** |  |  |  |  |
+| N14 | `backend/scripts/seed_configuracion_global.py` (11 params) | ✅ | 16-jun | Idempotente. VIGENCIA (4) + SEMAFORO (2) + ARCHIVOS (2) + DESCARGAS (3). Cubre las 5 claves faltantes del PENDIENTES-R1. Commit `29001ae`. |
+| N15 | `frontend/src/pages/Parametrizacion.js`: eliminar duplicacion handlers | ✅ | 16-jun | Borrada la 2da declaracion mock (lineas 537-784, 247 lineas). Renombrado `gerEditSigla` -> `gerEditCod`. Dropdown Tipos Excluidos ahora muestra catalogo real. Commit `4b75cdc`. -240 lineas netas (2153 -> 1897). |
 
 ### R2 — Wizard de creación
 
@@ -99,7 +102,7 @@
 ---
 
 ## Progreso R1
-**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** = **35/35 tareas R1 + EPICA9 (100%)**
+**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** + **1 tarea nueva sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion + 11 parametros BD + 4 bugs preexistentes)** = **36/36 tareas R1 + EPICA9 + Parametrizacion (100%)**
 
 ## Progreso QAS
 **8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 7 seeds + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
@@ -108,7 +111,7 @@
 **0/21 tareas pendientes** (R1 ya NO es bloqueante. QAS es reproducible 1-click. R2 puede arrancar.)
 
 ## Total
-**35/48 tareas (73%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas
+**36/49 tareas (73%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 1 tarea crítica de PENDIENTES-R1 cerrada
 
 ## Tablas de BD
 **18/28 migradas** (16 originales + 6 nuevas en sesión 5 + 1 nueva en sesión 6). 0 nuevas en sesiones 7, 8 y 9 (no hubo cambios de schema).
@@ -268,34 +271,28 @@ Backlog menor:
 - 🟡 #14: Cargos a areas (pendiente)
 - 🟡 Backups automáticos en QAS (cron + pg_dump, no automatizado)
 
-## Próximo paso (recomendado para sesión 12)
+## Próximo paso (recomendado para sesión 13)
 
-**Sesión 11 cerrada:** Automatización completa del deploy QAS. `start-stack-qas.sh` corre las 7 seeds idempotentes + sync AD desde LDAP (753 usuarios validados en QAS). 3 archivos de compose actualizados con `-s /app/storage/celerybeat-schedule`. Permisos correctos via chown 1000:1000 + chmod 755/644 (no chmod 777). Refactor de smell `_build_server` → `build_server`. ADR-026 y ADR-027 nuevos.
+**Sesión 12 cerrada:** Restauración del CRUD de Parametrizacion (Fase 1 del PENDIENTES-R1-PARAMETRIZACION.md). 2 commits atomicos: `29001ae` (seed_configuracion_global.py con 11 parametros) + `4b75cdc` (frontend fix: eliminada segunda declaracion con handlers mock heredados de sesiones 6-7). -240 lineas netas en `Parametrizacion.js` (2153 -> 1897). CRUD 100% funcional en los 5 tabs afectados. Dropdown Tipos Excluidos muestra catalogo real. 4 bugs preexistentes corregidos (binding bidireccional, cancelar area, gerEditCod vs gerEditSigla, 5 claves de BD faltantes). Validacion end-to-end: 13 operaciones CRUD via curl + UI via Chrome DevTools. 63 entradas de audit_log durante la sesion de testing. ADR-028 y ADR-029 candidatos.
 
-3 caminos posibles para sesión 12:
+3 caminos posibles para sesión 13:
 
-1. **Refactor Parametrizacion.js** (Fase 1, 2-3h): eliminar mocks duplicados, restaurar CRUD real. Ver `docs/pr/PENDIENTES-R1-PARAMETRIZACION.md`.
-2. **#13 — Deuda delegado**: implementar match desde AD `manager` attribute o fuzzy matching + threshold 0.85. Pequeño.
-3. **#14 — Cargos a areas**: seed de mapeo POSICION → area_id. Mediano.
-4. **#19-21 — Security hardening**: CSP, DOMPurify, rate limit. Backlog R1.
-5. **R2 (tareas #23+)** ahora desbloqueado — el stack QAS ya es reproducible 1-click.
+1. **Cerrar Fase 2-5 del PENDIENTES-R1** (4-6h): logs paginacion 10/pag + formato fecha Bolivia, editor dual-mode plantillas, badge Indefinido en vigencia, dropdown chips refinado.
+2. **Agregar `seed_configuracion_global.py` al `start-stack-qas.sh`** (~5 min): para que QAS y DES automatico incluyan los 11 parametros al levantarse.
+3. **#13 — Deuda delegado** (~30 min): implementar match desde AD `manager` attribute o fuzzy + threshold 0.85.
+4. **#14 — Cargos a areas** (mediano): seed de mapeo POSICION -> area_id.
+5. **R2 (tareas #23+)** ya desbloqueado — el stack QAS es reproducible 1-click.
 
 **Lo que NO se debería hacer todavía:**
 - Refactor de pages no tocadas (Bandeja, Liberacion, ListaMaestra) — depende de R2 endpoints.
 
-## Estado de la sesión actual (11 — automatización QAS)
+## Estado de la sesión actual (12 — restaurar CRUD Parametrizacion)
 
 - ✅ Sesión 5: Backend ÉPICA 9 al 100% (10 tareas, 14 commits)
 - ✅ Sesión 6: UI EPICA 9 + 3 endpoints backend nuevos (4 de 6 tareas Sesión B, 4 commits)
 - ✅ Sesión 7: Bugfix del refactor incompleto de sesión 6 (10 bugs, commit `89f5ac6`) + tests pytest 123/123 (commit `e13761c`)
 - ✅ Sesión 8: Import matriz abril 716 usuarios (service + CLI + mapeo, 5 sub-tareas en 2h)
 - ✅ Sesión 9: Editar Usuario + Mi Perfil BD + Export corregido (6 sub-tareas, commit `ec34a3d`)
-- ✅ **Sesión 10 (ESTA): Backup paralelo 8081/5174/18001 (8 archivos nuevos, 0 regresiones)**
-
-- ✅ Sesión 5: Backend ÉPICA 9 al 100% (10 tareas, 14 commits)
-- ✅ Sesión 6: UI EPICA 9 + 3 endpoints backend nuevos (4 de 6 tareas Sesión B, 4 commits)
-- ✅ Sesión 7: Bugfix del refactor incompleto de sesión 6 (10 bugs, commit `89f5ac6`) + tests pytest 123/123 (commit `e13761c`)
-- ✅ Sesión 8: Import matriz abril 716 usuarios (service + CLI + mapeo, 5 sub-tareas en 2h)
-- ✅ Sesión 9: Editar Usuario + Mi Perfil BD + Export corregido (6 sub-tareas, commit `ec34a3d`)
-- ✅ Sesión 10: Backup paralelo 8081/5174/18001 + Deploy QAS manual en sgdqas.cofar.com.bo
-- ✅ **Sesión 11 (ESTA): Automatización QAS — `start-stack-qas.sh` 1-click (seeds + sync AD + URLs) + fix permisos storage (chown 1000:1000, no chmod 777) + refactor smell `_build_server` → `build_server`**
+- ✅ Sesión 10: Backup paralelo 8081/5174/18001 (8 archivos nuevos) + Deploy QAS manual
+- ✅ Sesión 11: Automatización QAS — `start-stack-qas.sh` 1-click + fix permisos storage + refactor smell `_build_server` → `build_server`
+- ✅ **Sesión 12 (ESTA): Restaurar CRUD Parametrizacion — 2 commits (29001ae seed + 4b75cdc frontend fix) + 4 bugs preexistentes + 11 parametros BD + validacion end-to-end**
