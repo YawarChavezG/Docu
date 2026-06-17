@@ -25,7 +25,7 @@
  *  - Logs:           /api/v1/audit-log
  */
 
-import { initPlantillaEditor, toolbarActions } from '../components/PlantillaEditor.js'
+import { initPlantillaEditor } from '../components/PlantillaEditor.js'
 
 import {
   configGlobal,
@@ -44,7 +44,15 @@ import {
 
 export const page = {
   init() {
-    window.Alpine?.data('paramPage', () => ({
+    window.Alpine?.data('paramPage', () => {
+      // ★ CLAVE Sesion 16: `let editor` en closure del factory, NO en
+      // `this`. Esto es lo que la doc oficial de Tiptap recomienda para
+      // evitar "Applying a mismatched transaction" (Alpine envuelve las
+      // propiedades de `this` en Proxies, lo que rompe ProseMirror).
+      let editor = null
+      let editorDestroy = null
+
+      return {
       /* ── Tabs ── */
       tab: 'tiempos',
       tabs: [
@@ -668,9 +676,8 @@ export const page = {
       etiquetas: [], // variables JSON de la plantilla seleccionada
       previewMode: false,
       previewHtml: '',
-      // Editor Tiptap
-      _editor: null,            // instancia de Editor Tiptap
-      _editorMounted: false,    // flag para evitar doble mount
+      // Editor Tiptap (Sesion 16: editor en closure del factory, NO en `this`)
+      _editorMounted: false,    // flag para evitar doble mount (el editor vive en closure)
       // Toolbar state (se actualiza desde Tiptap selectionUpdate)
       tbState: {
         bold: false, italic: false, underline: false, strike: false,
@@ -683,10 +690,10 @@ export const page = {
       async cargarNotificaciones() {
         this.loading.notificaciones = true
         try {
-          // Sesion 15: NO destruir el editor al re-cargar. Solo montar
-          // si no existe. La destruccion previa causaba "mismatched
-          // transaction" porque el destroy() async de Tiptap 3.x no
-          // terminaba antes del nuevo mount.
+          // Sesion 16: el editor vive en closure del factory (NO en `this`).
+          // No destruimos al re-cargar. La destruccion previa causaba
+          // "mismatched transaction" porque el destroy() async de Tiptap 3.x
+          // no terminaba antes del nuevo mount.
           const res = await emailTemplates.list()
           if (res.ok) {
             this.plantillas = (res.data.items || []).map(t => ({
@@ -700,7 +707,7 @@ export const page = {
             if (this.plantillas.length) {
               const p = this.plantillas[0]
               this.etiquetas = p?.variables || []
-              if (!this._editorMounted || !this._editor || this._editor.isDestroyed) {
+              if (!this._editorMounted || !editor || editor.isDestroyed) {
                 await this._mountTiptap()
               }
             }
@@ -712,9 +719,6 @@ export const page = {
         }
       },
       // Click en una fila del sidebar de plantillas.
-      // Sesion 15: usar setContent + blur/focus para resetear el estado
-      // del editor sin destruirlo. El destroy/recreate causaba
-      // "mismatched transaction" por timing de Vite HMR + Tiptap 3.x async.
       onSelectPlantillaClick(i) {
         if (this.plantillaSelect === i) return
         this.plantillaSelect = i
@@ -722,26 +726,23 @@ export const page = {
         this.previewHtml = ''
         const p = this.plantillas[i]
         this.etiquetas = p?.variables || []
-        if (this._editor && !this._editor.isDestroyed && p) {
+        if (editor && !editor.isDestroyed && p) {
           // Quitar el focus del DOM element antes de setContent para
           // evitar transacciones concurrentes.
-          const dom = this._editor.options.element
+          const dom = editor.options.element
           if (dom && document.activeElement === dom) dom.blur()
-          // setContent con emitUpdate=false evita que onUpdate se dispare
-          // (lo haremos manualmente abajo para mantener el state sincronizado).
-          this._editor.commands.setContent(p.cuerpo || '<p></p>', false)
-          // Forzar refresh del toolbar (porque cambiamos el contenido).
+          // setContent con emitUpdate=false evita que onUpdate se dispare.
+          editor.commands.setContent(p.cuerpo || '<p></p>', false)
+          // Forzar refresh del toolbar.
           this._updateToolbarState()
         }
       },
       // ─── Tiptap lifecycle ───
-      // Sesion 15: deferir con setTimeout(0) para asegurar que Alpine
-      // haya terminado su render actual antes de inicializar Tiptap.
-      // Sin esto, Tiptap puede ver un DOM parcialmente renderizado y
-      // lanzar "Applying a mismatched transaction" en el primer insertContent.
+      // Sesion 16: editor se guarda en closure `let editor` del factory.
+      // NO en `this` (eso es lo que causaba el "mismatched transaction"
+      // porque Alpine wrappea las props en Proxies que rompen ProseMirror).
       async _mountTiptap() {
         await this.$nextTick()
-        // Esperar un microtask extra para asegurar que Alpine.render() termino.
         await new Promise(r => setTimeout(r, 0))
         const currentMountEl = this.$refs?.tiptapBody
           || document.querySelector('[x-ref="tiptapBody"]')
@@ -749,19 +750,19 @@ export const page = {
           console.warn('[tiptap] mount point no encontrado, se reintentará en nextTick')
           return
         }
-        // Si hay un editor pero su options.element NO es el mount actual,
+        // Si hay un editor pero su element NO es el mount actual,
         // o si ya esta destruido, lo descartamos para crear uno nuevo.
-        if (this._editor) {
-          const editorEl = this._editor.options?.element
-          const isValid = !this._editor.isDestroyed && editorEl === currentMountEl
+        if (editor) {
+          const editorEl = editor.options?.element
+          const isValid = !editor.isDestroyed && editorEl === currentMountEl
           if (!isValid) {
-            // Descartar referencia stale; el cleanup es best-effort.
-            try { this._editor.destroy() } catch (_) {}
-            this._editor = null
+            try { await editorDestroy() } catch (_) {}
+            editor = null
+            editorDestroy = null
             this._editorMounted = false
           }
         }
-        if (this._editorMounted && this._editor && !this._editor.isDestroyed) {
+        if (this._editorMounted && editor && !editor.isDestroyed) {
           // Ya esta montado; solo actualizamos contenido
           this.onSelectPlantilla()
           return
@@ -770,96 +771,116 @@ export const page = {
         const handle = initPlantillaEditor(currentMountEl, p?.cuerpo || '<p></p>', (html) => {
           this._editorHtmlCache = html
         })
-        this._editor = handle.editor
+        // ★ Asignar al CLOSURE, NO a `this`
+        editor = handle.editor
+        editorDestroy = handle.destroy
         this._editorHtmlCache = p?.cuerpo || ''
         this._editorMounted = true
-        this._editor.on('selectionUpdate', () => this._updateToolbarState())
+        editor.on('selectionUpdate', () => this._updateToolbarState())
       },
       _updateToolbarState() {
-        if (!this._editor || this._editor.isDestroyed) return
+        if (!editor || editor.isDestroyed) return
         try {
           this.tbState = {
-            bold: this._editor.isActive('bold'),
-            italic: this._editor.isActive('italic'),
-            underline: this._editor.isActive('underline'),
-            strike: this._editor.isActive('strike'),
-            h1: this._editor.isActive('heading', { level: 1 }),
-            h2: this._editor.isActive('heading', { level: 2 }),
-            h3: this._editor.isActive('heading', { level: 3 }),
-            bulletList: this._editor.isActive('bulletList'),
-            orderedList: this._editor.isActive('orderedList'),
-            blockquote: this._editor.isActive('blockquote'),
-            codeBlock: this._editor.isActive('codeBlock'),
+            bold: editor.isActive('bold'),
+            italic: editor.isActive('italic'),
+            underline: editor.isActive('underline'),
+            strike: editor.isActive('strike'),
+            h1: editor.isActive('heading', { level: 1 }),
+            h2: editor.isActive('heading', { level: 2 }),
+            h3: editor.isActive('heading', { level: 3 }),
+            bulletList: editor.isActive('bulletList'),
+            orderedList: editor.isActive('orderedList'),
+            blockquote: editor.isActive('blockquote'),
+            codeBlock: editor.isActive('codeBlock'),
           }
           // Color actual del mark textStyle
-          const color = this._editor.getAttributes('textStyle').color
+          const textStyleAttrs = editor.getAttributes('textStyle')
+          const color = textStyleAttrs.color
           if (color) this.tbColor = color
-          const fontSize = this._editor.getAttributes('textStyle').fontSize
+          const fontSize = textStyleAttrs.fontSize
           this.tbFontSize = fontSize || ''
         } catch (e) { /* editor en transicion, ignorar */ }
       },
       // ─── Toolbar actions (template las invoca) ───
+      // ★ Sesion 16: usar `editor` (closure) directamente con el patron
+      // oficial chain().focus().X().run(). La doc oficial de Tiptap
+      // para Alpine 3.x lo dice: el editor debe vivir en closure, no en
+      // `this`, para evitar que Alpine lo wrappee en un Proxy.
       tbToggle(name) {
-        if (!this._editor || this._editor.isDestroyed) return
-        const fn = toolbarActions[name]
-        if (fn) {
-          try { fn(this._editor) } catch (e) { console.warn('[tiptap] tbToggle error:', e) }
-        }
+        if (!editor || editor.isDestroyed) return
+        try {
+          // Mapear nombre de toolbar a command de Tiptap
+          const cmd = {
+            bold: 'toggleBold',
+            italic: 'toggleItalic',
+            underline: 'toggleUnderline',
+            strike: 'toggleStrike',
+            h1: () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+            h2: () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+            h3: () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+            bulletList: 'toggleBulletList',
+            orderedList: 'toggleOrderedList',
+            blockquote: 'toggleBlockquote',
+            codeBlock: 'toggleCodeBlock',
+            undo: 'undo',
+            redo: 'redo',
+          }[name]
+          if (!cmd) return
+          if (typeof cmd === 'function') cmd()
+          else editor.chain().focus()[cmd]().run()
+        } catch (e) { console.warn('[tiptap] tbToggle error:', e) }
       },
       tbSetColor(color) {
-        if (!this._editor || this._editor.isDestroyed) return
+        if (!editor || editor.isDestroyed) return
         this.tbColor = color
-        toolbarActions.setColor(this._editor, color)
+        // Tiptap 3.x: setColor es command (no chain method)
+        editor.commands.setColor(color)
       },
       tbUnsetColor() {
-        if (!this._editor || this._editor.isDestroyed) return
+        if (!editor || editor.isDestroyed) return
         this.tbColor = '#000000'
-        toolbarActions.unsetColor(this._editor)
+        editor.commands.unsetColor()
       },
       tbSetFontSize(size) {
-        if (!this._editor || this._editor.isDestroyed) return
+        if (!editor || editor.isDestroyed) return
         this.tbFontSize = size
-        toolbarActions.setFontSize(this._editor, size)
+        // Tiptap 3.x: setFontSize es command (no chain method)
+        editor.commands.setFontSize(size)
       },
       tbUnsetFontSize() {
-        if (!this._editor || this._editor.isDestroyed) return
+        if (!editor || editor.isDestroyed) return
         this.tbFontSize = ''
-        toolbarActions.unsetFontSize(this._editor)
+        editor.commands.unsetFontSize()
       },
-      // Destruir editor y limpiar el DOM. async porque Tiptap 3.x
-      // documenta destroy() como posiblemente async (devuelve Promise).
-      // Tambien limpiamos el contenido del div para que el nuevo editor
-      // empiece con DOM fresco y evitar el error "mismatched transaction".
+      // Destruir editor y limpiar el DOM.
       async _cleanupEditor() {
-        if (this._editor) {
-          try { await this._editor.destroy() } catch (_) { /* ignore */ }
-          this._editor = null
+        if (editor) {
+          try { await editorDestroy() } catch (_) { /* ignore */ }
+          editor = null
+          editorDestroy = null
           this._editorMounted = false
         }
-        // Limpiar el DOM del mount point para que el proximo mount
-        // empiece con un div vacio.
+        // Limpiar el DOM del mount point
         const el = this.$refs?.tiptapBody
         if (el) {
           while (el.firstChild) el.removeChild(el.firstChild)
         }
       },
       insertarEtiqueta(tag) {
-        if (!this._editor || this._editor.isDestroyed) return
+        if (!editor || editor.isDestroyed) return
         try {
-          toolbarActions.insertVariable(this._editor, tag)
-          this._editor.commands.focus()
+          // Insertar como texto plano (no HTML) para que Jinja2 lo renderice
+          editor.chain().focus().insertContent(tag).run()
         } catch (e) { console.warn('[tiptap] insertarEtiqueta error:', e) }
       },
       async guardarPlantilla() {
         const p = this.plantillas[this.plantillaSelect]
         if (!p) return
         // Sincronizar el HTML del editor con el state antes de guardar.
-        // Usamos el cache (_editorHtmlCache) actualizado por onUpdate
-        // para evitar que getHTML() dispare transactions en un editor
-        // potencialmente en estado transitorio.
         let html = this._editorHtmlCache || ''
-        if (this._editor && !this._editor.isDestroyed) {
-          try { html = this._editor.getHTML() } catch (_) { /* fallback al cache */ }
+        if (editor && !editor.isDestroyed) {
+          try { html = editor.getHTML() } catch (_) { /* fallback al cache */ }
         }
         p.cuerpo = html
         try {
@@ -1359,7 +1380,8 @@ export const page = {
         }
         return map[rolCodigo] || 'badge-gray'
       },
-    }))
+    }
+  })
   },
 
   template: /* html */`
@@ -1891,7 +1913,7 @@ export const page = {
             <label class="form-label text-[10.5px]">Etiquetas disponibles (clic para insertar en el editor):</label>
             <div class="flex flex-wrap gap-1.5">
               <template x-for="e in etiquetas" :key="e">
-                <button @click="insertarEtiqueta(e)" class="px-2 py-0.5 rounded border border-blue-200 bg-blue-50 text-brand-600 text-[10.5px] cursor-pointer font-mono hover:bg-blue-100 transition-colors" x-text="e"></button>
+                <button @mousedown.prevent @click="insertarEtiqueta(e)" class="px-2 py-0.5 rounded border border-blue-200 bg-blue-50 text-brand-600 text-[10.5px] cursor-pointer font-mono hover:bg-blue-100 transition-colors" x-text="e"></button>
               </template>
             </div>
           </div>
@@ -1905,27 +1927,29 @@ export const page = {
           <div class="mb-3">
             <label class="form-label text-[10.5px]">Cuerpo del correo (editor rich text)</label>
 
-            <!-- Toolbar Tiptap -->
+            <!-- Toolbar Tiptap
+                 Sesion 16: @mousedown.prevent en todos los botones para
+                 evitar que roben el focus del editor (patron WSIWYG). -->
             <div class="flex flex-wrap items-center gap-1 p-1.5 bg-slate-50 border border-slate-200 rounded-t-lg">
-              <button @click="tbToggle('bold')" :class="tbState.bold ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[12px] transition-colors" title="Negrita (Ctrl+B)">B</button>
-              <button @click="tbToggle('italic')" :class="tbState.italic ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded italic text-[12px] transition-colors" title="Cursiva (Ctrl+I)">I</button>
-              <button @click="tbToggle('underline')" :class="tbState.underline ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded underline text-[12px] transition-colors" title="Subrayado (Ctrl+U)">U</button>
-              <button @click="tbToggle('strike')" :class="tbState.strike ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded line-through text-[12px] transition-colors" title="Tachado">S</button>
+              <button @mousedown.prevent @click="tbToggle('bold')" :class="tbState.bold ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[12px] transition-colors" title="Negrita (Ctrl+B)">B</button>
+              <button @mousedown.prevent @click="tbToggle('italic')" :class="tbState.italic ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded italic text-[12px] transition-colors" title="Cursiva (Ctrl+I)">I</button>
+              <button @mousedown.prevent @click="tbToggle('underline')" :class="tbState.underline ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded underline text-[12px] transition-colors" title="Subrayado (Ctrl+U)">U</button>
+              <button @mousedown.prevent @click="tbToggle('strike')" :class="tbState.strike ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded line-through text-[12px] transition-colors" title="Tachado">S</button>
               <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
-              <button @click="tbToggle('h1')" :class="tbState.h1 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[13px] transition-colors" title="Título 1">H1</button>
-              <button @click="tbToggle('h2')" :class="tbState.h2 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[12px] transition-colors" title="Título 2">H2</button>
-              <button @click="tbToggle('h3')" :class="tbState.h3 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[11px] transition-colors" title="Título 3">H3</button>
+              <button @mousedown.prevent @click="tbToggle('h1')" :class="tbState.h1 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[13px] transition-colors" title="Título 1">H1</button>
+              <button @mousedown.prevent @click="tbToggle('h2')" :class="tbState.h2 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[12px] transition-colors" title="Título 2">H2</button>
+              <button @mousedown.prevent @click="tbToggle('h3')" :class="tbState.h3 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[11px] transition-colors" title="Título 3">H3</button>
               <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
-              <button @click="tbToggle('bulletList')" :class="tbState.bulletList ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Lista con viñetas">•≡</button>
-              <button @click="tbToggle('orderedList')" :class="tbState.orderedList ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Lista numerada">1.</button>
-              <button @click="tbToggle('blockquote')" :class="tbState.blockquote ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Cita">❝</button>
-              <button @click="tbToggle('codeBlock')" :class="tbState.codeBlock ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[11px] font-mono transition-colors" title="Bloque de código">{}</button>
+              <button @mousedown.prevent @click="tbToggle('bulletList')" :class="tbState.bulletList ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Lista con viñetas">•≡</button>
+              <button @mousedown.prevent @click="tbToggle('orderedList')" :class="tbState.orderedList ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Lista numerada">1.</button>
+              <button @mousedown.prevent @click="tbToggle('blockquote')" :class="tbState.blockquote ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Cita">❝</button>
+              <button @mousedown.prevent @click="tbToggle('codeBlock')" :class="tbState.codeBlock ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[11px] font-mono transition-colors" title="Bloque de código">{}</button>
               <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
               <!-- Color picker -->
               <div class="flex items-center gap-1 px-1.5">
                 <label class="text-[10.5px] text-slate-500" title="Color de texto">🎨</label>
                 <input type="color" :value="tbColor" @input="tbSetColor($event.target.value)" class="w-6 h-7 rounded cursor-pointer border-0 bg-transparent" title="Color de texto">
-                <button @click="tbUnsetColor()" class="text-[10px] text-slate-500 hover:text-red-500 px-1" title="Quitar color">✕</button>
+                <button @mousedown.prevent @click="tbUnsetColor()" class="text-[10px] text-slate-500 hover:text-red-500 px-1" title="Quitar color">✕</button>
               </div>
               <!-- Font size -->
               <div class="flex items-center gap-1 px-1.5">
@@ -1940,11 +1964,11 @@ export const page = {
                   <option value="24px">24</option>
                   <option value="32px">32</option>
                 </select>
-                <button @click="tbUnsetFontSize()" class="text-[10px] text-slate-500 hover:text-red-500 px-1" title="Quitar tamaño">✕</button>
+                <button @mousedown.prevent @click="tbUnsetFontSize()" class="text-[10px] text-slate-500 hover:text-red-500 px-1" title="Quitar tamaño">✕</button>
               </div>
               <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
-              <button @click="tbToggle('undo')" class="w-7 h-7 rounded text-slate-600 hover:bg-slate-200 text-[12px] transition-colors" title="Deshacer (Ctrl+Z)">↶</button>
-              <button @click="tbToggle('redo')" class="w-7 h-7 rounded text-slate-600 hover:bg-slate-200 text-[12px] transition-colors" title="Rehacer (Ctrl+Y)">↷</button>
+              <button @mousedown.prevent @click="tbToggle('undo')" class="w-7 h-7 rounded text-slate-600 hover:bg-slate-200 text-[12px] transition-colors" title="Deshacer (Ctrl+Z)">↶</button>
+              <button @mousedown.prevent @click="tbToggle('redo')" class="w-7 h-7 rounded text-slate-600 hover:bg-slate-200 text-[12px] transition-colors" title="Rehacer (Ctrl+Y)">↷</button>
             </div>
 
             <!-- Tiptap mount point -->
