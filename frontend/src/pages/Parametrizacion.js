@@ -26,6 +26,7 @@
  */
 
 import { initPlantillaEditor } from '../components/PlantillaEditor.js'
+import { API_BASE } from '../utils/config.js'
 
 import {
   configGlobal,
@@ -1168,9 +1169,9 @@ export const page = {
           return
         }
         try {
-          const res = await fetch(`${this.API_BASE}/admin/impersonate/start`, {
-            method: 'POST',
-            credentials: 'include',
+          const res = await fetch(`${API_BASE}/admin/impersonate/start`, {
+              method: 'POST',
+              credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sAMAccountName: u.username }),
           })
@@ -1203,9 +1204,9 @@ export const page = {
           return
         }
         try {
-          const res = await fetch(`${this.API_BASE}/admin/impersonate/stop`, {
-            method: 'POST',
-            credentials: 'include',
+          const res = await fetch(`${API_BASE}/admin/impersonate/stop`, {
+              method: 'POST',
+              credentials: 'include',
           })
           if (!res.ok) {
             const err = await res.json().catch(() => ({}))

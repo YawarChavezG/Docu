@@ -501,8 +501,9 @@ async def sync_status(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Estado del ultimo sync. Solo ADMIN."""
-    await _require_admin(request, db)
+    """Estado del ultimo sync. ETO o ADMIN (sesion 22: cualquier
+    usuario de parametrizacion debe poder ver el estado del sync)."""
+    await require_eto_or_admin(request, db)
     last_sync = (await db.execute(
         select(Usuario.ad_last_synced_at)
         .where(Usuario.ad_last_synced_at.isnot(None))

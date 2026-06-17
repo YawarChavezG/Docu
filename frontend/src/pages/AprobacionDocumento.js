@@ -106,7 +106,10 @@ export const page = {
       // ─── Computeds ───
       get areasList() {
         if (!this.gerencia) return []
-        return this.areasAll.filter(a => a.gerencia_id === this.gerencia)
+        // Comparar con coercion numerica: el select devuelve string,
+        // pero gerencia_id en BD es number. Sin coercion el filtro falla.
+        const gerenciaId = Number(this.gerencia)
+        return this.areasAll.filter(a => Number(a.gerencia_id) === gerenciaId)
       },
 
       get tipoSeleccionado() {
