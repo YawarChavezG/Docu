@@ -3,7 +3,11 @@
  *
  * Sesion B - tarea #10: refactorizado para consumir el backend real
  * (EPICA 9 endpoints) a traves de services/parametrizacionApi.js.
- * Ya NO importa de data/parametrosSistema.js.
+ *
+ * Sesion 12: eliminada la duplicacion de handlers (segunda declaracion con
+ * mocks heredados de la version pre-refactor). Ahora todos los CRUD (save,
+ * delete, add, mover) persisten en la BD via la API real. Dropdown de
+ * "Tipos excluidos" muestra catalogo real de tipos_documento.
  *
  * Tabs:
  *  - Tiempos y SLAs: /api/v1/configuracion-global
@@ -28,18 +32,6 @@ import {
   usuarios,
   roles,
 } from '../services/parametrizacionApi.js'
-import {
-  ParametrosGlobalesDB,
-  exclusionTiposDB,
-  tiposExcluiblesDB,
-  analistasETODB,
-  estadosProcesoParamDB,
-  etiquetasPlantillaDB,
-  gerenciasParamDB,
-  matrizETOParamDB,
-  plantillasNotificacionParamDB,
-  tiposDocParamDB,
-} from '../data/parametrosSistema.js'
 
 export const page = {
   init() {
@@ -180,7 +172,7 @@ export const page = {
 
       /* ── Restricciones (US-9.02) ── */
       restricciones: { maxAdjuntos: 20, maxSizeMB: 20, maxDescargasDia: 10, bandejaRegistros: 10 },
-      chips: [...exclusionTiposDB], // tipos excluidos de limite de descarga (US-9.02) — fallback del mock hasta que cargueRestricciones() sobreescriba con datos del backend
+      chips: [], // tipos excluidos de limite de descarga (US-9.02) — cargados en cargarRestricciones() desde backend
       async cargarRestricciones() {
         this.loading.restricciones = true
         try {
@@ -230,6 +222,11 @@ export const page = {
         }
       },
       guardarLimitesDescarga() { this.guardarRestricciones() },
+      get tiposExcluibles() {
+        // Tipos de documento activos que NO estan ya en chips.
+        // Usado por el dropdown de "Tipos excluidos" en el template.
+        return (this.tiposDocs || []).filter(t => t.activo && !this.chips.includes(t.cod))
+      },
 
       /* ── Diccionarios (US-9.03) ── */
       tiposDocs: [],
@@ -343,7 +340,7 @@ export const page = {
       gerSelId: null,
       gerEditMode: false,
       gerEditNombre: '',
-      gerEditSigla: '',
+      gerEditCod: '',
       get gerSel() { return this.gerencias.find(g => g.id === this.gerSelId) },
       get areasGerSel() { return this.areasPorGerencia[this.gerSelId] || [] },
       async cargarGerencias() {
@@ -402,12 +399,12 @@ export const page = {
           else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
         } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
       },
-      startEditGer() { const g = this.gerSel; if (!g) return; this.gerEditMode = true; this.gerEditNombre = g.nombre; this.gerEditSigla = g.sigla },
+      startEditGer() { const g = this.gerSel; if (!g) return; this.gerEditMode = true; this.gerEditNombre = g.nombre; this.gerEditCod = g.sigla },
       async saveGer() {
         const g = this.gerSel; if (!g) return
-        if (!this.gerEditNombre.trim() || !this.gerEditSigla.trim()) { window.toast('Complete nombre y sigla', 'warn'); return }
+        if (!this.gerEditNombre.trim() || !this.gerEditCod.trim()) { window.toast('Complete nombre y sigla', 'warn'); return }
         try {
-          const res = await gerencias.update(g.id, { nombre: this.gerEditNombre.trim(), sigla: this.gerEditSigla.trim().toUpperCase().slice(0, 10) })
+          const res = await gerencias.update(g.id, { nombre: this.gerEditNombre.trim(), sigla: this.gerEditCod.trim().toUpperCase().slice(0, 10) })
           if (res.ok) { this.gerEditMode = false; window.toast('Gerencia actualizada', 'success'); await this.cargarGerencias(); await this.cargarLogs() }
           else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
         } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
@@ -427,19 +424,31 @@ export const page = {
       addArea() {
         const g = this.gerSel; if (!g) return
         if (!this.areasPorGerencia[g.id]) this.areasPorGerencia[g.id] = []
-        this.areasPorGerencia[g.id].push({ sigla: 'NV', nombre: 'Nueva Area', orden: 99, _edit: true, _new: true })
+        // El template usa a.n / a.c como aliases, y el backend canónico es
+        // nombre / sigla. Seteamos ambos para que el binding bidireccional
+        // del template (x-model="a.n") se refleje al guardar.
+        this.areasPorGerencia[g.id].push({
+          sigla: 'NV', nombre: 'Nueva Area',
+          n: 'Nueva Area', c: 'NV',
+          orden: 99, _edit: true, _new: true,
+        })
       },
       async saveArea(a) {
         const g = this.gerSel; if (!g) return
-        if (!a.nombre.trim() || !a.sigla.trim()) { window.toast('Complete nombre y sigla', 'warn'); return }
-        const sigla = a.sigla.toUpperCase().slice(0, 10)
+        // El template bindea x-model="a.n" / x-model="a.c"; si el usuario edita
+        // ahi, los canónicos nombre/sigla quedan con el valor inicial. Resolvemos
+        // desde los aliases primero y caemos al canónico.
+        const nombre = (a.n ?? a.nombre ?? '').trim()
+        const siglaRaw = (a.c ?? a.sigla ?? '').trim()
+        if (!nombre || !siglaRaw) { window.toast('Complete nombre y sigla', 'warn'); return }
+        const sigla = siglaRaw.toUpperCase().slice(0, 10)
         try {
           if (a._new) {
-            const res = await areas.create({ gerencia_id: g.id, sigla, nombre: a.nombre, orden: a.orden || 0, activo: true })
+            const res = await areas.create({ gerencia_id: g.id, sigla, nombre, orden: a.orden || 0, activo: true })
             if (res.ok) { window.toast('Area creada', 'success'); await this.cargarGerencias(); await this.cargarLogs() }
             else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
           } else {
-            const res = await areas.update(a.id, { sigla, nombre: a.nombre })
+            const res = await areas.update(a.id, { sigla, nombre })
             if (res.ok) { delete a._edit; window.toast('Area actualizada', 'success'); await this.cargarGerencias(); await this.cargarLogs() }
             else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
           }
@@ -534,256 +543,7 @@ export const page = {
       },
       cerrarPreview() { this.previewMode = false },
 
-      /* ── Gestion de Usuarios (consume API real) ── */
-      guardarTiempos() {
-        window.toast('✅ Parámetros de tiempos actualizados correctamente', 'success')
-      },
-      guardarSemaforizacion() {
-        this.guardarTiempos()
-      },
-
-      /* ─── Restricciones ─── */
-      restricciones: {
-        maxAdjuntos: ParametrosGlobalesDB.restriccionesArchivo.maxAdjuntos,
-        maxSizeMB: ParametrosGlobalesDB.restriccionesArchivo.maxSizeMB,
-        maxDescargasDia: ParametrosGlobalesDB.limitesDescarga.maxDescargasDia,
-        bandejaRegistros: ParametrosGlobalesDB.paginacion.bandejaRegistros,
-      },
-      chips: [...exclusionTiposDB],
-      nuevoChip: '',
-      quitarChip(tipo) {
-        this.chips = this.chips.filter(c => c !== tipo)
-        this.pushLog('Tipos excluidos límite descarga', tipo, 'Eliminado', 'restricciones')
-      },
-      agregarChip() {
-        const t = this.nuevoChip.trim()
-        if (!t) return
-        if (this.chips.includes(t)) { window.toast('⚠️ El tipo ya está excluido', 'warn'); return }
-        this.chips.push(t)
-        this.nuevoChip = ''
-        this.pushLog('Tipos excluidos límite descarga', '—', t, 'restricciones')
-      },
-      guardarRestricciones() {
-        const r = this.restricciones
-        if (r.maxAdjuntos !== ParametrosGlobalesDB.restriccionesArchivo.maxAdjuntos) this.pushLog('Límite adjuntos', ParametrosGlobalesDB.restriccionesArchivo.maxAdjuntos + '', r.maxAdjuntos + '', 'restricciones')
-        if (r.maxSizeMB !== ParametrosGlobalesDB.restriccionesArchivo.maxSizeMB) this.pushLog('Tamaño máx. archivo', ParametrosGlobalesDB.restriccionesArchivo.maxSizeMB + ' MB', r.maxSizeMB + ' MB', 'restricciones')
-        if (r.maxDescargasDia !== ParametrosGlobalesDB.limitesDescarga.maxDescargasDia) this.pushLog('Máx. descargas/día', ParametrosGlobalesDB.limitesDescarga.maxDescargasDia + '', r.maxDescargasDia + '', 'restricciones')
-        if (r.bandejaRegistros !== ParametrosGlobalesDB.paginacion.bandejaRegistros) this.pushLog('Paginación bandeja', ParametrosGlobalesDB.paginacion.bandejaRegistros + '', r.bandejaRegistros + '', 'restricciones')
-        ParametrosGlobalesDB.restriccionesArchivo.maxAdjuntos = r.maxAdjuntos
-        ParametrosGlobalesDB.restriccionesArchivo.maxSizeMB = r.maxSizeMB
-        ParametrosGlobalesDB.limitesDescarga.maxDescargasDia = r.maxDescargasDia
-        ParametrosGlobalesDB.paginacion.bandejaRegistros = r.bandejaRegistros
-        window.toast('✅ Restricciones guardadas correctamente', 'success')
-      },
-      guardarLimitesDescarga() {
-        this.guardarRestricciones()
-      },
-
-      /* ─── Diccionarios ─── */
-      tiposDocs: JSON.parse(JSON.stringify(tiposDocParamDB)),
-      tipoEditing: null,
-      addTipo() {
-        const nuevo = { tipo: '', cod: '', _new: true }
-        this.tiposDocs.push(nuevo)
-        this.tipoEditing = nuevo
-      },
-      saveTipo(t) {
-        if (!t.tipo.trim() || !t.cod.trim()) { window.toast('⚠️ Complete tipo y código', 'warn'); return }
-        const ant = t._new ? '(nuevo)' : tiposDocParamDB.find(x => x.cod === t.cod)?.tipo || ''
-        t.cod = t.cod.toUpperCase().slice(0, 5)
-        delete t._new
-        this.tipoEditing = null
-        this.pushLog('Tipo de documento', ant, t.tipo + ' (' + t.cod + ')', 'diccionarios')
-        window.toast('✅ Tipo guardado', 'success')
-      },
-      cancelTipo(t) {
-        if (t._new) this.tiposDocs.splice(this.tiposDocs.indexOf(t), 1)
-        this.tipoEditing = null
-      },
-      deleteTipo(t) {
-        window.confirmDeleteModal?.abrir({
-          titulo: '🗑 Eliminar Tipo de Documento',
-          mensaje: `¿Eliminar el tipo <strong>${t.tipo}</strong> (${t.cod})?`,
-          onConfirm: () => {
-            this.tiposDocs.splice(this.tiposDocs.indexOf(t), 1)
-            this.pushLog('Eliminación tipo documento', t.tipo + ' (' + t.cod + ')', 'Eliminado', 'diccionarios')
-            window.toast('✅ Tipo eliminado', 'warn')
-          }
-        })
-      },
-
-      estados: JSON.parse(JSON.stringify(estadosProcesoParamDB)),
-      estadoEditing: null,
-      addEstado() {
-        const nuevo = { est: '', ctx: 'Tarea', _new: true }
-        this.estados.push(nuevo)
-        this.estadoEditing = nuevo
-      },
-      saveEstado(e) {
-        if (!e.est.trim()) { window.toast('⚠️ Ingrese el nombre del estado', 'warn'); return }
-        const ant = e._new ? '(nuevo)' : estadosProcesoParamDB.find(x => x.est === e.est)?.est || ''
-        delete e._new
-        this.estadoEditing = null
-        this.pushLog('Estado de proceso/tarea', ant, e.est + ' · ' + e.ctx, 'diccionarios')
-        window.toast('✅ Estado guardado', 'success')
-      },
-      cancelEstado(e) {
-        if (e._new) this.estados.splice(this.estados.indexOf(e), 1)
-        this.estadoEditing = null
-      },
-      deleteEstado(e) {
-        window.confirmDeleteModal?.abrir({
-          titulo: '🗑 Eliminar Estado',
-          mensaje: `¿Eliminar el estado <strong>${e.est}</strong> (${e.ctx})?`,
-          onConfirm: () => {
-            this.estados.splice(this.estados.indexOf(e), 1)
-            this.pushLog('Eliminación estado', e.est + ' (' + e.ctx + ')', 'Eliminado', 'diccionarios')
-            window.toast('✅ Estado eliminado', 'warn')
-          }
-        })
-      },
-
-      matrizETO: JSON.parse(JSON.stringify(matrizETOParamDB)),
-      analistas: [...analistasETODB],
-      guardarFilaMatriz(m) {
-        this.pushLog('Matriz ETO', m.gerencia, `Analista: ${m.analista} · Disp: ${m.disponible ? 'Sí' : 'No'}`, 'diccionarios')
-        window.toast('✅ Fila actualizada', 'success')
-      },
-
-      /* ─── Gerencias y Áreas ─── */
-      gerencias: JSON.parse(JSON.stringify(gerenciasParamDB)),
-      gerSelId: 1,
-      gerEditMode: false,
-      gerEditNombre: '',
-      gerEditCod: '',
-      get gerSel() { return this.gerencias.find(g => g.id === this.gerSelId) },
-      addGerencia() {
-        const id = Date.now()
-        const nuevo = { id, nombre: 'Nueva Gerencia', cod: 'GER', areas: [] }
-        this.gerencias.push(nuevo)
-        this.gerSelId = id
-        this.gerEditMode = true
-        this.gerEditNombre = nuevo.nombre
-        this.gerEditCod = nuevo.cod
-      },
-      startEditGer() {
-        const g = this.gerSel
-        if (!g) return
-        this.gerEditMode = true
-        this.gerEditNombre = g.nombre
-        this.gerEditCod = g.cod
-      },
-      saveGer() {
-        const g = this.gerSel
-        if (!g) return
-        if (!this.gerEditNombre.trim() || !this.gerEditCod.trim()) { window.toast('⚠️ Complete nombre y código', 'warn'); return }
-        const ant = g.nombre + ' (' + g.cod + ')'
-        g.nombre = this.gerEditNombre.trim()
-        g.cod = this.gerEditCod.trim().toUpperCase().slice(0, 5)
-        this.gerEditMode = false
-        this.pushLog('Gerencia', ant, g.nombre + ' (' + g.cod + ')', 'gerencias')
-        window.toast('✅ Gerencia actualizada', 'success')
-      },
-      deleteGer() {
-        const g = this.gerSel
-        if (!g) return
-        window.confirmDeleteModal?.abrir({
-          titulo: '🗑 Eliminar Gerencia',
-          mensaje: `⚠️ Esta estructura tiene documentos vinculados. Se aplicará <strong>borrado lógico</strong> en la gerencia <strong>${g.nombre}</strong>.`,
-          onConfirm: () => {
-            this.gerencias.splice(this.gerencias.indexOf(g), 1)
-            this.gerSelId = this.gerencias[0]?.id || null
-            this.pushLog('Eliminación gerencia', g.nombre, 'Borrado lógico', 'gerencias')
-            window.toast('⚠️ Gerencia eliminada (borrado lógico)', 'warn')
-          }
-        })
-      },
-      addArea() {
-        const g = this.gerSel
-        if (!g) return
-        g.areas.push({ n: 'Nueva Área', c: 'COD', _edit: true })
-      },
-      saveArea(a) {
-        if (!a.n.trim() || !a.c.trim()) { window.toast('⚠️ Complete nombre y código del área', 'warn'); return }
-        a.c = a.c.toUpperCase().slice(0, 5)
-        delete a._edit
-        this.pushLog('Área', '(nueva)', a.n + ' (' + a.c + ')', 'gerencias')
-        window.toast('✅ Área guardada', 'success')
-      },
-      deleteArea(a) {
-        const g = this.gerSel
-        if (!g) return
-        window.confirmDeleteModal?.abrir({
-          titulo: 'Eliminar Área',
-          mensaje: `¿Eliminar el área <strong>${a.n}</strong>? Borrado lógico — se desvinculará de nuevas solicitudes.`,
-          onConfirm: () => {
-            g.areas.splice(g.areas.indexOf(a), 1)
-            this.pushLog('Eliminación área', a.n + ' (' + a.c + ')', 'Borrado lógico', 'gerencias')
-            window.toast('⚠️ Área eliminada', 'warn')
-          }
-        })
-      },
-      abrirMoverArea(a) {
-        const g = this.gerSel
-        if (!g) return
-        window.moveAreaModal?.abrir({
-          area: a,
-          origenId: g.id,
-          gerencias: this.gerencias,
-          onConfirmar: (destinoId) => {
-            const destino = this.gerencias.find(x => x.id === destinoId)
-            if (!destino) return
-            g.areas.splice(g.areas.indexOf(a), 1)
-            destino.areas.push({ n: a.n, c: a.c })
-            this.pushLog('Mover área', `${a.n} de ${g.nombre}`, `A ${destino.nombre}`, 'gerencias')
-            window.toast(`✅ Área ${a.n} movida a ${destino.nombre}`, 'success')
-          }
-        })
-      },
-
-      /* ─── Plantillas de Notificación ─── */
-      plantillaSelect: 0,
-      plantillas: JSON.parse(JSON.stringify(plantillasNotificacionParamDB)),
-      etiquetas: [...etiquetasPlantillaDB],
-      previewMode: false,
-      previewHtml: '',
-      insertarEtiqueta(tag) {
-        const ta = this.$refs.editorBody
-        const start = ta.selectionStart
-        const end = ta.selectionEnd
-        const cuerpo = this.plantillas[this.plantillaSelect].cuerpo || ''
-        this.plantillas[this.plantillaSelect].cuerpo = cuerpo.slice(0, start) + tag + cuerpo.slice(end)
-        this.$nextTick(() => { ta.focus(); ta.setSelectionRange(start + tag.length, start + tag.length) })
-      },
-      guardarPlantilla() {
-        const p = this.plantillas[this.plantillaSelect]
-        this.pushLog('Plantilla notificación', '(editada)', p.nombre, 'notificaciones')
-        window.toast('✅ Plantilla "' + p.nombre + '" guardada correctamente', 'success')
-      },
-      previsualizarPlantilla() {
-        const p = this.plantillas[this.plantillaSelect]
-        const mock = {
-          '{{CODIGO}}': 'PRO-CAL-045',
-          '{{TITULO}}': 'Procedimiento de Calibración de Balanzas',
-          '{{USUARIO}}': 'Aracely Romero',
-          '{{FECHA_LIMITE}}': '15/05/2026',
-          '{{ETAPA}}': 'Revisión Paralela',
-          '{{LINK}}': 'https://sgd.cofar.com/bandeja',
-          '{{GERENCIA}}': 'Calidad',
-          '{{OBSERVACION}}': 'Sin observaciones',
-        }
-        let asunto = p.asunto
-        let cuerpo = (p.cuerpo || '').replace(/\n/g, '<br>')
-        Object.entries(mock).forEach(([k, v]) => {
-          asunto = asunto.replace(new RegExp(k.replace(/[{}]/g, '\\\\$&'), 'g'), v)
-          cuerpo = cuerpo.replace(new RegExp(k.replace(/[{}]/g, '\\\\$&'), 'g'), `<strong class="text-brand-600">${v}</strong>`)
-        })
-        this.previewHtml = `<div class="text-xs text-slate-500 mb-1">Asunto:</div><div class="font-semibold text-slate-800 mb-3 text-sm">${asunto}</div><div class="text-xs text-slate-500 mb-1">Cuerpo:</div><div class="text-slate-700 text-sm leading-relaxed">${cuerpo}</div>`
-        this.previewMode = true
-      },
-      cerrarPreview() { this.previewMode = false },
-
-        /* ─── Gestión de Usuarios (lee del backend real, no mock) ─── */
+      /* ─── Gestión de Usuarios (lee del backend real, no mock) ─── */
       usuarios: [],
       // Paginación server-side
       uqPage: 1,
@@ -1367,8 +1127,8 @@ export const page = {
           <div class="flex gap-2">
             <select x-model="nuevoChip" class="form-input text-xs w-auto min-w-[140px]">
               <option value="">Seleccionar tipo...</option>
-              <template x-for="(t, idx) in chips" :key="idx + '-' + t">
-                <option :value="t" x-text="t"></option>
+              <template x-for="(t, idx) in tiposExcluibles" :key="idx + '-' + t.cod">
+                <option :value="t.cod" x-text="t.cod + ' - ' + t.tipo"></option>
               </template>
             </select>
             <button @click="agregarChip()" class="btn btn-sm">+ Agregar</button>
@@ -1612,7 +1372,7 @@ export const page = {
                   <template x-if="a._edit">
                     <div class="flex gap-1 justify-end">
                       <button @click="saveArea(a)" class="btn btn-sm text-emerald-700 border-emerald-200 py-0.5 px-1.5 text-[10px]">✓</button>
-                      <button @click="gerSel.areas.splice(gerSel.areas.indexOf(a),1)" class="btn btn-sm text-red-700 border-red-200 py-0.5 px-1.5 text-[10px]">✕</button>
+                      <button @click="cancelEditArea(a)" class="btn btn-sm text-red-700 border-red-200 py-0.5 px-1.5 text-[10px]">✕</button>
                     </div>
                   </template>
                   <template x-if="!a._edit">
