@@ -58,42 +58,49 @@ export function initPlantillaEditor(el, initialHtml, onUpdate) {
 
 /**
  * Toolbar actions: funciones helper para el template.
+ * Sesion 15: usar commands.X() en vez de chain().X().run() para
+ * evitar "Applying a mismatched transaction" cuando el editor
+ * tiene state stale (despues de setContent o Vite HMR). chain()
+ * mantiene una referencia al state inicial; si el state cambia
+ * entre chain() y run(), falla. commands.X() aplica directo.
  */
 export const toolbarActions = {
-  bold:      (e) => e.chain().focus().toggleBold().run(),
-  italic:    (e) => e.chain().focus().toggleItalic().run(),
-  underline: (e) => e.chain().focus().toggleUnderline().run(),
-  strike:    (e) => e.chain().focus().toggleStrike().run(),
-  h1:        (e) => e.chain().focus().toggleHeading({ level: 1 }).run(),
-  h2:        (e) => e.chain().focus().toggleHeading({ level: 2 }).run(),
-  h3:        (e) => e.chain().focus().toggleHeading({ level: 3 }).run(),
-  bulletList: (e) => e.chain().focus().toggleBulletList().run(),
-  orderedList: (e) => e.chain().focus().toggleOrderedList().run(),
-  blockquote: (e) => e.chain().focus().toggleBlockquote().run(),
-  codeBlock: (e) => e.chain().focus().toggleCodeBlock().run(),
-  undo:      (e) => e.chain().focus().undo().run(),
-  redo:      (e) => e.chain().focus().redo().run(),
-  setColor:  (e, color) => e.chain().focus().setColor(color).run(),
-  unsetColor: (e) => e.chain().focus().unsetColor().run(),
+  bold:      (e) => { e.commands.focus(); e.commands.toggleBold() },
+  italic:    (e) => { e.commands.focus(); e.commands.toggleItalic() },
+  underline: (e) => { e.commands.focus(); e.commands.toggleUnderline() },
+  strike:    (e) => { e.commands.focus(); e.commands.toggleStrike() },
+  h1:        (e) => { e.commands.focus(); e.commands.toggleHeading({ level: 1 }) },
+  h2:        (e) => { e.commands.focus(); e.commands.toggleHeading({ level: 2 }) },
+  h3:        (e) => { e.commands.focus(); e.commands.toggleHeading({ level: 3 }) },
+  bulletList: (e) => { e.commands.focus(); e.commands.toggleBulletList() },
+  orderedList: (e) => { e.commands.focus(); e.commands.toggleOrderedList() },
+  blockquote: (e) => { e.commands.focus(); e.commands.toggleBlockquote() },
+  codeBlock: (e) => { e.commands.focus(); e.commands.toggleCodeBlock() },
+  undo:      (e) => { e.commands.focus(); e.commands.undo() },
+  redo:      (e) => { e.commands.focus(); e.commands.redo() },
+  setColor:  (e, color) => { e.commands.focus(); e.commands.setColor(color) },
+  unsetColor: (e) => { e.commands.focus(); e.commands.unsetColor() },
   setFontSize: (e, size) => {
+    e.commands.focus()
     // TipTap no tiene setFontSize por defecto. Usamos mark 'textStyle'
     // con estilo inline font-size via updateAttributes.
-    return e.chain().focus().updateMark('textStyle', { fontSize: size }).run()
+    return e.commands.updateMark('textStyle', { fontSize: size })
   },
   unsetFontSize: (e) => {
-    return e.chain().focus().updateMark('textStyle', { fontSize: null }).removeEmptyTextStyle().run()
+    e.commands.focus()
+    return e.commands.updateMark('textStyle', { fontSize: null })
   },
   isActive: (e, name, attrs) => e.isActive(name, attrs),
   /**
    * Inserta un texto en la posicion del cursor.
    */
-  insertText: (e, text) => e.chain().focus().insertContent(text).run(),
+  insertText: (e, text) => { e.commands.focus(); e.commands.insertContent(text) },
   /**
    * Inserta una variable en la posicion del cursor.
    * Se inserta como texto plano {{CODIGO}} (no como HTML)
    * para que el backend pueda renderizarlo con Jinja2.
    */
-  insertVariable: (e, variable) => e.chain().focus().insertContent(variable).run(),
+  insertVariable: (e, variable) => { e.commands.focus(); e.commands.insertContent(variable) },
 }
 
 export default initPlantillaEditor
