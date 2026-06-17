@@ -48,7 +48,7 @@ echo [1/6] Empaquetando codigo local...
 set "TEMP_DIR=%TEMP%\sgd_deploy_%RANDOM%"
 mkdir "!TEMP_DIR!" 2>nul
 robocopy "%REPO_ROOT%\backend" "!TEMP_DIR!\backend" /E /XD node_modules .venv __pycache__ .git postgres_data redis_data .pytest_cache /XF celerybeat-schedule .coverage *.pid *.err *.out /NFL /NDL /NJH /NJS /NP >nul
-robocopy "%REPO_ROOT%\frontend" "!TEMP_DIR!\frontend" /E /XD node_modules .git dist .agents .claude /worktrees /NFL /NDL /NJH /NJS /NP >nul
+robocopy "%REPO_ROOT%\frontend" "!TEMP_DIR!\frontend" /E /XD node_modules .git dist .agents .claude worktrees /NFL /NDL /NJH /NJS /NP >nul
 robocopy "%REPO_ROOT%\deploy" "!TEMP_DIR!\deploy" /E /NFL /NDL /NJH /NJS /NP >nul
 robocopy "%REPO_ROOT%\scripts" "!TEMP_DIR!\scripts" /E /NFL /NDL /NJH /NJS /NP >nul
 copy "%REPO_ROOT%\.env.example" "!TEMP_DIR!\.env.example" >nul
