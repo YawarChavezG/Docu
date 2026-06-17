@@ -9,15 +9,23 @@
  * delete, add, mover) persisten en la BD via la API real. Dropdown de
  * "Tipos excluidos" muestra catalogo real de tipos_documento.
  *
+ * Sesion 13:
+ *  - Fixes A1-A11 (refresh al login, errores Alpine, export, logs, etc).
+ *  - Refactor tipos_documento (codigo int + slug + nombre unique).
+ *  - Semaforizacion por tipo de tarea (nueva tabla semaforizacion_tarea).
+ *  - Plantillas: 11 codigos (10 del doc + 1 PDF) con editor WYSIWYG Tiptap.
+ *
  * Tabs:
- *  - Tiempos y SLAs: /api/v1/configuracion-global
+ *  - Tiempos y SLAs: /api/v1/configuracion-global + /semaforizacion-tarea
  *  - Restricciones:  /api/v1/configuracion-global
  *  - Diccionarios:   /api/v1/tipos-documento + /estados + /matriz-enrutamiento-eto
  *  - Gerencias:      /api/v1/gerencias + /areas
- *  - Notificaciones: /api/v1/email-templates
+ *  - Notificaciones: /api/v1/email-templates (11 plantillas con Tiptap)
  *  - Usuarios:       /api/v1/usuarios (incluye export XLSX/CSV)
  *  - Logs:           /api/v1/audit-log
  */
+
+import { initPlantillaEditor, toolbarActions } from '../components/PlantillaEditor.js'
 
 import {
   configGlobal,
@@ -31,6 +39,7 @@ import {
   auditLog,
   usuarios,
   roles,
+  semaforizacion,
 } from '../services/parametrizacionApi.js'
 
 export const page = {
@@ -173,36 +182,46 @@ export const page = {
       },
 
       /* ── Tiempos y SLAs (US-9.01) ── */
-      tiempos: { plazoRevision: 5, plazoLectura: 3, slaVerde: 5, slaAmarillo: 10 },
+      tiempos: { plazoRevision: 5, plazoLectura: 3 },
       vigencias: [],
+      // Semaforizacion por tipo de tarea (sesion 13: nueva tabla)
+      semaforos: [],   // [{tipo_tarea, dias_verde, dias_amarillo, dias_rojo, plazo_maximo_dias}]
+      semaforoEditing: null,  // cual fila esta en modo edicion
+      semaforoOriginal: null, // snapshot para detectar cambios sucios
       // Snapshot de las vigencias originales para detectar cambios sucios
       _vigenciasOriginal: [],
       async cargarTiempos() {
         this.loading.tiempos = true
         try {
-          // Traer TODAS las claves de configuracion (no filtrar por categoria)
-          // porque en la BD 'plazo_revision_aprobacion_dias' esta en FLUJO
-          // y 'plazo_control_lectura_dias' en VIGENCIA. Mejor mergear todo.
+          // Traer todas las claves de config (mezcla VIGENCIA + FLUJO).
           const res = await configGlobal.list()
           if (res.ok) {
             const cfg = (res.data.items || []).reduce((acc, c) => { acc[c.clave] = c.valor; return acc }, {})
             this.tiempos = {
               plazoRevision: parseInt(cfg.plazo_revision_aprobacion_dias || '5', 10),
               plazoLectura: parseInt(cfg.plazo_control_lectura_dias || '3', 10),
-              slaVerde: parseInt(cfg.semaforo_verde_dias || '5', 10),
-              slaAmarillo: parseInt(cfg.semaforo_amarillo_dias || '10', 10),
             }
           }
           // Cargar tipos-doc con periodo_vigencia para la grilla de vigencias
           const tdRes = await tiposDocumento.list()
           if (tdRes.ok) {
             this.vigencias = (tdRes.data.items || []).map(t => ({
-              id: t.id, tipo: t.nombre, codigo: t.codigo, codigo_doc: t.codigo_doc,
+              id: t.id, tipo: t.nombre, codigo: t.codigo, slug: t.slug,
               anios: t.indefinido ? 'Indefinido' : (t.periodo_vigencia ?? 0),
               indefinido: t.indefinido,
             }))
-            // Snapshot para detectar cambios sucios en guardarTiempos()
             this._vigenciasOriginal = JSON.parse(JSON.stringify(this.vigencias))
+          }
+          // Cargar semaforizacion por tipo de tarea
+          const sfRes = await semaforizacion.list()
+          if (sfRes.ok) {
+            this.semaforos = (sfRes.data.items || []).map(s => ({
+              tipo_tarea: s.tipo_tarea,
+              dias_verde: s.dias_verde,
+              dias_amarillo: s.dias_amarillo,
+              dias_rojo: s.dias_rojo,
+              plazo_maximo_dias: s.plazo_maximo_dias,
+            }))
           }
         } catch (e) {
           window.toast(`Error cargando tiempos: ${e.message}`, 'error')
@@ -216,15 +235,12 @@ export const page = {
           await configGlobal.bulkUpsert('VIGENCIA', [
             { clave: 'plazo_revision_aprobacion_dias', valor: String(this.tiempos.plazoRevision) },
             { clave: 'plazo_control_lectura_dias', valor: String(this.tiempos.plazoLectura) },
-            { clave: 'semaforo_verde_dias', valor: String(this.tiempos.slaVerde) },
-            { clave: 'semaforo_amarillo_dias', valor: String(this.tiempos.slaAmarillo) },
           ])
           // 2) Guardar periodo_vigencia por cada tipo de documento que haya cambiado
           let cambiosVigencia = 0
           for (const v of this.vigencias) {
             const orig = (this._vigenciasOriginal || []).find(x => x.id === v.id)
             if (!orig) continue
-            // Detectar cambio: si la fila es "Indefinido" y el original era distinto, etc.
             const origAnios = orig.indefinido ? 'Indefinido' : (orig.anios ?? 0)
             if (origAnios === v.anios) continue
             const indefinido = v.anios === 'Indefinido'
@@ -236,16 +252,45 @@ export const page = {
           window.toast(
             cambiosVigencia > 0
               ? `Tiempos + ${cambiosVigencia} vigencia(s) de tipo actualizadas`
-              : 'Parametros de tiempos actualizados',
+              : 'Plazos de vigencia y lectura guardados',
             'success'
           )
           await this.cargarLogs()
-          await this.cargarTiempos()  // refresh snapshot
+          await this.cargarTiempos()
         } catch (e) {
-          window.toast(`Error: ${e.message}`, 'error')
+          window.toast(`Error: ${e.message}`, 'error') }
+      },
+      // ── Semaforizacion por tipo de tarea (sesion 13) ──
+      editSemaforo(s) {
+        this.semaforoEditing = s.tipo_tarea
+        this.semaforoOriginal = { ...s }
+      },
+      cancelSemaforo() {
+        this.semaforoEditing = null
+        this.semaforoOriginal = null
+      },
+      async guardarSemaforo(s) {
+        // Validacion: verde < amarillo < rojo <= plazo_maximo
+        if (!(s.dias_verde < s.dias_amarillo && s.dias_amarillo < s.dias_rojo && s.dias_rojo <= s.plazo_maximo_dias)) {
+          window.toast(`⚠️ ${s.tipo_tarea}: dias_verde(${s.dias_verde}) < dias_amarillo(${s.dias_amarillo}) < dias_rojo(${s.dias_rojo}) <= plazo_maximo(${s.plazo_maximo_dias})`, 'warn')
+          return
+        }
+        const res = await semaforizacion.update(s.tipo_tarea, {
+          dias_verde: s.dias_verde,
+          dias_amarillo: s.dias_amarillo,
+          dias_rojo: s.dias_rojo,
+          plazo_maximo_dias: s.plazo_maximo_dias,
+        })
+        if (res.ok) {
+          window.toast(`Semaforo ${s.tipo_tarea} actualizado`, 'success')
+          this.semaforoEditing = null
+          this.semaforoOriginal = null
+          await this.cargarTiempos()
+          await this.cargarLogs()
+        } else {
+          window.toast(`Error: ${res.data?.detail || res.status}`, 'error')
         }
       },
-      guardarSemaforizacion() { this.guardarTiempos() },
 
       /* ── Restricciones (US-9.02) ── */
       restricciones: { maxAdjuntos: 20, maxSizeMB: 20, maxDescargasDia: 10, bandejaRegistros: 10 },
@@ -304,6 +349,15 @@ export const page = {
         // Usado por el dropdown de "Tipos excluidos" en el template.
         return (this.tiposDocs || []).filter(t => t.activo && !this.chips.includes(t.cod))
       },
+      // Para los chips, ahora usamos el codigo (int) en vez del slug.
+      // Si la BD tiene chips viejos (strings), los migramos al codigo int.
+      get chipsEnCodigoInt() {
+        return (this.chips || []).map(c => {
+          if (typeof c === 'number') return c
+          const found = (this.tiposDocs || []).find(t => t.cod === c)
+          return found ? found.codigo_int : null
+        }).filter(c => c !== null)
+      },
 
       /* ── Diccionarios (US-9.03) ── */
       tiposDocs: [],
@@ -326,7 +380,7 @@ export const page = {
             configGlobal.list(),
           ])
           if (tdRes.ok) this.tiposDocs = (tdRes.data.items || []).map(t => ({
-            id: t.id, tipo: t.nombre, cod: t.codigo, codigo_doc: t.codigo_doc,
+            id: t.id, tipo: t.nombre, cod: t.slug, codigo_int: t.codigo,
             vigencia: t.indefinido ? 'Indefinido' : (t.periodo_vigencia || 0),
             activo: t.activo,
           }))
@@ -354,19 +408,19 @@ export const page = {
         }
       },
       addTipo() {
-        const nuevo = { tipo: '', cod: '', codigo_doc: 1, _new: true }
+        const nuevo = { tipo: '', cod: '', codigo_int: 1, _new: true }
         this.tiposDocs.push(nuevo); this.tipoEditing = nuevo
       },
       async saveTipo(t) {
         if (!t.tipo.trim() || !t.cod.trim()) { window.toast('Complete tipo y codigo', 'warn'); return }
-        const codigo = t.cod.toUpperCase().slice(0, 10)
-        const codigo_doc = parseInt(t.codigo_doc, 10) || 1
+        const slug = t.cod.toUpperCase().slice(0, 10)
+        const codigo = parseInt(t.codigo_int, 10) || 1
         try {
           if (t._new) {
             // Default periodo_vigencia viene de configuracion_global.tiempo_vigencia_anios
             // (antes hardcoded a 5; bug detectado sesion 13)
             const res = await tiposDocumento.create({
-              codigo, nombre: t.tipo, codigo_doc,
+              codigo, slug, nombre: t.tipo,
               periodo_vigencia: this.tiempoVigenciaDefault,
               indefinido: false,
               max_descargas_dia: 10,
@@ -375,7 +429,7 @@ export const page = {
             if (res.ok) { t.id = res.data.id; delete t._new; this.tipoEditing = null; window.toast('Tipo creado', 'success'); await this.cargarDiccionarios(); await this.cargarLogs() }
             else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
           } else {
-            const res = await tiposDocumento.update(t.id, { codigo, nombre: t.tipo, codigo_doc })
+            const res = await tiposDocumento.update(t.id, { codigo, slug, nombre: t.tipo })
             if (res.ok) { this.tipoEditing = null; window.toast('Tipo actualizado', 'success'); await this.cargarLogs() }
             else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
           }
@@ -596,28 +650,43 @@ export const page = {
         })
       },
 
-      /* ── Plantillas de Notificacion (US-9.04) ── */
+      /* ── Plantillas de Notificacion (US-9.04, sesion 13 con Tiptap) ── */
       plantillaSelect: 0,
       plantillas: [],
       etiquetas: [], // variables JSON de la plantilla seleccionada
       previewMode: false,
       previewHtml: '',
+      // Editor Tiptap
+      _editor: null,            // instancia de Editor Tiptap
+      _editorMounted: false,    // flag para evitar doble mount
+      // Toolbar state (se actualiza desde Tiptap selectionUpdate)
+      tbState: {
+        bold: false, italic: false, underline: false, strike: false,
+        h1: false, h2: false, h3: false,
+        bulletList: false, orderedList: false, blockquote: false, codeBlock: false,
+      },
+      // Color / font-size del textStyle
+      tbColor: '#000000',
+      tbFontSize: '',
       async cargarNotificaciones() {
         this.loading.notificaciones = true
         try {
           const res = await emailTemplates.list()
           if (res.ok) {
             this.plantillas = (res.data.items || []).map(t => ({
-              id: t.id, codigo: t.codigo, nombre: t.nombre, asunto: t.asunto, cuerpo: t.cuerpo_html, variables: t.variables_json || [], activo: t.activo,
+              id: t.id, codigo: t.codigo, nombre: t.nombre,
+              asunto: t.asunto, cuerpo: t.cuerpo_html,
+              variables: t.variables_json || [], activo: t.activo,
             }))
-            // Siempre resetear el indice al cargar para evitar refs a undefined
-            // durante el primer render del template. Antes esto causaba
-            // "Cannot read properties of undefined (reading 'nombre'/'asunto'/'cuerpo')"
-            // al refrescar la pagina o cambiar de tab.
             this.plantillaSelect = 0
             this.previewMode = false
             this.previewHtml = ''
-            if (this.plantillas.length) this.onSelectPlantilla()
+            if (this.plantillas.length) {
+              this.onSelectPlantilla()
+              // Esperar al siguiente tick (DOM listo) y montar Tiptap
+              await this.$nextTick()
+              this._mountTiptap()
+            }
           }
         } catch (e) {
           window.toast(`Error cargando plantillas: ${e.message}`, 'error')
@@ -628,33 +697,131 @@ export const page = {
       onSelectPlantilla() {
         const p = this.plantillas[this.plantillaSelect]
         this.etiquetas = p?.variables || []
+        // Si el editor ya esta montado, actualizamos su contenido
+        if (this._editor && p) {
+          this._editor.commands.setContent(p.cuerpo || '<p></p>', false)
+        }
+      },
+      // ─── Tiptap lifecycle ───
+      _mountTiptap() {
+        if (this._editorMounted) {
+          // Ya esta montado; solo actualizamos contenido
+          this.onSelectPlantilla()
+          return
+        }
+        const el = this.$refs.tiptapBody
+        if (!el) return
+        const p = this.plantillas[this.plantillaSelect]
+        const handle = initPlantillaEditor(el, p?.cuerpo || '<p></p>', (html) => {
+          // onUpdate: sincronizar el state con el HTML del editor
+          const idx = this.plantillaSelect
+          if (this.plantillas[idx]) this.plantillas[idx].cuerpo = html
+        })
+        this._editor = handle.editor
+        this._editorMounted = true
+        // Escuchar cambios de seleccion para actualizar el toolbar
+        this._editor.on('selectionUpdate', () => this._updateToolbarState())
+        this._editor.on('transaction', () => this._updateToolbarState())
+      },
+      _updateToolbarState() {
+        if (!this._editor) return
+        this.tbState = {
+          bold: this._editor.isActive('bold'),
+          italic: this._editor.isActive('italic'),
+          underline: this._editor.isActive('underline'),
+          strike: this._editor.isActive('strike'),
+          h1: this._editor.isActive('heading', { level: 1 }),
+          h2: this._editor.isActive('heading', { level: 2 }),
+          h3: this._editor.isActive('heading', { level: 3 }),
+          bulletList: this._editor.isActive('bulletList'),
+          orderedList: this._editor.isActive('orderedList'),
+          blockquote: this._editor.isActive('blockquote'),
+          codeBlock: this._editor.isActive('codeBlock'),
+        }
+        // Color actual del mark textStyle
+        const color = this._editor.getAttributes('textStyle').color
+        if (color) this.tbColor = color
+        const fontSize = this._editor.getAttributes('textStyle').fontSize
+        this.tbFontSize = fontSize || ''
+      },
+      // ─── Toolbar actions (template las invoca) ───
+      tbToggle(name) {
+        if (!this._editor) return
+        const fn = toolbarActions[name]
+        if (fn) fn(this._editor)
+      },
+      tbSetColor(color) {
+        if (!this._editor) return
+        this.tbColor = color
+        toolbarActions.setColor(this._editor, color)
+      },
+      tbUnsetColor() {
+        if (!this._editor) return
+        this.tbColor = '#000000'
+        toolbarActions.unsetColor(this._editor)
+      },
+      tbSetFontSize(size) {
+        if (!this._editor) return
+        this.tbFontSize = size
+        toolbarActions.setFontSize(this._editor, size)
+      },
+      tbUnsetFontSize() {
+        if (!this._editor) return
+        this.tbFontSize = ''
+        toolbarActions.unsetFontSize(this._editor)
+      },
+      // Destruir editor al desmontar el componente (cleanup)
+      _cleanupEditor() {
+        if (this._editor) {
+          this._editor.destroy()
+          this._editor = null
+          this._editorMounted = false
+        }
       },
       insertarEtiqueta(tag) {
-        const ta = this.$refs.editorBody
-        if (!ta) return
-        const start = ta.selectionStart; const end = ta.selectionEnd
-        const cuerpo = this.plantillas[this.plantillaSelect]?.cuerpo || ''
-        this.plantillas[this.plantillaSelect].cuerpo = cuerpo.slice(0, start) + tag + cuerpo.slice(end)
-        this.$nextTick(() => { ta.focus(); ta.setSelectionRange(start + tag.length, start + tag.length) })
+        if (!this._editor) return
+        toolbarActions.insertVariable(this._editor, tag)
+        this._editor.commands.focus()
       },
       async guardarPlantilla() {
         const p = this.plantillas[this.plantillaSelect]
         if (!p) return
+        // Sincronizar el HTML del editor con el state antes de guardar
+        if (this._editor) p.cuerpo = this._editor.getHTML()
         try {
           const res = await emailTemplates.update(p.codigo, { asunto: p.asunto, cuerpo_html: p.cuerpo })
           if (res.ok) { window.toast('Plantilla guardada', 'success'); await this.cargarLogs() }
-          else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          else window.toast(`Error: ${res.data?.detail || res.status}`, 'error')
         } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
       },
       async previsualizarPlantilla() {
         const p = this.plantillas[this.plantillaSelect]
         if (!p) return
-        const mock = { '{{CODIGO}}': 'PRO-CAL-045', '{{TITULO}}': 'Procedimiento de Calibracion de Balanzas', '{{USUARIO}}': 'Aracely Romero', '{{FECHA_LIMITE}}': '15/05/2026', '{{ETAPA}}': 'Revision Paralela', '{{LINK}}': 'https://sgd.cofar.com/bandeja', '{{GERENCIA}}': 'Calidad', '{{OBSERVACION}}': 'Sin observaciones' }
+        const mock = {
+          '{{CODIGO}}': 'PRO-CAL-045',
+          '{{TITULO}}': 'Procedimiento de Calibracion de Balanzas',
+          '{{USUARIO}}': 'Aracely Romero',
+          '{{FECHA_LIMITE}}': '15/05/2026',
+          '{{ETAPA}}': 'Revision Paralela',
+          '{{LINK}}': 'https://sgd.cofar.com/bandeja',
+          '{{GERENCIA}}': 'Calidad',
+          '{{OBSERVACION}}': 'Sin observaciones',
+          '{{REASIGNADO_POR}}': 'aromero',
+          '{{TAREA}}': 'Revision',
+          '{{FECHA_VENCIMIENTO}}': '18/05/2026',
+          '{{VERSION}}': '01',
+        }
         try {
           const res = await emailTemplates.preview(p.codigo, mock)
           if (res.ok) {
             const r = res.data
-            this.previewHtml = `<div class="text-xs text-slate-500 mb-1">Asunto:</div><div class="font-semibold text-slate-800 mb-3 text-sm">${r.asunto_rendered}</div><div class="text-xs text-slate-500 mb-1">Cuerpo:</div><div class="text-slate-700 text-sm leading-relaxed">${r.cuerpo_html_rendered}</div>`
+            this.previewHtml = `
+              <div class="space-y-2">
+                <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1">📧 Asunto</div>
+                <div class="text-[12.5px] font-semibold text-slate-800">${r.asunto_rendered}</div>
+                <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1 pt-2">📄 Cuerpo</div>
+                <div class="text-[12px] text-slate-700 leading-relaxed">${r.cuerpo_html_rendered}</div>
+              </div>`
             if (r.vars_faltantes?.length) window.toast(`Variables faltantes: ${r.vars_faltantes.join(', ')}`, 'warn')
             this.previewMode = true
           }
@@ -1156,35 +1323,82 @@ export const page = {
         <button @click="guardarTiempos()" class="btn btn-primary w-full mt-3">💾 Guardar Vigencia y Flujo</button>
       </div>
 
-      <!-- Semaforización -->
+      <!-- Semaforización por tipo de tarea (sesion 13: nueva tabla) -->
       <div class="card-base">
-        <div class="section-header">🚦 Semaforización de Bandejas</div>
-        <div class="text-[11px] text-slate-500 mb-3">Define los umbrales (en días) que determinan el color de alerta en las tareas pendientes.</div>
-        <div class="flex flex-col gap-2.5">
-          <div class="flex items-center gap-3">
-            <div class="w-4 h-4 rounded-full bg-emerald-600 flex-shrink-0"></div>
-            <div class="flex-1 text-[11.5px] font-semibold text-slate-800">Verde — A tiempo</div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-[11px] text-slate-500">Más de</span>
-              <input type="number" x-model="tiempos.slaVerde" min="1" max="10" class="form-input w-14 text-xs py-1 text-center">
-              <span class="text-[11px] text-slate-500">días restantes</span>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="w-4 h-4 rounded-full bg-amber-500 flex-shrink-0"></div>
-            <div class="flex-1 text-[11.5px] font-semibold text-slate-800">Amarillo — Próximo a vencer</div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-[11px] text-slate-500">Entre</span>
-              <input type="number" x-model="tiempos.slaAmarillo" min="1" max="5" class="form-input w-14 text-xs py-1 text-center">
-              <span class="text-[11px] text-slate-500">y 5 días</span>
-            </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <div class="w-4 h-4 rounded-full bg-red-600 flex-shrink-0"></div>
-            <div class="flex-1 text-[11.5px] font-semibold text-slate-800">Rojo — Vencido o crítico</div>
-            <div class="text-[11px] text-slate-400 font-semibold">Menos de 1 día o vencido</div>
-          </div>
+        <div class="section-header">🚦 Semaforización por Tipo de Tarea</div>
+        <div class="text-[11px] text-slate-500 mb-3">Define los umbrales (en días naturales desde la asignación) que determinan el color de cada tarea. El plazo máximo es 15 días; ROJO se activa cuando faltan 3 días para cumplirlo.</div>
+        <div class="overflow-x-auto -mx-3 px-3">
+        <table class="data-table min-w-full">
+          <thead><tr>
+            <th>Tipo Tarea</th>
+            <th class="w-14 text-center">Verde</th>
+            <th class="w-14 text-center">Amarillo</th>
+            <th class="w-14 text-center">Rojo</th>
+            <th class="w-14 text-center">Plazo</th>
+            <th class="w-20 text-right">Acciones</th>
+          </tr></thead>
+          <tbody>
+            <template x-for="s in semaforos" :key="s.tipo_tarea">
+              <tr>
+                <td class="font-semibold text-slate-800" x-text="s.tipo_tarea.replace('_', ' ')"></td>
+                <td>
+                  <template x-if="semaforoEditing === s.tipo_tarea">
+                    <input type="number" x-model.number="s.dias_verde" min="1" max="14" class="form-input w-14 text-xs py-1 text-center">
+                  </template>
+                  <template x-if="semaforoEditing !== s.tipo_tarea">
+                    <div class="flex items-center justify-center gap-1">
+                      <span class="w-3 h-3 rounded-full bg-emerald-600 flex-shrink-0"></span>
+                      <span class="font-mono text-emerald-700 font-bold" x-text="'0-' + s.dias_verde"></span>
+                    </div>
+                  </template>
+                </td>
+                <td>
+                  <template x-if="semaforoEditing === s.tipo_tarea">
+                    <input type="number" x-model.number="s.dias_amarillo" min="2" max="14" class="form-input w-14 text-xs py-1 text-center">
+                  </template>
+                  <template x-if="semaforoEditing !== s.tipo_tarea">
+                    <div class="flex items-center justify-center gap-1">
+                      <span class="w-3 h-3 rounded-full bg-amber-500 flex-shrink-0"></span>
+                      <span class="font-mono text-amber-700 font-bold" x-text="(s.dias_verde+1) + '-' + s.dias_amarillo"></span>
+                    </div>
+                  </template>
+                </td>
+                <td>
+                  <template x-if="semaforoEditing === s.tipo_tarea">
+                    <input type="number" x-model.number="s.dias_rojo" min="3" max="30" class="form-input w-14 text-xs py-1 text-center">
+                  </template>
+                  <template x-if="semaforoEditing !== s.tipo_tarea">
+                    <div class="flex items-center justify-center gap-1">
+                      <span class="w-3 h-3 rounded-full bg-red-600 flex-shrink-0"></span>
+                      <span class="font-mono text-red-700 font-bold" x-text="(s.dias_amarillo+1) + '-' + s.dias_rojo"></span>
+                    </div>
+                  </template>
+                </td>
+                <td class="text-center">
+                  <template x-if="semaforoEditing === s.tipo_tarea">
+                    <input type="number" x-model.number="s.plazo_maximo_dias" min="5" max="30" class="form-input w-14 text-xs py-1 text-center">
+                  </template>
+                  <template x-if="semaforoEditing !== s.tipo_tarea">
+                    <span class="badge badge-gray text-[10px]" x-text="s.plazo_maximo_dias + ' días'"></span>
+                  </template>
+                </td>
+                <td class="text-right whitespace-nowrap">
+                  <template x-if="semaforoEditing === s.tipo_tarea">
+                    <div class="flex gap-1 justify-end">
+                      <button @click="guardarSemaforo(s)" class="btn btn-sm text-emerald-700 border-emerald-200 py-0.5 px-1.5 text-[10px]">✓</button>
+                      <button @click="cancelSemaforo()" class="btn btn-sm text-red-700 border-red-200 py-0.5 px-1.5 text-[10px]">✕</button>
+                    </div>
+                  </template>
+                  <template x-if="semaforoEditing !== s.tipo_tarea">
+                    <button @click="editSemaforo(s)" class="btn btn-sm py-0.5 px-1.5 text-[10px]">✏️</button>
+                  </template>
+                </td>
+              </tr>
+            </template>
+          </tbody>
+        </table>
         </div>
+        <div class="form-hint mt-2">REVISION/APROBACION/CONTROL_LECTURA: 7/7/7. EVALUACION: 5/5/5. El plazo máximo por defecto es 15 días naturales.</div>
         <div class="form-grid-2 mt-3">
           <div>
             <label class="form-label text-[10.5px]">Plazo máx. revisión/aprobación (días)</label>
@@ -1195,7 +1409,6 @@ export const page = {
             <input type="number" x-model="tiempos.plazoLectura" min="15" max="60" class="form-input text-xs">
           </div>
         </div>
-        <button @click="guardarSemaforizacion()" class="btn btn-primary w-full mt-3">💾 Guardar Semaforización</button>
       </div>
     </div>
   </div>
@@ -1276,7 +1489,7 @@ export const page = {
         </div>
         <div class="overflow-x-auto -mx-3 px-3">
         <table class="data-table min-w-full">
-          <thead><tr><th>Tipo</th><th>Código</th><th class="w-24">Cód. Doc</th><th class="w-20 text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Tipo</th><th>Slug</th><th class="w-20">Cód. Doc</th><th class="w-20 text-right">Acciones</th></tr></thead>
           <tbody>
             <template x-for="t in tiposDocs" :key="t.id">
               <tr>
@@ -1284,8 +1497,8 @@ export const page = {
                   <td colspan="3" class="py-1.5">
                     <div class="flex gap-1.5 flex-wrap">
                       <input type="text" x-model="t.tipo" class="form-input text-[11px] py-1 flex-1 min-w-[120px]" placeholder="Nombre del tipo">
-                      <input type="text" x-model="t.cod" class="form-input text-[11px] py-1 w-24 uppercase font-mono" placeholder="COD" maxlength="10">
-                      <input type="number" x-model.number="t.codigo_doc" min="1" max="99" class="form-input text-[11px] py-1 w-16" placeholder="#">
+                      <input type="text" x-model="t.cod" class="form-input text-[11px] py-1 w-24 uppercase font-mono" placeholder="SLUG" maxlength="10">
+                      <input type="number" x-model.number="t.codigo_int" min="1" max="99" class="form-input text-[11px] py-1 w-16" placeholder="#">
                     </div>
                   </td>
                 </template>
@@ -1296,7 +1509,7 @@ export const page = {
                   <td class="font-mono text-brand-600 font-bold" x-text="t.cod"></td>
                 </template>
                 <template x-if="tipoEditing !== t">
-                  <td class="font-mono text-slate-500" x-text="t.codigo_doc"></td>
+                  <td class="font-mono text-slate-500" x-text="t.codigo_int"></td>
                 </template>
                 <td class="text-right whitespace-nowrap">
                   <template x-if="tipoEditing === t">
@@ -1543,17 +1756,17 @@ export const page = {
         </template>
       </div>
 
-      <!-- Editor / Preview -->
+      <!-- Editor / Preview (sesion 13: Tiptap rich text) -->
       <div class="card-base">
         <div class="flex items-center justify-between mb-3.5">
           <h2 class="text-[13px] font-bold text-slate-800" x-text="plantillas[plantillaSelect]?.nombre || 'Sin plantilla seleccionada'"></h2>
-          <button @click="previsualizarPlantilla()" class="btn btn-sm text-[11px]" :disabled="!plantillas[plantillaSelect]">✉️ Previsualizar</button>
+          <button @click="previsualizarPlantilla()" class="btn btn-sm text-[11px]" :disabled="!plantillas[plantillaSelect] || previewMode">✉️ Previsualizar</button>
         </div>
 
         <!-- Preview overlay -->
         <div x-show="previewMode" class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-3.5">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">Vista previa del correo</span>
+            <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">👁 Vista previa del correo (mock aplicado)</span>
             <button @click="cerrarPreview()" class="text-slate-400 hover:text-red-500 text-sm leading-none cursor-pointer">✕</button>
           </div>
           <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm" x-html="$sanitize(previewHtml)"></div>
@@ -1565,17 +1778,63 @@ export const page = {
         </div>
 
         <div x-show="!previewMode && plantillas[plantillaSelect]" class="mb-3">
-          <label class="form-label text-[10.5px]">Etiquetas disponibles (clic para insertar):</label>
+          <label class="form-label text-[10.5px]">Etiquetas disponibles (clic para insertar en el editor):</label>
           <div class="flex flex-wrap gap-1.5">
             <template x-for="e in etiquetas" :key="e">
-              <button @click="insertarEtiqueta(e)" class="px-2 py-0.5 rounded border border-blue-200 bg-blue-50 text-brand-600 text-[10.5px] cursor-pointer font-mono hover:bg-blue-100 transition-colors">\${e}</button>
+              <button @click="insertarEtiqueta(e)" class="px-2 py-0.5 rounded border border-blue-200 bg-blue-50 text-brand-600 text-[10.5px] cursor-pointer font-mono hover:bg-blue-100 transition-colors" x-text="e"></button>
             </template>
           </div>
         </div>
 
+        <!-- ─── Tiptap Toolbar + Editor (solo cuando NO hay preview) ─── -->
         <div x-show="!previewMode && plantillas[plantillaSelect]" class="mb-3">
-          <label class="form-label text-[10.5px]">Cuerpo del correo</label>
-          <textarea class="form-input text-xs font-mono leading-relaxed" rows="10" x-model="plantillas[plantillaSelect].cuerpo" x-ref="editorBody" placeholder="(Plantilla en configuración — haga clic en Previsualizar)"></textarea>
+          <label class="form-label text-[10.5px]">Cuerpo del correo (editor rich text)</label>
+
+          <!-- Toolbar Tiptap -->
+          <div class="flex flex-wrap items-center gap-1 p-1.5 bg-slate-50 border border-slate-200 rounded-t-lg">
+            <button @click="tbToggle('bold')" :class="tbState.bold ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[12px] transition-colors" title="Negrita (Ctrl+B)">B</button>
+            <button @click="tbToggle('italic')" :class="tbState.italic ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded italic text-[12px] transition-colors" title="Cursiva (Ctrl+I)">I</button>
+            <button @click="tbToggle('underline')" :class="tbState.underline ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded underline text-[12px] transition-colors" title="Subrayado (Ctrl+U)">U</button>
+            <button @click="tbToggle('strike')" :class="tbState.strike ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded line-through text-[12px] transition-colors" title="Tachado">S</button>
+            <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
+            <button @click="tbToggle('h1')" :class="tbState.h1 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[13px] transition-colors" title="Título 1">H1</button>
+            <button @click="tbToggle('h2')" :class="tbState.h2 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[12px] transition-colors" title="Título 2">H2</button>
+            <button @click="tbToggle('h3')" :class="tbState.h3 ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded font-bold text-[11px] transition-colors" title="Título 3">H3</button>
+            <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
+            <button @click="tbToggle('bulletList')" :class="tbState.bulletList ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Lista con viñetas">•≡</button>
+            <button @click="tbToggle('orderedList')" :class="tbState.orderedList ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Lista numerada">1.</button>
+            <button @click="tbToggle('blockquote')" :class="tbState.blockquote ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[12px] transition-colors" title="Cita">❝</button>
+            <button @click="tbToggle('codeBlock')" :class="tbState.codeBlock ? 'bg-brand-500 text-white' : 'text-slate-600 hover:bg-slate-200'" class="w-7 h-7 rounded text-[11px] font-mono transition-colors" title="Bloque de código">{}</button>
+            <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
+            <!-- Color picker -->
+            <div class="flex items-center gap-1 px-1.5">
+              <label class="text-[10.5px] text-slate-500" title="Color de texto">🎨</label>
+              <input type="color" :value="tbColor" @input="tbSetColor($event.target.value)" class="w-6 h-7 rounded cursor-pointer border-0 bg-transparent" title="Color de texto">
+              <button @click="tbUnsetColor()" class="text-[10px] text-slate-500 hover:text-red-500 px-1" title="Quitar color">✕</button>
+            </div>
+            <!-- Font size -->
+            <div class="flex items-center gap-1 px-1.5">
+              <label class="text-[10.5px] text-slate-500">Aa</label>
+              <select :value="tbFontSize" @change="tbSetFontSize($event.target.value)" class="form-input text-[10.5px] py-0.5 px-1 w-auto h-7" title="Tamaño de fuente">
+                <option value="">-</option>
+                <option value="12px">12</option>
+                <option value="14px">14</option>
+                <option value="16px">16</option>
+                <option value="18px">18</option>
+                <option value="20px">20</option>
+                <option value="24px">24</option>
+                <option value="32px">32</option>
+              </select>
+              <button @click="tbUnsetFontSize()" class="text-[10px] text-slate-500 hover:text-red-500 px-1" title="Quitar tamaño">✕</button>
+            </div>
+            <span class="w-px h-5 bg-slate-300 mx-0.5"></span>
+            <button @click="tbToggle('undo')" class="w-7 h-7 rounded text-slate-600 hover:bg-slate-200 text-[12px] transition-colors" title="Deshacer (Ctrl+Z)">↶</button>
+            <button @click="tbToggle('redo')" class="w-7 h-7 rounded text-slate-600 hover:bg-slate-200 text-[12px] transition-colors" title="Rehacer (Ctrl+Y)">↷</button>
+          </div>
+
+          <!-- Tiptap mount point -->
+          <div x-ref="tiptapBody" class="border border-slate-200 border-t-0 rounded-b-lg p-3 min-h-[260px] text-[12.5px] prose prose-sm max-w-none focus:outline-none bg-white" style="line-height:1.55"></div>
+          <div class="form-hint mt-1">El editor guarda HTML (no Markdown). Las variables {{...}} se mantienen como texto plano para que el backend las pueda renderizar con Jinja2.</div>
         </div>
 
         <div x-show="!plantillas[plantillaSelect]" class="text-center text-slate-400 py-8 text-[12px]">
@@ -1583,7 +1842,7 @@ export const page = {
         </div>
 
         <div class="flex justify-end gap-2" x-show="plantillas[plantillaSelect]">
-          <button @click="window.toast('Cambios cancelados','warn')" class="btn btn-sm">Cancelar</button>
+          <button @click="window.toast('Cambios cancelados','warn'); onSelectPlantilla()" class="btn btn-sm">Cancelar</button>
           <button @click="guardarPlantilla()" class="btn btn-primary btn-sm">💾 Guardar Plantilla</button>
         </div>
       </div>

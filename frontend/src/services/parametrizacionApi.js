@@ -147,3 +147,11 @@ export const usuarios = {
 export const roles = {
   list: () => apiGet('/roles'),
 }
+
+// ─── Semaforizacion por tipo de tarea (Sesion 13) ───
+export const semaforizacion = {
+  list: () => apiGet('/semaforizacion-tarea'),
+  get: (tipo) => apiGet(`/semaforizacion-tarea/${tipo}`),
+  update: (tipo, payload) => apiPatch(`/semaforizacion-tarea/${tipo}`, payload),
+  calcular: (tipoTarea, dias) => apiPost('/semaforizacion-tarea/calcular', { tipo_tarea: tipoTarea, dias_transcurridos: dias }),
+}
