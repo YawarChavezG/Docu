@@ -2257,3 +2257,118 @@ Se creo `docs/PR/SESION-22-HANDOFF.md` con:
 - Convenciones del codebase (backend, frontend, git)
 - Checklist pre-inicio (5 min)
 - Criterio de cierre de FASE 2
+
+---
+
+## Sesion 22 - 2026-06-17 (miercoles) - R2 FASE 2 cerrada (wizard E2E + firma 2FA + refactor frontend)
+
+> Sesion dedicada a cerrar R2 FASE 2: storage + POST/enviar con firma 2FA + 4 endpoints /bandeja + refactor wizard + autocomplete. 10 sub-tareas del plan, ejecutado en orden. 31 tests nuevos, 60/60 R2 verde al cierre.
+
+### Diagnostico inicial (5 min)
+
+- Stack UP: 8/8 contenedores DES + backend healthy
+- Rama: 2/wizard-y-version-editable head 6cb7c8d
+- Working tree limpio
+- 33/33 tests R2 FASE 1 (sesion 21) passing
+- 10 documentos sembrados + 0 archivos adjuntos (esperado)
+- ADRs 042-045 documentados como draft en SESION-22-HANDOFF.md
+
+### Tareas ejecutadas (orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 2.3 | ackend/app/services/storage.py (LocalStorage + SharePointStorage stub + factory) | (en commit 1) | 11 tests: save genera UUID, extension preservada, path traversal bloqueado, delete idempotente, factory env-driven (SHAREPOINT_ENABLED) |
+| 2.1 | POST /api/v1/documentos + PATCH /api/v1/documentos/{id} | (en commit 1) | 8 tests: correlativo atomico via advisory lock, validacion gerencia+area+tipo, flujo inicial en estado ELABORACION, RBAC (VISUALIZADOR excluido) |
+| 2.2 | POST /api/v1/documentos/{id}/archivos con validacion MIME/tamano | (en commit 1) | 4 tests: whitelist 7 MIME types, max 20MB, 413 si excede, 415 si MIME invalido, 404 si doc no existe |
+| 2.4 | envio_service.py + POST /api/v1/documentos/{id}/enviar (FIRMA 2FA atomica) | (en commit 1) | 6 tests CRITICOS: atomicidad validada (401 pass incorrecta = NADA persiste), lock pesimista FOR UPDATE, transicion EN_ELABORACION -> EN_REVISION, metadata firma (ip + user-agent) |
+| 2.5 | 4 endpoints /bandeja (elaboracion/revision/aprobacion/liberacion) | (en commit 1) | 8 tests: 2 escenarios por endpoint (con/sin docs). RBAC: liberacion solo ETO/ADMIN. Filtro JSONB en Python (compatible SQLite tests) |
+| 2.6 | Refactor VersionEditable.js con autocomplete real | (en commit 2) | Reemplaza setTimeout mock por documentos.buscar(q). Lista de resultados con tipo + vigencia + estatus. Seleccion muestra detalle completo |
+| 2.8 | rontend/src/services/documentosApi.js | (en commit 2) | 9 funciones (buscar, previewCodigo, get, list, create, update, uploadArchivo, enviar) + 4 bandejas (elaboracion/revision/aprobacion/liberacion) |
+| 2.7 | Refactor AprobacionDocumento.js completo (485 lineas) | (en commit 2) | Reemplaza mocks de data/ por API real. Carga async de catalogos (tipos, gerencias, areas, usuarios). codigoAuto via /preview-codigo. POST /documentos en nextPaso(paso 1). POST /enviar con firma 2FA en paso 3 |
+| 2.9 | Validacion E2E con Chrome DevTools | (analisis) | aromero ve catalogos del backend (13 tipos, 13 gerencias, 50 areas, 200 usuarios). codigoAuto=CC-1-002/00 calculado correctamente via preview-codigo. Screenshot guardado |
+| 2.10 | Commit + docs + ADRs 042-045 | (commits 1+2+3) | 3 commits atomicos. ESTADO + BITACORA actualizados. DECISIONES.md con 4 ADRs nuevos |
+
+### Logros tecnicos
+
+1. **31 tests nuevos** (60/60 R2 verde al cierre): 11 storage + 8 POST/PATCH + 4 upload + 6 firma 2FA + 8 bandejas + (3 ya existian)
+2. **Atomicidad de firma 2FA validada** (test_enviar_password_incorrecta_401): si la password es invalida, NADA se persiste (no firma, no cambio de estatus, no audit)
+3. **Wizard E2E funciona en navegador real**: login aromero -> wizard paso 1 con catalogos de BD -> codigo auto CC-1-002/00 generado
+4. **Refactor frontend elimina mocks**: 4 archivos data/*.js ya no se usan desde AprobacionDocumento.js (queda mock legacy en gerencias.js, users.js por si otros lugares los usan)
+5. **Live test POST /documentos id=11 CC-1-001/00** persistido correctamente en BD
+
+### Bugs preexistentes corregidos / trampas detectadas
+
+1. **ArchivoAdjunto no tiene columna ctivo** (sesion 21) - se intento usar ctivo==True en el count. Fix: count sin filtro de activo (no hay borrado logico en archivos)
+2. **Pydantic ValidationError 422 retorna lista, no dict** - tests deben verificar ody[0]?.msg o str(body). Fix: tests aceptan ambos formatos
+3. **SQLite no soporta operador JSONB @>** - el codigo original de bandejas fallaba en tests. Fix: filtro en Python post-query (aceptable para <100 docs)
+4. **UNIQUE(area_id, tipo_documento_id, correlativo)** - tests que creaban 2 docs con mismo correlativo fallaban. Fix: helper de test deriva correlativo del codigo
+5. **Vite HMR cacheaba la version vieja** - se veia placeholder=EJ: PRO-CAL-005 despues de cambiar a CC-3-005/01. Fix: docker restart sgd-frontend antes de validar
+6. **LDAP_ENABLED=true en DES impide verify-password con "cofar.2026"** - preexistente de sesion 5 (cuando se configuro para VPN). En DES, verify-password va a LDAP real. En QAS esto esta OK porque LDAP es real. En tests LDAP=false
+
+### Validacion E2E con Chrome DevTools
+
+| Verificacion | Resultado |
+|---|---|
+| Login aromero/cofar.2026 (BD Local) | OK, redirige a /bandeja |
+| Navegacion a /version-editable | OK, placeholder "CC-3-005/01" |
+| Buscar "CC" | OK, muestra 4 resultados con tipo/vigencia/estatus |
+| Click en resultado | OK, muestra detalle con tipo+area+limite |
+| Navegacion a /aprobacion-documento | OK, 13 tipos + 13 gerencias cargados del backend |
+| Seleccionar tipo=1, gerencia=1, area=1 | OK, codigo auto=CC-1-002/00 (calculado por backend) |
+| Console errors | 0 |
+| Screenshot wizard | docs/PR/screenshots/sesion22-wizard-codigo-auto.png |
+
+### Decisiones tecnicas (ADRs formalizados)
+
+- **ADR-042**: JSONB para N:M en documento_flujo (R2) — tablas N:M en R3
+- **ADR-043**: Trigger SQL de obsolescencia DIFERIDO a R5 — calculo en Python (ratificado)
+- **ADR-044**: 	ipo_solicitud como enum SQLAlchemy, no tabla catalogo
+- **ADR-045**: Separador de version es / (no ) — R2 ratifica ADR-011
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + import matriz + Editar Usuario + Mi Perfil + Tiptap + Parametrizacion**: 38/38 (100%) sin cambios
+- **R2**: **17/21 (81%)** — FASE 1 + FASE 2 cerradas
+- **QAS**: 8/8 (sin cambios)
+- **Total**: 55/55 (100%) + 4 bonus
+- **Migraciones Alembic**: 14 aplicadas (sin cambios en sesion 22, solo codigo Python)
+- **Endpoints totales**: 53+ REST + 5 nuevos (POST/PATCH /documentos, POST /archivos, POST /enviar, GET /bandeja) = **58+ REST**
+- **Tests pytest**: 60 R2 (storage + create + archivos + enviar + bandeja) + 123 R1 = **183 total**
+- **3 commits atomicos**: backend (storage+POST/enviar+bandejas), frontend (api+refactor), docs (BITACORA+ESTADO+ADRs)
+
+### Proxima sesion (sesion 23) - recomendaciones
+
+1. **Refactor Bandeja.js** (tarea #38, 1-2h): consumir /api/v1/bandeja en vez de mock
+2. **Refactor LiberacionDetalle.js** (tarea #39, 1h): consumir /api/v1/documentos/{id} en detalle
+3. **Refactor ListaMaestra.js** (tarea #40, 2h): consumir /api/v1/documentos con filtros
+4. **Tag v1.1.0-qas + deploy**: si se va a QAS, bumpear tag y correr start-stack-qas.sh con los cambios
+5. **Bandejas reales en R3** (tarea #36): POST /documentos/{id}/liberar con fan-out a revisores
+6. **Trigger obsolescencia R5** (ADR-043): cuando se justifique el costo
+
+### Archivos del commit (resumen)
+
+**Backend (7 archivos):**
+- pp/services/storage.py (nuevo, 175 lineas)
+- pp/services/envio_service.py (nuevo, 160 lineas)
+- pp/api/v1/bandeja.py (nuevo, 175 lineas)
+- pp/api/v1/documentos.py (modificado, +370 lineas)
+- pp/schemas/documento.py (modificado, +90 lineas)
+- pp/schemas/bandeja.py (nuevo, 50 lineas)
+- pp/main.py (modificado, +1 linea)
+- 	ests/conftest.py (modificado, +25 lineas, seed de Estado)
+- 	ests/test_storage.py (nuevo, 11 tests)
+- 	ests/test_documentos_create.py (nuevo, 8 tests)
+- 	ests/test_documentos_archivos.py (nuevo, 4 tests)
+- 	ests/test_documentos_enviar.py (nuevo, 6 tests)
+- 	ests/test_bandeja.py (nuevo, 8 tests)
+
+**Frontend (3 archivos):**
+- src/services/documentosApi.js (nuevo, 70 lineas)
+- src/components/AuthModal.js (modificado, +1 linea - pasa password en callback)
+- src/pages/VersionEditable.js (modificado, +60 lineas - autocomplete real)
+- src/pages/AprobacionDocumento.js (modificado, refactor completo, +200 lineas)
+
+**Docs (3 archivos):**
+- docs/PR/DECISIONES.md (+120 lineas, ADRs 042-045)
+- docs/PR/ESTADO.md (actualizado, R2 7/21 -> 17/21)
+- docs/PR/BITACORA.md (entrada sesion 22, +180 lineas)

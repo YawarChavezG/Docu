@@ -439,3 +439,61 @@ Adicionalmente, `start-stack-qas.sh` copia el CSV del container al host via `doc
 - ❌ El CSV "legacy" en `/opt/sgd/scripts/usuarios_sap_FINAL2026.csv` queda obsoleto (era el output de una versión anterior del script). Mantenerlo solo para referencia histórica.
 - 📝 El mismo principio aplica a cualquier script que genere archivos: deben escribirse en `/app/storage/` o `/tmp/`, nunca en `/app/scripts/` o `/app/`.
 
+
+---
+
+## ADR-042: JSONB para N:M en documento_flujo (R2) — tablas N:M en R3 (2026-06-17, sesión 22)
+
+**Contexto:** El wizard de aprobación necesita persistir revisores, aprobadores y alcance de difusión como sets de IDs. La forma tradicional serían tablas N:M (evisor_id, probador_id, difusion_id). Pero para R2 el alcance es limitado (los IDs se muestran pero las bandejas reales de revisores son R3, donde se necesitan timestamps individuales por revisor).
+
+**Decisión:** Almacenar como JSONB en documento_flujo.revisor_ids, probador_ids, lcance_difusion_ids, eemplaza_documento_ids.
+
+**Consecuencia:**
+- (+) Simplicidad: 0 tablas extra en R2. Wizard completo funcional con 4 campos JSONB.
+- (+) Performance: queries de "mis docs en revisión" (R3) leen un solo campo.
+- (+) Tests pytest con SQLite funcionan via filtro en Python (compatible con ambos backends).
+- (-) Migración a R3 cuando se necesite historial/timestamps individuales por revisor.
+- (-) El operador JSONB @> de PostgreSQL no funciona en SQLite — el código de bandejas filtra en Python (aceptable para dataset esperado: <100 docs por usuario).
+
+---
+
+## ADR-043: Trigger SQL de obsolescencia DIFERIDO a R5 — calculo en Python (2026-06-17, sesión 22)
+
+**Contexto:** El plan R2 oficial (#30) proponía un trigger SQL que recalcula igencia cuando cambia probacion_at o expira_at. La sesión 21 creó igencia_service.py con la misma lógica en Python. La decisión se RATIFICA en sesión 22.
+
+**Decisión:** Mantener el cálculo en backend Python. NO crear trigger SQL en R2 ni R3. Solo crear trigger en R5 (obsolescencia) si se justifica el costo.
+
+**Consecuencia:**
+- (+) R2 entrega rápido, sin riesgo de tests complejos de bordes (zonas horarias, DST, etc.).
+- (+) Lógica versionada en Git, no en BD.
+- (-) BD tiene el campo igencia desincronizado si cambia probacion_at o expira_at sin pasar por el servicio. Se mitiga recalculando en endpoints críticos (POST /enviar, GET /documentos/{id}).
+- (-) Requiere disciplina: cualquier endpoint que cambie probacion_at debe pasar por igencia_service.calcular_vigencia().
+
+---
+
+## ADR-044: 	ipo_solicitud como enum SQLAlchemy, no tabla catálogo (2026-06-17, sesión 22)
+
+**Contexto:** El wizard necesita 2 valores (CREACION, ACTUALIZACION) que no cambian nunca. La sesión 21 ya documentó esta decision (en draft); la sesión 22 la formaliza tras uso extensivo.
+
+**Decisión:** class TipoSolicitud(str, enum.Enum) en pp/models/documento_flujo.py con CREACION y ACTUALIZACION. NO tabla catálogo.
+
+**Consecuencia:**
+- (+) 0 tablas extra. 0 endpoints extra. 0 seeds que mantener.
+- (+) Valores validados por SQLAlchemy + Pydantic.
+- (-) Si en el futuro se agregan más tipos (ej: ANULACION), requiere migración Alembic + redeploy.
+- (-) No se puede cambiar el label sin redeploy (mitigación: el label es "CREACION" o "ACTUALIZACION", suficiente para el flujo actual).
+
+---
+
+## ADR-045: Separador de versión es / (no ) — R2 ratifica (2026-06-17, sesión 22)
+
+**Contexto:** El plan R2 original (ADR-011) decía 01 (con letra ). El usuario en sesión 21 pidió explícitamente CC-3-005/01 con barra. Sesión 22 confirma que el wizard, los endpoints, los schemas y el frontend TODOS usan / consistentemente.
+
+**Decisión:** Sobreescribe ADR-011. Formato final: {codigo}/{version} (sin letra ). Ratificado tras implementación completa del wizard E2E en sesión 22.
+
+**Consecuencia:**
+- (+) Coherencia con el ejemplo del usuario (CC-3-005/01, BET-7-001/00, etc.).
+- (+) El model_dump JSON ya devuelve ersion separado (no se concatena con ).
+- (+) El frontend muestra "CC-3-005/01" en placeholders, autocompletes y bandejas.
+- (-) Código legacy que asumía 01 debe ser actualizado (no hay código legacy aún, ya que era una decisión temprana).
+- (-) Búsqueda por código completo requiere incluir la barra (mitigación: /buscar?q=CC-3-005/00 y /buscar?q=CC-3-005 ambos funcionan por el LIKE %q%).

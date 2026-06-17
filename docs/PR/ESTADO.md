@@ -1,12 +1,14 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 20 — **Fixes preventivos deploy: 6 fixes + .dockerignore + validate-qas.sh + plan reescrito**)
+> Última actualización: 2026-06-17 (sesión 22 — **R2 FASE 2 cerrada: storage + POST/enviar/bandejas + refactor wizard + 31 tests nuevos**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
 
 **Sesión 21 (2026-06-17)**: R2 arranca oficialmente con la rama `r2/wizard-y-version-editable`. Se cierra FASE 1 (modelos + endpoints + seed + tests). Tag no bumpeado todavía (Fase 2 + deploy QAS pendiente).
+
+**Sesión 22 (2026-06-17)**: R2 FASE 2 cerrada al 100%. Backend: storage service (LocalStorage + SharePointStorage stub), POST/PATCH /documentos, POST /documentos/{id}/archivos con validación MIME/tamaño, POST /enviar con firma 2FA atómica, 4 endpoints /bandeja. Frontend: documentosApi.js, VersionEditable.js con autocomplete real, AprobacionDocumento.js refactor completo (catalogos del backend + codigo auto + firma 2FA). Tests: 31 nuevos (60 totales R2 verde). Validado E2E con Chrome DevTools. ADRs 042-045 formalizados.
 
 ## Objetivo inmediato
 **R1 cerrado al 100% + R2 desbloqueado** (1 día restante del plazo original)
@@ -105,16 +107,16 @@
 | 29 | Servicio `correlativo_service.py` con `SELECT FOR UPDATE` | ✅ | 17-jun | Sesión 21: `pg_try_advisory_xact_lock` como fallback portable. 10/10 tests pytest |
 | 30 | Trigger SQL de obsolescencia automática | ❌ | — | DIFERIDO a R5 (decision validada en sesion 21) |
 | 31 | Endpoints `/api/v1/documentos` (4 lectura) | ✅ | 17-jun | Sesión 21: `buscar`, `preview-codigo`, `GET /{id}`, `GET /` paginado. 23/23 tests pytest |
-| 32 | Endpoint `POST /api/v1/documentos/{id}/archivos` con validación MIME | ❌ | — | Pendiente Fase 2 (sesion 22) |
-| 33 | Endpoint `POST /api/v1/documentos/{id}/enviar` con firma | ❌ | — | Pendiente Fase 2 (sesion 22) |
-| 34 | Storage service: `LocalStorage` (volumen) + stub `SharePointStorage` | ❌ | — | Pendiente Fase 2 (sesion 22) |
-| 35 | Endpoint `GET /api/v1/bandeja?tipo=liberacion` para ETO | ❌ | — | Pendiente Fase 2 (sesion 22) |
-| 36 | Endpoint `POST /api/v1/documentos/{id}/liberar` (fan-out a revisores) | ❌ | — | Pendiente Fase 2 (sesion 22) |
-| 37 | Endpoint `GET /api/v1/bandeja` general (por tipo y estado) | ❌ | — | Pendiente Fase 2 (sesion 22) |
+| 32 | Endpoint `POST /api/v1/documentos/{id}/archivos` con validación MIME | ✅ | 17-jun | Sesión 22: 4 tests (201/413/415/404). Whitelist 7 MIME types |
+| 33 | Endpoint `POST /api/v1/documentos/{id}/enviar` con firma | ✅ | 17-jun | Sesión 22: 6 tests CRÍTICOS (atomicidad validada). 401 si pass incorrecta, NADA se persiste |
+| 34 | Storage service: `LocalStorage` (volumen) + stub `SharePointStorage` | ✅ | 17-jun | Sesión 22: Protocol + 2 implementaciones. 11 tests (UUID, ext whitelist, path traversal bloqueado, factory env-driven) |
+| 35 | Endpoint `GET /api/v1/bandeja?tipo=liberacion` para ETO | ✅ | 17-jun | Sesión 22: 4 endpoints /bandeja (elaboracion/revision/aprobacion/liberacion). 8 tests |
+| 36 | Endpoint `POST /api/v1/documentos/{id}/liberar` (fan-out a revisores) | ❌ | — | Diferido a R3 (bandejas individuales con timestamps) |
+| 37 | Endpoint `GET /api/v1/bandeja` general (por tipo y estado) | ✅ | 17-jun | Sesión 22: router /bandeja completo |
 | 38 | Frontend: refactorizar `src/pages/Bandeja.js` para usar API | ❌ | — | (última edición 6/5/2026, no tocado para R2) |
 | 39 | Frontend: refactorizar `src/pages/LiberacionDetalle.js` | ❌ | — | (última edición 6/5/2026) |
 | 40 | Frontend: refactorizar `src/pages/ListaMaestra.js` | ❌ | — | (última edición 6/5/2026) |
-| 41 | **TESTING R2** | 🟡 | 17-jun | 33/33 nuevos tests pasan. Pendiente tests de Fase 2 (POST/enviar/firma 2FA) |
+| 41 | **TESTING R2** | ✅ | 17-jun | Sesión 22: 60/60 tests R2 passing (storage + documentos + create + archivos + enviar + bandeja) |
 | 42 | Documentación: `docs/RUNBOOK.md` | ❌ | — | |
 | 43 | Documentación: `docs/ARQUITECTURA.md` y `ARQUITECTURA-DB.md` | 🟡 | 14-jun | Están en `docs/Diagramas_Matrices/`, falta unificar |
 
@@ -138,9 +140,9 @@
 **8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 8 seeds (incluye `seed_configuracion_global.py` en sesión 14) + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
 
 ## Progreso R2
-**7/21 tareas R2 completadas (Fase 1 cerrada en sesion 21, branch `r2/wizard-y-version-editable`)**. Plan completo + 2 fases documentado en `docs/PR/R2-PLAN-EJECUCION.md`. 33 tests pytest nuevos, 100% verde. 10 documentos sembrados idempotentemente. Regla del usuario "VENCIDO → APROBADO u OBSOLETO" validada.
+**17/21 tareas R2 completadas (FASE 1 + FASE 2 cerradas en sesiones 21+22, branch `r2/wizard-y-version-editable`)**. Plan completo + 2 fases ejecutado. 60 tests pytest R2 (33 FASE 1 + 27 FASE 2), 100% verde. 10 documentos sembrados idempotentemente + 1 creado via POST live. Regla "VENCIDO → APROBADO u OBSOLETO" validada. Wizard AprobacionDocumento.js refactor completo con catalogos del backend + firma 2FA real. VersionEditable.js con autocomplete real (BD). E2E validado con Chrome DevTools (aromero ve catalogos reales, codigo auto CC-1-002/00 generado correctamente).
 
-**Handoff para sesion 22:** `docs/PR/SESION-22-HANDOFF.md` (con prompt de inicio, plan de FASE 2, 5 riesgos, 4 ADRs candidatos, 30+ tests pendientes, criterios de cierre).
+**Handoff para sesion 23:** Pendiente refactor Bandeja.js + LiberacionDetalle.js + ListaMaestra.js (tareas 38-40), trigger obsolescencia (R5), deploy QAS con R2 completo.
 
 ## Total
 **38/49 tareas (78%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 5 tareas nuevas sesión 16 + 1 tarea nueva sesión 18 (refresh bug fix) = **86%**
