@@ -110,6 +110,13 @@ export const auditLog = {
     })
     return apiGet(`/audit-log?${params.toString()}`)
   },
+  export: (formato = 'xlsx', filtros = {}) => {
+    const params = new URLSearchParams({ formato })
+    Object.entries(filtros).forEach(([k, v]) => {
+      if (v !== null && v !== undefined && v !== '') params.set(k, v)
+    })
+    return apiDownload(`/audit-log/export?${params.toString()}`)
+  },
 }
 
 // ─── Usuarios (Sesion B - #9e) ───

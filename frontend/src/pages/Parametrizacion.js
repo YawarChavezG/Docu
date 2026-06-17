@@ -57,40 +57,70 @@ export const page = {
       logTabFilter: '',
       logAccionFilter: '',
       logRecursoFilter: '',
-      logLimit: 200,
-      logOffset: 0,
+      logPage: 1,
+      logPageSize: 10,
       logTotal: 0,
+      logTotalPages: 1,
       get logsFiltrados() {
+        // Filtro client-side adicional sobre la pagina actual (busqueda libre).
         const q = this.logSearch.toLowerCase()
+        if (!q) return this.logs
         return this.logs.filter(l =>
-          (!q ||
-            (l.descripcion || '').toLowerCase().includes(q) ||
-            (l.usuario_username || '').toLowerCase().includes(q) ||
-            (l.recurso || '').toLowerCase().includes(q) ||
-            (l.accion || '').toLowerCase().includes(q)
-          ) &&
-          (!this.logTabFilter || this._tabFromRecurso(l.recurso) === this.logTabFilter) &&
-          (!this.logAccionFilter || l.accion === this.logAccionFilter) &&
-          (!this.logRecursoFilter || l.recurso === this.logRecursoFilter)
+          (l.descripcion || '').toLowerCase().includes(q) ||
+          (l.usuario_username || '').toLowerCase().includes(q) ||
+          (l.recurso || '').toLowerCase().includes(q) ||
+          (l.accion || '').toLowerCase().includes(q) ||
+          (l.usuario_nombre || '').toLowerCase().includes(q)
         )
       },
       _tabFromRecurso(recurso) {
         const map = { gerencia: 'gerencias', area: 'gerencias', feriado: 'restricciones', configuracion_global: 'restricciones', email_template: 'notificaciones', matriz_eto: 'diccionarios', tipo_documento: 'diccionarios', estado: 'diccionarios', usuario: 'usuarios' }
         return map[recurso] || ''
       },
+      _formatFechaBolivia(iso) {
+        if (!iso) return ''
+        try {
+          return new Date(iso).toLocaleString('es-BO', {
+            timeZone: 'America/La_Paz',
+            dateStyle: 'short',
+            timeStyle: 'medium',
+          })
+        } catch (_) { return iso }
+      },
+      _mapLog(l) {
+        // Mapea el shape del backend (AuditLog) al shape que consume el template.
+        // Antes faltaba este mapeo y la tabla quedaba con celdas vacias.
+        return {
+          id: l.id,
+          fecha: this._formatFechaBolivia(l.created_at),
+          tab: this._tabFromRecurso(l.recurso),
+          parametro: `${l.accion} ${l.recurso}${l.recurso_id ? ' #' + l.recurso_id : ''}`,
+          anterior: l.detalles?.antes ? JSON.stringify(l.detalles.antes) : '—',
+          nuevo: l.detalles?.despues ? JSON.stringify(l.detalles.despues) : '—',
+          usuario: l.usuario_username || '—',
+          // Crudos del backend (por si se necesitan en el template)
+          accion: l.accion,
+          recurso: l.recurso,
+          recurso_id: l.recurso_id,
+          descripcion: l.descripcion,
+          usuario_username: l.usuario_username,
+          usuario_nombre: l.usuario_nombre,
+        }
+      },
       async cargarLogs() {
         this.loading.logs = true
         try {
           const res = await auditLog.list({
-            limit: this.logLimit,
-            offset: this.logOffset,
+            limit: this.logPageSize,
+            offset: (this.logPage - 1) * this.logPageSize,
             accion: this.logAccionFilter,
             recurso: this.logRecursoFilter,
           })
           if (res.ok) {
-            const data = await res.data
-            this.logs = data.items
+            const data = res.data
+            this.logs = (data.items || []).map(l => this._mapLog(l))
             this.logTotal = data.total
+            this.logTotalPages = Math.max(1, Math.ceil(data.total / this.logPageSize))
           } else {
             window.toast(`Error cargando logs: ${res.status}`, 'error')
           }
@@ -100,30 +130,53 @@ export const page = {
           this.loading.logs = false
         }
       },
+      logPrevPage() { if (this.logPage > 1) { this.logPage--; this.cargarLogs() } },
+      logNextPage() { if (this.logPage < this.logTotalPages) { this.logPage++; this.cargarLogs() } },
+      logGoToPage(p) {
+        if (p < 1) p = 1
+        if (p > this.logTotalPages) p = this.logTotalPages
+        if (p === this.logPage) return
+        this.logPage = p
+        this.cargarLogs()
+      },
+      logOnPageSizeChange() { this.logPage = 1; this.cargarLogs() },
+      logOnFilterChange() { this.logPage = 1; this.cargarLogs() },
+      get logPageStart() { return this.logTotal === 0 ? 0 : (this.logPage - 1) * this.logPageSize + 1 },
+      get logPageEnd() { return Math.min(this.logPage * this.logPageSize, this.logTotal) },
+      get logVisiblePages() {
+        const total = this.logTotalPages
+        const current = this.logPage
+        if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+        const pages = [1]
+        if (current > 4) pages.push('...')
+        const start = Math.max(2, current - 1)
+        const end = Math.min(total - 1, current + 1)
+        for (let i = start; i <= end; i++) pages.push(i)
+        if (current < total - 3) pages.push('...')
+        if (total > 1) pages.push(total)
+        return pages
+      },
       async exportarLogs(formato = 'xlsx') {
-        // Reutiliza el helper build_excel del backend via /audit-log?formato=
-        // Por simplicidad: descarga un XLSX via CSV (el backend no tiene export
-        // de audit aun, asi que el frontend arma un CSV a partir de this.logs).
-        const headers = ['Fecha', 'Usuario', 'Accion', 'Recurso', 'Recurso ID', 'Descripcion', 'IP', 'Exitoso']
-        const rows = this.logs.map(l => [
-          l.created_at, l.usuario_username || '', l.accion, l.recurso, l.recurso_id || '',
-          (l.descripcion || '').replace(/[;,]/g, ' '), l.ip || '', l.exitoso ? 'SI' : 'NO',
-        ])
-        let csv = headers.join(';') + '\n'
-        rows.forEach(r => { csv += r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(';') + '\n' })
-        const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `audit_log_${new Date().toISOString().slice(0,10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
-        window.toast('Logs exportados a CSV', 'success')
+        // Sesion 13: delega al backend (XLSX profesional via /audit-log/export)
+        try {
+          const res = await auditLog.export(formato, {
+            accion: this.logAccionFilter,
+            recurso: this.logRecursoFilter,
+          })
+          if (res.ok) {
+            window.toast(`Logs exportados a ${formato.toUpperCase()}`, 'success')
+            await this.cargarLogs()
+          } else {
+            window.toast(`Error exportando logs: ${res.status}`, 'error')
+          }
+        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
       },
 
       /* ── Tiempos y SLAs (US-9.01) ── */
       tiempos: { plazoRevision: 5, plazoLectura: 3, slaVerde: 5, slaAmarillo: 10 },
       vigencias: [],
+      // Snapshot de las vigencias originales para detectar cambios sucios
+      _vigenciasOriginal: [],
       async cargarTiempos() {
         this.loading.tiempos = true
         try {
@@ -145,8 +198,11 @@ export const page = {
           if (tdRes.ok) {
             this.vigencias = (tdRes.data.items || []).map(t => ({
               id: t.id, tipo: t.nombre, codigo: t.codigo, codigo_doc: t.codigo_doc,
-              anios: t.indefinido ? 'Indefinido' : (t.periodo_vigencia || 0),
+              anios: t.indefinido ? 'Indefinido' : (t.periodo_vigencia ?? 0),
+              indefinido: t.indefinido,
             }))
+            // Snapshot para detectar cambios sucios en guardarTiempos()
+            this._vigenciasOriginal = JSON.parse(JSON.stringify(this.vigencias))
           }
         } catch (e) {
           window.toast(`Error cargando tiempos: ${e.message}`, 'error')
@@ -156,14 +212,35 @@ export const page = {
       },
       async guardarTiempos() {
         try {
+          // 1) Guardar plazos globales (bulkUpsert)
           await configGlobal.bulkUpsert('VIGENCIA', [
             { clave: 'plazo_revision_aprobacion_dias', valor: String(this.tiempos.plazoRevision) },
             { clave: 'plazo_control_lectura_dias', valor: String(this.tiempos.plazoLectura) },
             { clave: 'semaforo_verde_dias', valor: String(this.tiempos.slaVerde) },
             { clave: 'semaforo_amarillo_dias', valor: String(this.tiempos.slaAmarillo) },
           ])
-          window.toast('Parametros de tiempos actualizados', 'success')
+          // 2) Guardar periodo_vigencia por cada tipo de documento que haya cambiado
+          let cambiosVigencia = 0
+          for (const v of this.vigencias) {
+            const orig = (this._vigenciasOriginal || []).find(x => x.id === v.id)
+            if (!orig) continue
+            // Detectar cambio: si la fila es "Indefinido" y el original era distinto, etc.
+            const origAnios = orig.indefinido ? 'Indefinido' : (orig.anios ?? 0)
+            if (origAnios === v.anios) continue
+            const indefinido = v.anios === 'Indefinido'
+            const periodo = indefinido ? null : parseInt(v.anios, 10) || 1
+            const res = await tiposDocumento.update(v.id, { periodo_vigencia: periodo, indefinido })
+            if (res.ok) cambiosVigencia++
+            else window.toast(`Error guardando vigencia de ${v.tipo}: ${res.data?.detail || res.status}`, 'error')
+          }
+          window.toast(
+            cambiosVigencia > 0
+              ? `Tiempos + ${cambiosVigencia} vigencia(s) de tipo actualizadas`
+              : 'Parametros de tiempos actualizados',
+            'success'
+          )
           await this.cargarLogs()
+          await this.cargarTiempos()  // refresh snapshot
         } catch (e) {
           window.toast(`Error: ${e.message}`, 'error')
         }
@@ -234,15 +311,19 @@ export const page = {
       estados: [],
       estadoEditing: null,
       matrizETO: [],
-      analistas: [], // lista de usuarios con rol ETO (cargada al entrar al tab)
+      analistas: [],          // ETOs para el dropdown de la matriz (rol ETO)
+      usuariosActivos: [],    // todos los usuarios activos para delegado de matriz
+      tiempoVigenciaDefault: 3,  // años; se carga de configuracion_global.tiempo_vigencia_anios
       async cargarDiccionarios() {
         this.loading.diccionarios = true
         try {
-          const [tdRes, estRes, matRes, uRes] = await Promise.all([
+          const [tdRes, estRes, matRes, uRes, uaRes, cfgRes] = await Promise.all([
             tiposDocumento.list(),
             estados.list(),
             matrizEto.list(),
             usuarios.list({ rol: 'ETO' }),
+            usuarios.listActivos(),
+            configGlobal.list(),
           ])
           if (tdRes.ok) this.tiposDocs = (tdRes.data.items || []).map(t => ({
             id: t.id, tipo: t.nombre, cod: t.codigo, codigo_doc: t.codigo_doc,
@@ -255,9 +336,17 @@ export const page = {
           if (matRes.ok) this.matrizETO = (matRes.data.items || []).map(m => ({
             id: m.id, gerencia: m.gerencia_sigla, gerencia_id: m.gerencia_id,
             analista: m.analista_username, analista_id: m.analista_usuario_id,
+            analista_nombre: m.analista_nombre,
+            delegado: m.delegado_username, delegado_id: m.delegado_usuario_id,
+            delegado_nombre: m.delegado_nombre,
             disponible: m.disponibilidad === 'DISPONIBLE', disponibilidad: m.disponibilidad,
           }))
           if (uRes.ok) this.analistas = (uRes.data.items || []).map(u => ({ id: u.id, username: u.username, nombre: u.nombre_completo }))
+          if (uaRes.ok) this.usuariosActivos = (uaRes.data.items || []).map(u => ({ id: u.id, username: u.username, nombre: u.nombre_completo }))
+          if (cfgRes.ok) {
+            const cfg = (cfgRes.data.items || []).reduce((acc, c) => { acc[c.clave] = c.valor; return acc }, {})
+            this.tiempoVigenciaDefault = parseInt(cfg.tiempo_vigencia_anios || '3', 10)
+          }
         } catch (e) {
           window.toast(`Error cargando diccionarios: ${e.message}`, 'error')
         } finally {
@@ -274,7 +363,15 @@ export const page = {
         const codigo_doc = parseInt(t.codigo_doc, 10) || 1
         try {
           if (t._new) {
-            const res = await tiposDocumento.create({ codigo, nombre: t.tipo, codigo_doc, periodo_vigencia: 5, indefinido: false, max_descargas_dia: 10, activo: true })
+            // Default periodo_vigencia viene de configuracion_global.tiempo_vigencia_anios
+            // (antes hardcoded a 5; bug detectado sesion 13)
+            const res = await tiposDocumento.create({
+              codigo, nombre: t.tipo, codigo_doc,
+              periodo_vigencia: this.tiempoVigenciaDefault,
+              indefinido: false,
+              max_descargas_dia: 10,
+              activo: true,
+            })
             if (res.ok) { t.id = res.data.id; delete t._new; this.tipoEditing = null; window.toast('Tipo creado', 'success'); await this.cargarDiccionarios(); await this.cargarLogs() }
             else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
           } else {
@@ -328,9 +425,24 @@ export const page = {
       },
       async guardarFilaMatriz(m) {
         try {
-          const res = await matrizEto.update(m.id, { disponibilidad: m.disponible ? 'DISPONIBLE' : 'AUSENTE' })
-          if (res.ok) { window.toast('Fila actualizada', 'success'); await this.cargarDiccionarios(); await this.cargarLogs() }
-          else window.toast(`Error: ${res.data.detail || res.status}`, 'error')
+          // Validar: si NO esta disponible, debe tener delegado.
+          if (!m.disponible && !m.delegado_id) {
+            window.toast('⚠️ Si el analista esta Ausente, asigne un delegado', 'warn')
+            return
+          }
+          const payload = {
+            disponibilidad: m.disponible ? 'DISPONIBLE' : 'AUSENTE',
+            analista_usuario_id: m.analista_id || null,
+            delegado_usuario_id: !m.disponible ? (m.delegado_id || null) : null,
+          }
+          const res = await matrizEto.update(m.id, payload)
+          if (res.ok) {
+            window.toast('Fila actualizada', 'success')
+            await this.cargarDiccionarios()   // re-lee del backend para sincronizar
+            await this.cargarLogs()
+          } else {
+            window.toast(`Error: ${res.data?.detail || res.status}`, 'error')
+          }
         } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
       },
 
@@ -498,6 +610,13 @@ export const page = {
             this.plantillas = (res.data.items || []).map(t => ({
               id: t.id, codigo: t.codigo, nombre: t.nombre, asunto: t.asunto, cuerpo: t.cuerpo_html, variables: t.variables_json || [], activo: t.activo,
             }))
+            // Siempre resetear el indice al cargar para evitar refs a undefined
+            // durante el primer render del template. Antes esto causaba
+            // "Cannot read properties of undefined (reading 'nombre'/'asunto'/'cuerpo')"
+            // al refrescar la pagina o cambiar de tab.
+            this.plantillaSelect = 0
+            this.previewMode = false
+            this.previewHtml = ''
             if (this.plantillas.length) this.onSelectPlantilla()
           }
         } catch (e) {
@@ -1018,17 +1137,22 @@ export const page = {
       <div class="card-base">
         <div class="section-header">📄 Vigencia por Tipo de Documento</div>
         <div class="space-y-2.5">
-          <template x-for="v in vigencias" :key="v.tipo">
+          <template x-for="v in vigencias" :key="v.id">
             <div class="flex items-center gap-3">
               <div class="flex-1 text-[11.5px] font-medium text-slate-700" x-text="v.tipo"></div>
               <div class="flex items-center gap-1.5">
-                <input type="number" x-model.number="v.años" min="1" max="20" class="form-input w-16 text-xs py-1 text-center">
-                <span class="text-[11px] text-slate-500">años</span>
+                <label class="inline-flex items-center gap-1 text-[11px] text-slate-600 cursor-pointer">
+                  <input type="checkbox" x-model="v.indefinido" @change="v.anios = v.indefinido ? 'Indefinido' : 4" class="w-3.5 h-3.5 accent-brand-500">
+                  <span>Indef.</span>
+                </label>
+                <input type="number" x-show="!v.indefinido" x-model.number="v.anios" min="1" max="20" class="form-input w-16 text-xs py-1 text-center">
+                <span x-show="!v.indefinido" class="text-[11px] text-slate-500">años</span>
+                <span x-show="v.indefinido" class="badge badge-gray text-[10px]">Indefinido</span>
               </div>
             </div>
           </template>
         </div>
-        <div class="form-hint mt-2">Cada tipo tiene su propio plazo de vigencia antes de requerir revisión.</div>
+        <div class="form-hint mt-2">Cada tipo tiene su propio plazo de vigencia antes de requerir revisión. Marcar "Indef." si no vence nunca.</div>
         <button @click="guardarTiempos()" class="btn btn-primary w-full mt-3">💾 Guardar Vigencia y Flujo</button>
       </div>
 
@@ -1150,16 +1274,18 @@ export const page = {
           <span class="text-[11.5px] font-bold text-slate-600">📄 Tipos de Documento</span>
           <button class="btn btn-sm text-emerald-700 border-emerald-200" @click="addTipo()">+ Nuevo</button>
         </div>
-        <table class="data-table">
-          <thead><tr><th>Tipo</th><th>Código</th><th class="w-20"></th></tr></thead>
+        <div class="overflow-x-auto -mx-3 px-3">
+        <table class="data-table min-w-full">
+          <thead><tr><th>Tipo</th><th>Código</th><th class="w-24">Cód. Doc</th><th class="w-20 text-right">Acciones</th></tr></thead>
           <tbody>
             <template x-for="t in tiposDocs" :key="t.id">
               <tr>
                 <template x-if="tipoEditing === t">
-                  <td colspan="2" class="py-1.5">
-                    <div class="flex gap-1.5">
-                      <input type="text" x-model="t.tipo" class="form-input text-[11px] py-1 flex-1" placeholder="Nombre del tipo">
-                      <input type="text" x-model="t.cod" class="form-input text-[11px] py-1 w-20 uppercase font-mono" placeholder="COD" maxlength="5">
+                  <td colspan="3" class="py-1.5">
+                    <div class="flex gap-1.5 flex-wrap">
+                      <input type="text" x-model="t.tipo" class="form-input text-[11px] py-1 flex-1 min-w-[120px]" placeholder="Nombre del tipo">
+                      <input type="text" x-model="t.cod" class="form-input text-[11px] py-1 w-24 uppercase font-mono" placeholder="COD" maxlength="10">
+                      <input type="number" x-model.number="t.codigo_doc" min="1" max="99" class="form-input text-[11px] py-1 w-16" placeholder="#">
                     </div>
                   </td>
                 </template>
@@ -1168,6 +1294,9 @@ export const page = {
                 </template>
                 <template x-if="tipoEditing !== t">
                   <td class="font-mono text-brand-600 font-bold" x-text="t.cod"></td>
+                </template>
+                <template x-if="tipoEditing !== t">
+                  <td class="font-mono text-slate-500" x-text="t.codigo_doc"></td>
                 </template>
                 <td class="text-right whitespace-nowrap">
                   <template x-if="tipoEditing === t">
@@ -1187,6 +1316,7 @@ export const page = {
             </template>
           </tbody>
         </table>
+        </div>
         <div class="form-hint mt-2">Los tipos con registros activos no pueden eliminarse (borrado lógico).</div>
       </div>
 
@@ -1196,8 +1326,9 @@ export const page = {
           <span class="text-[11.5px] font-bold text-slate-600">⚙️ Estados de Proceso y Tarea</span>
           <button class="btn btn-sm text-emerald-700 border-emerald-200" @click="addEstado()">+ Nuevo</button>
         </div>
-        <table class="data-table">
-          <thead><tr><th>Estado</th><th>Contexto</th><th class="w-20"></th></tr></thead>
+        <div class="overflow-x-auto -mx-3 px-3">
+        <table class="data-table min-w-full">
+          <thead><tr><th>Estado</th><th>Contexto</th><th class="w-20 text-right">Acciones</th></tr></thead>
           <tbody>
             <template x-for="e in estados" :key="e.id">
               <tr>
@@ -1238,6 +1369,7 @@ export const page = {
             </template>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
 
@@ -1247,36 +1379,37 @@ export const page = {
         <div class="text-[11.5px] font-bold text-slate-600"># Matriz de Enrutamiento ETO</div>
         <div class="text-[10.5px] text-slate-400">El sistema consulta esta tabla en el Paso 4 del flujo para asignar la tarea de liberación.</div>
       </div>
-      <div class="overflow-x-auto">
-        <table class="data-table">
+      <div class="overflow-x-auto -mx-3 px-3">
+        <table class="data-table min-w-full">
           <thead>
             <tr>
-              <th>Gerencia / Área</th>
+              <th>Gerencia</th>
               <th>Analista ETO Asignado</th>
-              <th class="text-center">Disponibilidad</th>
+              <th class="text-center w-28">Disponibilidad</th>
               <th>Delegado (si ausente)</th>
-              <th class="w-14"></th>
+              <th class="w-16 text-center">Guardar</th>
             </tr>
           </thead>
           <tbody>
             <template x-for="m in matrizETO" :key="m.id">
               <tr>
-                <td class="font-bold text-slate-800" x-text="m.gerencia"></td>
+                <td class="font-bold text-slate-800 whitespace-nowrap" x-text="m.gerencia"></td>
                 <td>
-                  <select class="form-input text-xs" x-model="m.analista">
-                    <template x-for="a in analistas" :key="a.id || a.username"><option :value="a.username" x-text="a.nombre || a.username"></option></template>
+                  <select class="form-input text-xs" x-model.number="m.analista_id">
+                    <option value="">— Seleccionar —</option>
+                    <template x-for="a in analistas" :key="a.id"><option :value="a.id" x-text="(a.nombre || a.username)"></option></template>
                   </select>
                 </td>
                 <td class="text-center">
                   <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11.5px]">
                     <input type="checkbox" x-model="m.disponible" class="w-4 h-4 accent-brand-500">
-                    <span :class="m.disponible ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'" x-text="m.disponible ? 'Disponible' : 'Ausente'"></span>
+                    <span :class="m.disponible ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'" x-text="m.disponible ? 'Disp.' : 'Ausente'"></span>
                   </label>
                 </td>
                 <td>
-                  <select x-show="!m.disponible" class="form-input text-xs" x-model="m.delegado">
+                  <select x-show="!m.disponible" class="form-input text-xs" x-model.number="m.delegado_id">
                     <option value="">— Seleccionar —</option>
-                    <template x-for="a in analistas" :key="a.id || a.username"><option :value="a.username" x-text="a.nombre || a.username"></option></template>
+                    <template x-for="u in usuariosActivos" :key="'da'+u.id"><option :value="u.id" x-text="(u.nombre || u.username)"></option></template>
                   </select>
                   <span x-show="m.disponible" class="text-[11px] text-slate-400">—</span>
                 </td>
@@ -1413,8 +1546,8 @@ export const page = {
       <!-- Editor / Preview -->
       <div class="card-base">
         <div class="flex items-center justify-between mb-3.5">
-          <h2 class="text-[13px] font-bold text-slate-800" x-text="plantillas[plantillaSelect].nombre"></h2>
-          <button @click="previsualizarPlantilla()" class="btn btn-sm text-[11px]">✉️ Previsualizar</button>
+          <h2 class="text-[13px] font-bold text-slate-800" x-text="plantillas[plantillaSelect]?.nombre || 'Sin plantilla seleccionada'"></h2>
+          <button @click="previsualizarPlantilla()" class="btn btn-sm text-[11px]" :disabled="!plantillas[plantillaSelect]">✉️ Previsualizar</button>
         </div>
 
         <!-- Preview overlay -->
@@ -1426,12 +1559,12 @@ export const page = {
           <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm" x-html="$sanitize(previewHtml)"></div>
         </div>
 
-        <div x-show="!previewMode" class="mb-3">
+        <div x-show="!previewMode && plantillas[plantillaSelect]" class="mb-3">
           <label class="form-label text-[10.5px]">Asunto del correo</label>
           <input type="text" x-model="plantillas[plantillaSelect].asunto" class="form-input text-xs">
         </div>
 
-        <div x-show="!previewMode" class="mb-3">
+        <div x-show="!previewMode && plantillas[plantillaSelect]" class="mb-3">
           <label class="form-label text-[10.5px]">Etiquetas disponibles (clic para insertar):</label>
           <div class="flex flex-wrap gap-1.5">
             <template x-for="e in etiquetas" :key="e">
@@ -1440,12 +1573,16 @@ export const page = {
           </div>
         </div>
 
-        <div x-show="!previewMode" class="mb-3">
+        <div x-show="!previewMode && plantillas[plantillaSelect]" class="mb-3">
           <label class="form-label text-[10.5px]">Cuerpo del correo</label>
           <textarea class="form-input text-xs font-mono leading-relaxed" rows="10" x-model="plantillas[plantillaSelect].cuerpo" x-ref="editorBody" placeholder="(Plantilla en configuración — haga clic en Previsualizar)"></textarea>
         </div>
 
-        <div class="flex justify-end gap-2">
+        <div x-show="!plantillas[plantillaSelect]" class="text-center text-slate-400 py-8 text-[12px]">
+          No hay plantillas disponibles.
+        </div>
+
+        <div class="flex justify-end gap-2" x-show="plantillas[plantillaSelect]">
           <button @click="window.toast('Cambios cancelados','warn')" class="btn btn-sm">Cancelar</button>
           <button @click="guardarPlantilla()" class="btn btn-primary btn-sm">💾 Guardar Plantilla</button>
         </div>
@@ -1860,52 +1997,115 @@ export const page = {
     <div class="card-base">
       <div class="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-100 flex-wrap gap-2">
         <div class="text-[11.5px] font-bold text-slate-600 uppercase tracking-wider">📜 Historial de Cambios de Parámetros</div>
-        <div class="flex gap-2 items-center">
-          <input type="text" x-model="logSearch" placeholder="Buscar parámetro, usuario, valor..." class="form-input text-xs w-56">
-          <select x-model="logTabFilter" class="form-input text-xs w-auto">
-            <option value="">Todas las pestañas</option>
-            <option value="tiempos">Tiempos</option>
-            <option value="restricciones">Restricciones</option>
-            <option value="diccionarios">Diccionarios</option>
-            <option value="gerencias">Gerencias</option>
-            <option value="notificaciones">Notificaciones</option>
-            <option value="usuarios">Usuarios</option>
+        <div class="flex gap-2 items-center flex-wrap">
+          <input type="text" x-model="logSearch" @input.debounce.300ms="logOnFilterChange()" placeholder="Buscar parámetro, usuario, valor..." class="form-input text-xs w-56">
+          <select x-model="logRecursoFilter" @change="logOnFilterChange()" class="form-input text-xs w-auto">
+            <option value="">Todos los recursos</option>
+            <option value="gerencia">Gerencia</option>
+            <option value="area">Área</option>
+            <option value="configuracion_global">Configuración</option>
+            <option value="feriado">Feriado</option>
+            <option value="email_template">Plantilla email</option>
+            <option value="matriz_eto">Matriz ETO</option>
+            <option value="tipo_documento">Tipo documento</option>
+            <option value="estado">Estado</option>
+            <option value="usuario">Usuario</option>
           </select>
-          <button @click="exportarLogs()" class="btn btn-sm text-[11px]">📊 Exportar a Excel</button>
+          <select x-model="logAccionFilter" @change="logOnFilterChange()" class="form-input text-xs w-auto">
+            <option value="">Todas las acciones</option>
+            <option value="CREATE">CREATE</option>
+            <option value="UPDATE">UPDATE</option>
+            <option value="DELETE">DELETE</option>
+            <option value="LOGIN">LOGIN</option>
+            <option value="EXPORT">EXPORT</option>
+            <option value="SYNC">SYNC</option>
+            <option value="OVERRIDE">OVERRIDE</option>
+          </select>
+          <button @click="exportarLogs('xlsx')" class="btn btn-sm text-[11px]">📊 Exportar a Excel</button>
         </div>
       </div>
-      <div class="overflow-x-auto">
-        <table class="data-table">
+      <div class="overflow-x-auto -mx-3 px-3">
+        <table class="data-table min-w-full">
           <thead>
             <tr>
-              <th class="w-32">Fecha</th>
-              <th>Pestaña</th>
-              <th>Parámetro</th>
-              <th>Valor Anterior</th>
-              <th>Valor Nuevo</th>
+              <th class="w-36">Fecha (BO)</th>
+              <th class="w-24">Acción</th>
+              <th class="w-32">Recurso</th>
+              <th>Detalle</th>
               <th class="w-24">Usuario</th>
             </tr>
           </thead>
           <tbody>
             <template x-for="h in logsFiltrados" :key="h.id">
               <tr>
-                <td class="text-slate-500" x-text="h.fecha"></td>
+                <td class="text-slate-500 text-[11px] whitespace-nowrap" x-text="h.fecha"></td>
                 <td>
-                  <span class="badge badge-gray text-[10px]" x-text="h.tab || '—'"></span>
+                  <span :class="{
+                      'badge badge-green text-[10px]': h.accion === 'CREATE',
+                      'badge badge-blue text-[10px]': h.accion === 'UPDATE',
+                      'badge badge-red text-[10px]': h.accion === 'DELETE',
+                      'badge badge-amber text-[10px]': h.accion === 'OVERRIDE' || h.accion === 'LOGIN',
+                      'badge badge-gray text-[10px]': !['CREATE','UPDATE','DELETE','OVERRIDE','LOGIN'].includes(h.accion)
+                   }" x-text="h.accion"></span>
                 </td>
-                <td class="font-semibold text-slate-800" x-text="h.parametro"></td>
-                <td class="text-red-600 font-mono text-[11px]" x-text="h.anterior"></td>
-                <td class="text-emerald-600 font-mono font-bold text-[11px]" x-text="h.nuevo"></td>
-                <td class="text-brand-600 font-mono text-[11px]" x-text="h.usuario"></td>
+                <td class="font-mono text-[11px] text-slate-600" x-text="(h.recurso || '') + (h.recurso_id ? ' #' + h.recurso_id : '')"></td>
+                <td class="text-[11.5px] text-slate-700" x-text="h.descripcion || h.parametro"></td>
+                <td class="font-mono text-[10.5px] text-brand-600" x-text="h.usuario"></td>
               </tr>
             </template>
-            <tr x-show="logsFiltrados.length === 0">
-              <td colspan="6" class="text-center text-slate-400 py-6 text-[11px]">No se encontraron registros.</td>
+            <tr x-show="!loading.logs && logs.length === 0">
+              <td colspan="5" class="text-center text-slate-400 py-6 text-[11px]">No se encontraron registros.</td>
+            </tr>
+            <tr x-show="loading.logs">
+              <td colspan="5" class="text-center text-slate-400 py-6 text-[11px]">
+                <div class="flex items-center justify-center gap-2">
+                  <div class="w-4 h-4 border-2 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+                  <span>Cargando logs...</span>
+                </div>
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
-      <div class="form-hint mt-2">Los cambios en plazos no afectan flujos en curso (no retroactivo).</div>
+      <div class="flex items-center justify-between mt-3 px-1 flex-wrap gap-2"
+           x-show="!loading.logs && logTotal > 0">
+        <div class="text-[11px] text-slate-500">
+          Mostrando <span class="font-semibold text-slate-700" x-text="logPageStart"></span>–<span class="font-semibold text-slate-700" x-text="logPageEnd"></span>
+          de <span class="font-semibold text-slate-700" x-text="logTotal"></span> registros
+        </div>
+        <nav class="flex items-center gap-1" aria-label="Paginación de logs">
+          <button @click="logGoToPage(1)" :disabled="logPage === 1 || loading.logs"
+                  :class="(logPage === 1 || loading.logs) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
+                  class="px-2 py-1 rounded text-[11px] font-semibold text-slate-600 transition-colors" title="Primera página">«</button>
+          <button @click="logPrevPage()" :disabled="logPage === 1 || loading.logs"
+                  :class="(logPage === 1 || loading.logs) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
+                  class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-600 transition-colors" title="Anterior">‹</button>
+          <template x-for="(p, idx) in logVisiblePages" :key="'lp'+idx">
+            <span>
+              <button x-show="p !== '...'" @click="logGoToPage(p)"
+                      :class="p === logPage ? 'bg-brand-500 text-white shadow-sm' : 'text-slate-600 hover:bg-slate-200'"
+                      class="min-w-[28px] px-2 py-1 rounded text-[11px] font-semibold transition-colors"
+                      x-text="p"></button>
+              <span x-show="p === '...'" class="px-1 text-slate-400 text-[11px]">…</span>
+            </span>
+          </template>
+          <button @click="logNextPage()" :disabled="logPage === logTotalPages || loading.logs"
+                  :class="(logPage === logTotalPages || loading.logs) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
+                  class="px-2.5 py-1 rounded text-[11px] font-semibold text-slate-600 transition-colors" title="Siguiente">›</button>
+          <button @click="logGoToPage(logTotalPages)" :disabled="logPage === logTotalPages || loading.logs"
+                  :class="(logPage === logTotalPages || loading.logs) ? 'opacity-40 cursor-not-allowed' : 'hover:bg-slate-200'"
+                  class="px-2 py-1 rounded text-[11px] font-semibold text-slate-600 transition-colors" title="Última página">»</button>
+        </nav>
+        <div class="flex items-center gap-1.5 text-[11px] text-slate-500">
+          <span>Por página:</span>
+          <select class="form-input text-[11px] py-0.5 px-1.5 w-auto" x-model.number="logPageSize" @change="logOnPageSizeChange()">
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+      </div>
     </div>
   </div>
 

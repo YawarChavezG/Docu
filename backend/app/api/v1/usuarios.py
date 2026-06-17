@@ -240,8 +240,9 @@ async def listar_usuarios(
     page_size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista usuarios de la BD con paginacion y filtros. Solo ADMIN."""
-    await _require_admin(request, db)
+    """Lista usuarios de la BD con paginacion y filtros. ETO o ADMIN.
+    (antes solo ADMIN, pero la UI de Parametrizacion la consume para ETOs)."""
+    await require_eto_or_admin(request, db)
 
     # Query base
     base = select(Usuario).options(
@@ -688,8 +689,8 @@ async def get_usuario(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Detalle de un usuario por id. Solo ADMIN."""
-    await _require_admin(request, db)
+    """Detalle de un usuario por id. ETO o ADMIN."""
+    await require_eto_or_admin(request, db)
     user = (await db.execute(
         select(Usuario).where(Usuario.id == user_id)
         .options(

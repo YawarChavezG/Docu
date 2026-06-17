@@ -10,7 +10,12 @@
  * NO maneja el token, solo el objeto user que viene en /me.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:18000/api/v1'
+import { API_BASE } from '../utils/config.js'
+// Antes este archivo usaba una URL absoluta (http://localhost:18000/api/v1)
+// que causaba problemas de CORS + cookies cuando el browser estaba en
+// localhost:8080 (Nginx proxy). Ahora usamos la misma API_BASE que
+// utils/api.js, que es relativa via Nginx.
+const _API_BASE = API_BASE
 
 /* ─── Mapeo rol backend -> rol frontend ───
    El backend devuelve roles como ["ADMIN"], ["ETO"], etc.
@@ -44,7 +49,7 @@ export const authStore = {
 
   async refreshFromBackend() {
     try {
-      const res = await fetch(`${API_BASE}/me`, {
+      const res = await fetch(`${_API_BASE}/me`, {
         method: 'GET',
         credentials: 'include', // enviar cookies
       })
@@ -93,7 +98,7 @@ export const authStore = {
     }
     try {
       const res = await fetch(
-        `${API_BASE}/usuarios?q=${encodeURIComponent(this.user.username)}&page_size=5`,
+        `${_API_BASE}/usuarios?q=${encodeURIComponent(this.user.username)}&page_size=5`,
         { method: 'GET', credentials: 'include' }
       )
       if (!res.ok) return
@@ -215,7 +220,7 @@ export const authStore = {
    */
   async login(username, password, authSource = 'cofar') {
     try {
-      const res = await fetch(`${API_BASE}/login`, {
+      const res = await fetch(`${_API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include', // recibir y enviar cookies
@@ -251,7 +256,7 @@ export const authStore = {
 
   async logout() {
     try {
-      await fetch(`${API_BASE}/logout`, {
+      await fetch(`${_API_BASE}/logout`, {
         method: 'POST',
         credentials: 'include',
       })
