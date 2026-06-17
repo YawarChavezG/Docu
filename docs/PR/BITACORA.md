@@ -2454,3 +2454,119 @@ ew Date().toLocaleDateString('es-BO'). |
 - **ADR-047**: El documento del wizard se crea RECIEN al firmar, no al
   avanzar de paso. Patron: no persistir hasta tener confirmacion del usuario
   (Sesion 23).
+
+---
+
+## Sesion 23 (continuacion) — 2026-06-17 (miercoles 17:00 ? 18:30) — Bloque B: 5 sub-tareas (datos + firma 2FA + estados)
+
+> Sesion dedicada a cerrar el Bloque B del plan propuesto al usuario.
+> 5 sub-tareas criticas: B1 vacaciones con fechas, B2 cron 00:05, B3 estados
+> nuevos, B4 firma 2FA en BD, B5 fix doble toast. Commit atómico 95e1b5b
+> con 12 archivos (10 backend + 2 frontend).
+
+### Problemas reportados
+
+1. **Vacaciones sin fechas**: el frontend pedia Desde/Hasta pero el backend
+   no las guardaba (solo el flag usuarios.ausente).
+2. **Cron auto-off**: el usuario queria que al llegar fecha_fin el sistema
+   desactive automaticamente el ausente.
+3. **Estados**: replantear el catalogo a 3 contextos (PROCESO+TAREA+ACCION)
+   con 12 nuevos estados.
+4. **Firma 2FA no se guardaba en tabla firma_digital**: el modelo existia
+   (sesion 1) pero nunca se uso. Era "fantasma".
+5. **Doble toast en firma 2FA**: exito + error aparecian al firmar.
+
+### Tareas ejecutadas (orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| B5 | Validar firma 2FA con curl. Encontrados 2 bugs. | (analisis) | (1) validar_password_usuario no replicaba logica dual de auth.py. (2) envio_service buscaba estado EN_REVISION pero el codigo real era REVISION_PARALELA. |
+| B5 | Fix validar_password_usuario: acepta 'cofar.2026'/'admin.2026' primero, luego LDAP | 95e1b5b | Bug preexistente (sesion 22) que impedia firmar 2FA a usuarios locales en DES con LDAP_ENABLED=true |
+| B5 | Fix envio_service.py: REVISION_PARALELA ? REVISION | (B3) | (Se hizo definitivo con B3) |
+| B5 | Fix AuthModal.js: removido window.toast('Firma digital registrada') | 95e1b5b | Causa del doble toast. Ahora solo el callback onSuccess muestra el resultado. |
+| B4 | envio_service.py: crea FirmaDigital en el commit atómico | 95e1b5b | Fila inmutable con usuario_id, accion='enviar_liberacion', recurso_tipo='documento', recurso_id, ip, user_agent, resultado_exito. Tambien crea fila con resultado_exito=false si la password es invalida (auditoria forense). |
+| B1 | backend/app/schemas/ausencia.py (Pydantic v2) | 95e1b5b | AusenciaBase + Create + Update + Out + ListResponse. Validacion fecha_hasta >= fecha_desde via field_validator. |
+| B1 | backend/app/api/v1/ausencias.py (6 endpoints) | 95e1b5b | GET / (con filtros usuario_id, solo_vigentes) + GET /usuarios/{id}/vigente + GET /{id} + POST /usuarios/{id} + PATCH /{id} + DELETE /{id}. Permisos: ETO/ADMIN puede gestionar cualquier usuario, usuario normal solo el suyo. Helper _vigente_set_usuario_ausente() mantiene usuarios.ausente sincronizado con ausencias vigentes. |
+| B1 | frontend/src/components/ProfileModal.js | 95e1b5b | Carga ausencias del usuario. Form con motivo (vacaciones/licencia/capacitacion/otro). Historial visible. Botones registrar/actualizar/cancelar. Observaciones se guardan en el campo notas. |
+| B1 | frontend/src/pages/Parametrizacion.js (modal Editar Usuario) | 95e1b5b | Carga ausencias al abrir el modal. Permite a ETO/ADMIN crear/editar/cancelar vacaciones de cualquier usuario via API /ausencias. |
+| B2 | backend/app/workers/tasks.py: desactivar_ausencias_vencidas | 95e1b5b | Tarea asincrona que busca ausencias con fecha_hasta < today + activo=true, las marca activo=false, y setea usuarios.ausente=false. Idempotente. |
+| B2 | backend/app/workers/celery_app.py: beat_schedule | 95e1b5b | crontab(hour=0, minute=5) ? desactivar_ausencias_vencidas. Coherente con sync AD 00:05. |
+| B2 | backend/scripts/desactivar_ausencias_vencidas.py (CLI) | 95e1b5b | Para testing manual sin esperar al cron. --dry-run para solo mostrar. |
+| B3 | backend/app/models/estado.py: ContextoEstado.ACCION | 95e1b5b | Nuevo valor del enum (PROCESO, TAREA, ACCION, AMBOS). |
+| B3 | Migracion 353aec067661: ALTER TYPE + data-migration | 95e1b5b | (1) ALTER TYPE contexto_estado ADD VALUE 'ACCION' (autocommit). (2) UPDATE 9 antiguos activo=false (ELABORACION, LIBERACION_ETO, REVISION_PARALELA, FINALIZADO, ANULADO, APROBACION, TST1, TE_26664, TEST_NUEVO). (3) INSERT 12 nuevos con ON CONFLICT idempotente: CONCLUIDO, EN_EJECUCION, ELIMINADO_PROC (PROCESO); SOLICITUD_CREADA, LIBERACION_ETO, REVISION, APROBADO, ELIMINACION, CORRECCION (TAREA); EJECUTADO, PENDIENTE, ELIMINADO_ACC (ACCION). |
+| B3 | envio_service.py: usa nuevo REVISION | 95e1b5b | Antes buscaba REVISION_PARALELA (antiguo, ahora inactivo). |
+
+### Logros tecnicos
+
+1. **5/5 sub-tareas del Bloque B cerradas** en ~2.5h.
+2. **12 archivos modificados/creados** (10 backend + 2 frontend) en 1 commit.
+3. **Bug critico firma 2FA resuelto** (era BLOQUEANTE para R2 fase 2).
+4. **Tabla firma_digital finalmente usada** (existia desde sesion 1 pero nunca se creo fila).
+5. **Estados reorganizados** con contexto ACCION (nuevo, antes solo PROCESO/TAREA/AMBOS).
+6. **Vacaciones con fechas persistidas** en tabla ausencias (antes solo flag ausente).
+
+### Validacion empirica
+
+| Verificacion | Resultado |
+|---|---|
+| Login aromero/cofar.2026 | OK |
+| POST /documentos (doc 15) | OK, id=15, codigo=CC-5-003/00 |
+| POST /enviar con password=cofar.2026 | 200 OK, estatus=EN_REVISION |
+| firmas_digitales en BD | 2 filas: 1 con motivo_fallo=password_invalida (intento previo), 1 con resultado_exito=true |
+| Crear ausencia aromero fecha_desde=2026-06-15 fecha_hasta=2026-06-30 | 201 OK, esta_vigente=true (hoy=17-jun) |
+| usuarios.ausente automaticamente en true | OK |
+| GET /ausencias/usuarios/1/vigente | OK, devuelve la ausencia vigente |
+| Script CLI desactivar_ausencias_vencidas | OK, no hay ausencias vencidas (hoy=17-jun) |
+| 12 nuevos estados en BD | OK, 3 PROCESO + 6 TAREA + 3 ACCION con sus ordenes |
+| 9 antiguos estados activo=false | OK, ELABORACION/LIBERACION_ETO/REVISION_PARALELA/FINALIZADO/ANULADO/APROBACION/TST1/TE_26664/TEST_NUEVO |
+| ALTER TYPE contexto_estado con valor 'ACCION' | OK, sin UnsafeNewEnumValueUsageError |
+
+### Hallazgos / trampas
+
+- **PostgreSQL no permite usar nuevo valor de enum en la misma transaccion**
+  que el ALTER TYPE ... ADD VALUE. Hay que usar op.get_context().autocommit_block().
+- **El modelo Documento.EstatusDocumento sigue con EN_REVISION** (codigo interno
+  del modelo Python), pero el catalogo BD apunta a REVISION (contexto TAREA).
+  El flujo funciona porque el modelo no valida que el codigo del catalogo
+  coincida con el del enum del modelo. Sesion 23 lo deja asi para no romper
+  mas codigo existente; se refactorizara en R3.
+- **Bug preexistente validar_password_usuario**: la firma 2FA fallaba para
+  usuarios locales en DES porque LDAP_ENABLED=true. La logica de auth.py
+  tiene un fallback a 'cofar.2026'/'admin.2026' que envio_service NO tenia.
+  Ahora replicado.
+- **El doble toast era por 2 lugares**:
+  1. AuthModal.js mostraba 'Firma digital registrada' antes de cerrar el modal.
+  2. AprobacionDocumento.js mostraba 'Solicitud enviada' despues del callback.
+  Removido el #1.
+
+### Decisiones tecnicas (ADRs candidatos)
+
+- **ADR-048**: El modelo Documento.EstatusDocumento (EN_ELABORACION,
+  EN_REVISION, etc.) es INDEPENDIENTE del catalogo estados (contexto
+  PROCESO). El flujo los conecta via documento_flujo.estado_actual_id
+  pero los codigos pueden diferir. Aceptado por simplicidad (Sesion 23).
+- **ADR-049**: alidar_password_usuario replica la logica dual de uth.py:
+  stubs locales ('cofar.2026'/'admin.2026') primero, LDAP despues.
+  Patron compartido para todos los servicios que validan 2FA (Sesion 23).
+- **ADR-050**: Tabla usencias es la fuente de verdad de vacaciones. El
+  flag usuarios.ausente es DERIVADO (computed al insertar/actualizar
+  ausencia). Cron 00:05 desactiva ausencias vencidas y sincroniza el flag.
+- **ADR-051**: Estados se reorganizan con 3 contextos (PROCESO/TAREA/ACCION)
+  + 12 estados canonicos. Codigos duplicados (REVISION existe en 2
+  contextos) con sufijo de contexto en codigo donde aplica (ELIMINADO_PROC,
+  ELIMINADO_ACC).
+
+### Pendientes (Bloques C-F)
+
+- **C**: sync AD mejorado (desvinculados + flag es_usuario_ad) ~1.5h
+- **D**: impersonate end-to-end (cookie, sidebar, bandejas) ~1h
+- **E**: pagina /plantillas nueva + storage local ~2h
+- **F**: wizard pulido (filtros ETO/REVISOR/APROBADOR, asunto en plantillas,
+  ocultar delegado visualizador/admin, storage local momentaneo) ~2h
+
+### Commits de la sesion 23
+
+- b1e45e fix(wizard+seeds+semaforos): Bloque A (6 sub-tareas)
+- 715cee2 docs(pr): sesion 23 — Bloque A cerrado
+- e795c8f fix(wizard): actualizar hint del botón Siguiente
+- 95e1b5b feat(ausencias+firmas+estados): Bloque B (5 sub-tareas)

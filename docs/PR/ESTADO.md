@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 23 — **Bloque A cerrado: 6 sub-tareas, 1 commit atómico**)
+> Última actualización: 2026-06-17 (sesión 23 — **Bloques A+B cerrados: 11 sub-tareas, 2 commits atómicos**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
@@ -102,6 +102,12 @@
 | A4 | Delegado persiste end-to-end | ✅ | 17-jun | Validado con curl: PATCH /usuarios/1 con delegado_id=1463 (cecEspinoza) → 200, estado_delegacion=asignado, delegado_id=1463, delegado_nombre=Cecilia Espinoza. |
 | A5 | Semaforizacion: eliminar 4 claves redundantes de configuracion_global | ✅ | 17-jun | Migracion `5aaf5d3e3509` marca activo=false. Seed removidas. UI Parametrizacion > Tiempos y SLAs removio las 2 inputs y el bulkUpsert. Unica fuente de verdad: tabla `semaforizacion_tarea`. |
 | A6 | Wizard: 3 campos read-only en paso 1 (Nombre/Cargo/Fecha) | ✅ | 17-jun | 3 inputs disabled con $store.auth.user.nombre_completo, $store.auth.user.cargo, new Date().toLocaleDateString('es-BO'). |
+| **Sesion 23 (Bloque B — datos + firma 2FA + estados)** | | | | |
+| B1 | Vacaciones con fechas (tabla ausencias + CRUD) | ✅ | 17-jun | backend/app/api/v1/ausencias.py (6 endpoints: list, get, create, update, delete, vigente). frontend ProfileModal.js + Parametrizacion.js modal Editar Usuario: registrar/actualizar/cancelar vacaciones con fechas y motivo. usuarios.ausente se setea automaticamente segun ausencias vigentes. |
+| B2 | Cron 00:05 desactiva ausencias vencidas | ✅ | 17-jun | celery beat_schedule: crontab(hour=0, minute=5) → app.workers.tasks.desactivar_ausencias_vencidas. Script CLI `desactivar_ausencias_vencidas.py` para testing manual con --dry-run. |
+| B3 | Estados: enum ACCION + data-migration a 12 nuevos | ✅ | 17-jun | Migracion 353aec067661: ALTER TYPE contexto_estado ADD VALUE 'ACCION' + 9 antiguos activo=false + 12 nuevos (3 PROCESO + 6 TAREA + 3 ACCION). envio_service.py: usa nuevo REVISION. |
+| B4 | Firma 2FA: crear fila en firma_digital | ✅ | 17-jun | envio_service.py: crea FirmaDigital(resultado_exito=true) atómico. Tambien registra FirmaDigital(resultado_exito=false, motivo_fallo=password_invalida) en intento fallido. Bug preexistente validar_password_usuario corregido (replica logica dual de auth.py). |
+| B5 | Fix doble toast en firma 2FA | ✅ | 17-jun | AuthModal.js: removido window.toast('Firma digital registrada') que se mostraba ANTES del callback onSuccess. Solo el callback muestra el resultado (éxito o error). |
 | N36 | Fix refresh bug: race auth.init vs initRouter | ✅ | 17-jun | 3 cambios: (1) auth.js init() restaura SINCRONO desde localStorage + flag isReady. (2) router/index.js guard !isReady con loader (no redirige durante init). (3) debug page /_debug/session permanente. 6/6 smoke tests Chrome MCP. Commit `733e8b6` |
 
 ### R2 — Wizard de creación
