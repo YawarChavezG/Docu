@@ -1229,3 +1229,155 @@ Opciones:
 Recomendacion: agregar el seed al `start-stack-qas.sh` (rapido) +
 cerrar Fase 2-5 del PENDIENTES-R1 antes de R2 (consistencia R1).
 
+---
+
+## Sesion 13 — 2026-06-17 (miercoles 00:00 → 01:00) — PENDIENTES-R1 segunda tanda + LOOP Docker
+
+> Sesion dedicada a cerrar el lote de bugs preexistentes en Parametrizacion
+> (A1-A11) + las tareas de refactor de tipos_documento, semaforizacion,
+> plantillas 10 y editor Tiptap. La sesion **se rompio en loop** intentando
+> recuperar Docker y se perdio conexion. Se preservo el historial completo
+> en `docs/PR/SESION-HISTORIAL-R1.md` (2925 lineas) para referencia.
+
+### Tareas completadas en sesion 13 (commiteadas en af1de7d)
+
+| # | Tarea | Resultado |
+|---|---|---|
+| A1+A2 | Fix errores Alpine en plantillas (optional chaining + reset index) | plantillas[plantillaSelect]?.nombre, plantillaSelect=0 en cargar |
+| A3 | Persistir vigencia por tipo de documento (PATCH por fila) | guardarTiempos() compara con snapshot y PATCH solo cambios |
+| A4 | periodo_vigencia default desde config_global.tiempo_vigencia_anios | saveTipo() lee de state.tiempoVigenciaDefault (3) |
+| A5 | Tablas responsive (Tipos, Estados, Matriz ETO) | overflow-x-auto + min-w-full, columna Cod. Doc |
+| A6 | Matriz ETO - persistir analista y delegado | guardarFilaMatriz() envia analista_usuario_id + delegado_usuario_id |
+| A7 | Fix export usuarios CSV/XLSX | GET /usuarios cambio a require_eto_or_admin; fix auth.js cross-origin |
+| A8 | Logs - mapear shape backend al frontend | fecha Bolivia, tab, parametro, anterior, nuevo, usuario |
+| A9 | Export logs XLSX via backend endpoint + paleta pastel | endpoint + openpyxl 3.1.5 |
+| A10 | Logs paginacion 10/pag con controles | selector de pagina + contador |
+
+Commit unico: `af1de7d fix(frontend+backend): Parametrizacion UI bugs (A1-A11) + auth cross-origin`
+
+### Tareas adicionales completadas pero NO commiteadas (quedaron en working tree)
+
+- **Refactor tipos_documento**: codigo (int UNIQUE) + slug (string) + nombre (UNIQUE), drop codigo_doc
+- **Migracion Alembic 6b244889632f**: data-migration + drop column
+- **Semaforizacion por tipo de tarea**: modelo + 4 endpoints + API client + UI
+- **Migracion Alembic f04b96c6dff2**: add semaforizacion_tarea table
+- **Plantillas notificacion: 10 plantillas** (ampliar enum de 6 a 10 codigos + seed)
+- **Migracion Alembic 6451593bcab5**: expand plantillas enum to 10 codes
+- **Editor Tiptap para plantillas**: iniciado (PlantillaEditor.js + deps en package.json + import en Parametrizacion)
+- **deploy fixes**: docker-compose env vars con defaults, nginx rate limit burst 20->100
+
+### LOOP Docker (lo que se intento y fallo)
+
+1. `docker compose up -d` SIN --env-file .env -> contenedores con puertos aleatorios
+2. Backend respondia 200 con `database: error: password authentication failed for user "sgduser"`
+3. Sesion intento arreglar creando certs SSL dummy, montando volumen SSL, agregando env_file
+4. Sesion intento agregar `${VAR:-default}` a todas las env vars del docker-compose.yml
+5. Sesion intento `pip install openpyxl` ad-hoc en el contenedor (se perdio en down)
+6. Sesion intento `nginx -s reload`, `docker restart`, etc.
+7. **Sesion NUNCA hizo `docker compose down` + `docker compose up -d` con el flag correcto** (eso era la salida del loop en 5 min)
+8. La sesion se cerro con `localhost:8080` sin responder y 16 archivos + 7 nuevos sin commitear
+
+### Diagnostico post-mortem
+
+**Causa raiz del loop**: El flag `--env-file .env` no se estaba pasando a `docker compose up -d`.
+Sin el flag, las env vars de sustitucion (${HOST_PORT_NGINX}, ${POSTGRES_USER}, etc.) llegan
+como string vacio al compose, y Docker asigna puertos aleatorios. El backend construye
+`DATABASE_URL=postgresql+asyncpg://:@postgres:5432/` (sin user/pass) y falla la auth a Postgres.
+
+**Bugs preexistentes adicionales descubiertos**:
+- `sgd-qas.conf` estaba en `deploy/nginx/conf.d/` del DES, redirigia todo a HTTPS en
+  puerto 443 que no estaba expuesto -> ERR_CONNECTION_REFUSED en browser. Nunca debio
+  estar en `conf.d/`. Es el server block de QAS, debe ir solo en compose QAS.
+- `openpyxl` se instalo ad-hoc en el contenedor en sesion anterior, no en requirements.
+  Cualquier `docker compose down` lo perdi­a.
+
+---
+
+## Sesion 14 — 2026-06-17 (miercoles 05:00 → 06:30) — Recuperacion Docker + cierre de pendientes
+
+> Sesion dedicada a (1) recuperar Docker que estaba en loop desde sesion 13,
+> (2) commitear los 16 archivos + 7 nuevos que quedaron sin commitear,
+> (3) instalar y validar Tiptap end-to-end, (4) cerrar las 3 tareas
+> pendientes que quedaron abiertas (Tiptap, seed qas, validacion + docs).
+
+### Diagnostico inicial (5 min)
+
+- `docker compose config --env-file .env` resuelve los puertos correctamente (8080, 18000, etc.)
+- Los contenedores estaban con puertos aleatorios (10951, 7854, etc.) por la falta del flag
+- 16 archivos modificados + 7 nuevos sin commitear, incluyendo PlantillaEditor.js (Tiptap)
+- `dy` archivo basura de 82 bytes con output 422 de FastAPI (eliminado)
+- `sgd-qas.conf` en `conf.d/` redirigia a HTTPS (no expuesto) -> ERR_CONNECTION_REFUSED
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 1 | `docker compose down` + `up -d --env-file .env` | (sin commit) | Contenedores recreados con puertos correctos. Backend health 200 con `database: ok` |
+| 1.1 | Rebuild backend images con `--no-cache` | (sin commit) | openpyxl se instalo desde requirements/base.txt (linea 45), no se perdio mas |
+| 1.2 | Mover `sgd-qas.conf` a `.bk` | (en commit 2) | Nginx ya no redirige a HTTPS en DES. Sirve frontend directamente |
+| 2 | Commit deploy fixes | `beafe03` | fix(deploy): nginx sgd-qas fuera de DES + env vars defaults + rate limit burst=100 |
+| 3 | Commit backend features | (auto) | feat(backend): refactor tipos_documento + semaforizacion_tarea + 10 plantillas |
+| 4 | Commit frontend setup | `390f6f1` | feat(frontend): semaforizacion UI + Tiptap deps + PlantillaEditor inicial |
+| 5 | Commit docs respaldo | `82e4d66` | docs(pr): respaldo sesion 13 rota + diagnostico de loop Docker |
+| 6 | `npm install @tiptap/extension-underline` en host | (sin commit) | Deps Tiptap completas (5 paquetes) |
+| 7 | Commit lockfile | `8794f81` | chore(frontend): package-lock con @tiptap/extension-underline |
+| 8 | Validacion Tiptap en browser | (sin commit) | 11 plantillas visibles, toolbar completa, bold aplicado, sin warnings |
+| 9 | Commit `start-stack-qas.sh` con seed_configuracion_global | `1ebfe5e` | feat(scripts): agregar seed_configuracion_global al start-stack-qas.sh |
+| 10 | Fix bug Tiptap duplicate underline | `d135788` | fix(frontend): remover Underline duplicado (StarterKit ya lo incluye) |
+| 11 | Validacion end-to-end (7 tabs) | (sin commit) | 0 errors, 0 warnings en consola. Login OK, navegacion OK |
+| 12 | Actualizar BITACORA y ESTADO | (esta entrada) | Sesion 14 documentada |
+
+### Validacion end-to-end (Chrome DevTools)
+
+| Verificacion | Resultado |
+|---|---|
+| `curl /api/v1/health` (via nginx 8080) | 200, `{"status":"ok","database":"ok"}` |
+| `curl /api/v1/health` (backend 18000) | 200 OK |
+| `POST /api/v1/login` aromero BD Local | 200 + 3 cookies (csrf, session, user_id) |
+| Frontend sirve HTML Vite HMR | 200 OK con Inter font + Tailwind |
+| Tab "Tiempos y SLAs" carga | OK, 13 tipos documento + 4 filas semaforizacion |
+| Tab "Plantillas de Notificacion" carga | OK, 11 plantillas + 11 variables clicables |
+| Tiptap toolbar (B/I/U/S/H1-3/listas/code/color/fontSize/undo) | OK, bold aplicado via `document.execCommand` |
+| Console errors | 0 (post-fix underline) |
+| Console warnings | 0 (post-fix underline) |
+
+### Logros tecnicos
+
+1. **7 commits** (1 deploy fix + 1 backend + 1 frontend + 1 docs + 1 lockfile + 1 qas-script + 1 underline-fix)
+2. **16 archivos modificados + 7 nuevos commiteados** (los que quedaron del loop de sesion 13)
+3. **Tiptap verificado end-to-end** (la sesion 13 lo dejo integrado pero nunca lo pudo probar por el loop de Docker)
+4. **Bug preexistente descubierto y resuelto**: `sgd-qas.conf` en `conf.d/` de DES
+5. **Bug preexistente resuelto**: `openpyxl` no estaba en el commit de la sesion 6 (se instalo ad-hoc). Ahora esta en requirements/base.txt + se rebuildo la imagen
+6. **Cero errores / cero warnings** en consola del browser
+
+### Bugs detectados durante sesion 14
+
+1. **Tiptap duplicate underline**: StarterKit 3.x ya incluye Underline, el import adicional causaba warning. Resuelto en commit d135788.
+2. **Refresh bug preexistente**: despues de refresh, el browser termina en /#/login aunque la sesion siga activa (cookies HttpOnly validas). Diagnostico: el router redirige a login antes de que `auth.init()` termine de hacer la consulta a `/me`. **NO resuelto** (no era parte de las tareas pendientes). Backlog para sesion 15.
+3. **Plazo revision 42 invalido**: `Plazo max. revision/aprobacion (dias)` muestra value=42 y valuemax=30 (invalid=true). El seed sembro 42 por error o la sesion 13 lo dejo asi. **NO resuelto** (cosmetic, no bloquea).
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + import matriz + Editar Usuario + Mi Perfil + Tiptap + fix deploy**: 37/37 (100%) R1
+- **QAS**: 8/8 seeds automatizados (1-click con `start-stack-qas.sh`)
+- **R2**: 0/21 (sigue desbloqueado)
+- **Total**: 37/49 (76%) + 4 bonus
+- **Migraciones Alembic**: 13 aplicadas (001-013). 3 nuevas en sesion 13/14 (refactor tipos_doc, semaforizacion, plantillas 10)
+- **Endpoints totales**: 53+ REST. +3 nuevos (`/semaforizacion-tarea/*`)
+- **Datos totales**: 764 usuarios, 11 plantillas, 14 tipos documento, 10 filas semaforizacion
+
+### Decisiones tecnicas (ADRs candidatos)
+
+- **ADR-028 (draft)**: Docker compose DEBE usar `--env-file .env` siempre. Documentar en `scripts/start-stack-des.bat` y `start-stack-qas.sh` (ya lo hacen, falta enforcement).
+- **ADR-029 (draft)**: `sgd-qas.conf` no debe estar en `deploy/nginx/conf.d/`. Es server block de QAS, va solo en compose QAS. Mover a `conf.d.bk/` permanently.
+- **ADR-030 (draft)**: Tiptap 3.x StarterKit ya incluye Underline. No importarlo aparte (causa duplicate extension warning).
+
+### Proxima sesion (sesion 15) — recomendaciones
+
+1. **Fix refresh bug** (backlog #15): el router redirige antes de que `auth.init()` termine. Fix: await refreshFromBackend() en router antes de decidir redirect.
+2. **Fix Plazo 42 invalido**: el seed de `plazo_revision_aprobacion_dias` se sembro con 42 por error. Cambiar a 15.
+3. **Fase 2-5 del PENDIENTES-R1** (si no se ha cerrado): logs paginacion 10/pag, formato fecha Bolivia, badge Indefinido, dropdown chips refinado.
+4. **#13 Deuda delegado** (fuzzy + threshold 0.85): ~30 min.
+5. **#14 Cargos a areas** (seed POSICION -> area_id): mediano.
+6. **R2 — Wizard de creacion** (tareas #23+): ya esta todo listo, recomendacion empezar aqui.
+

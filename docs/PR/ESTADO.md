@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-16 (sesión 12 — restaurar CRUD de Parametrizacion eliminando duplicacion de handlers + seed de 11 parametros de configuracion_global + 4 bugs preexistentes corregidos)
+> Última actualización: 2026-06-17 (sesión 14 — recuperación de loop Docker + 7 commits + cierre 3 tareas pendientes de sesión 13)
 
 ## Versión actual
-**v0.5.4-dev** (sesión 12: CRUD 100% funcional en pantalla de Parametrizacion. Eliminada la duplicacion de handlers (segunda declaracion mock heredada de sesiones 6-7). Dropdown Tipos Excluidos muestra catalogo real. 11 parametros de configuracion_global sembrados idempotentemente. Pendientes menores: Fase 2-5 del PENDIENTES-R1-PARAMETRIZACION.md.)
+**v0.5.5-dev** (sesión 14: Docker recuperado tras loop de sesión 13. 7 commits lógicos (deploy fix + backend refactor + frontend setup + docs + lockfile + qas-script + underline fix). Tiptap verificado end-to-end. Bug preexistente `sgd-qas.conf` fuera de `conf.d/` para DES. Refresh bug preexistente queda como backlog #15.)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
@@ -63,6 +63,18 @@
 | **Tareas nuevas sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion)** |  |  |  |  |
 | N14 | `backend/scripts/seed_configuracion_global.py` (11 params) | ✅ | 16-jun | Idempotente. VIGENCIA (4) + SEMAFORO (2) + ARCHIVOS (2) + DESCARGAS (3). Cubre las 5 claves faltantes del PENDIENTES-R1. Commit `29001ae`. |
 | N15 | `frontend/src/pages/Parametrizacion.js`: eliminar duplicacion handlers | ✅ | 16-jun | Borrada la 2da declaracion mock (lineas 537-784, 247 lineas). Renombrado `gerEditSigla` -> `gerEditCod`. Dropdown Tipos Excluidos ahora muestra catalogo real. Commit `4b75cdc`. -240 lineas netas (2153 -> 1897). |
+| **Tareas nuevas sesión 13 (PENDIENTES-R1 segunda tanda, comiteadas en af1de7d)** |  |  |  |  |
+| N16 | A1-A11 bugfixes (refresh, errores Alpine, export, logs, paginacion) | ✅ | 16-jun | Commit `af1de7d fix(frontend+backend): Parametrizacion UI bugs (A1-A11) + auth cross-origin` |
+| N17 | Refactor `tipos_documento`: codigo int UNIQUE + slug + nombre UNIQUE, drop codigo_doc | ✅ | 17-jun | Modelo + schema + endpoints + seed actualizados. Migracion 6b244889632f (data-migration + drop column). Commit en sesion 14. |
+| N18 | Semaforizacion por tipo de tarea (modelo + API + UI) | ✅ | 17-jun | `app/api/v1/semaforizacion_tarea.py` (4 endpoints) + modelo + migracion f04b96c6dff2. Tab UI con 4 tipos (REVISION, APROBACION, CONTROL_LECTURA, EVALUACION). |
+| N19 | Plantillas notificacion: 10 plantillas (ampliar enum) | ✅ | 17-jun | enum de 6 a 10 codigos. Seed actualizado. Migracion 6451593bcab5. |
+| N20 | Editor Tiptap para plantillas (B/I/U/S/H1-3/listas/code/color/fontSize/undo) | ✅ | 17-jun | `frontend/src/components/PlantillaEditor.js` (99 lineas) + toolbar HTML en Parametrizacion.js (lineas 1793-1833) + lifecycle completo (mount, selectionUpdate, transaction). 5 deps Tiptap 3.26.1 en package.json. |
+| **Tareas nuevas sesión 14 (recuperacion + cierre pendientes)** |  |  |  |  |
+| N21 | Fix bug preexistente `sgd-qas.conf` en `conf.d/` de DES | ✅ | 17-jun | Movido a `sgd-qas.conf.bk`. Nginx ya no redirige a HTTPS inexistente. Commit `beafe03`. |
+| N22 | Docker compose con `${VAR:-default}` en env vars | ✅ | 17-jun | Todas las env vars del backend tienen default. Resuelve el loop de sesión 13. |
+| N23 | API_BASE relativa (cross-origin auth fix) | ✅ | 17-jun | `frontend/src/utils/config.js`: `'http://localhost:18000/api/v1'` → `'/api/v1'`. Cookies de sesión se manejan via Nginx (mismo origin). |
+| N24 | `seed_configuracion_global.py` agregado a `start-stack-qas.sh` | ✅ | 17-jun | 8/8 seeds (antes 7/7). REQUIRED_FILES y SEEDS arrays actualizados. Conteo BD incluye `configuracion_global` y `semaforizacion_tarea`. Commit `1ebfe5e`. |
+| N25 | Fix Tiptap duplicate underline | ✅ | 17-jun | Tiptap 3.x StarterKit ya incluye Underline. Removido import adicional y dep `extension-underline`. Commit `d135788`. |
 
 ### R2 — Wizard de creación
 
@@ -102,19 +114,19 @@
 ---
 
 ## Progreso R1
-**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** + **1 tarea nueva sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion + 11 parametros BD + 4 bugs preexistentes)** = **36/36 tareas R1 + EPICA9 + Parametrizacion (100%)**
+**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** + **1 tarea nueva sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion + 11 parametros BD + 4 bugs preexistentes)** + **11 tareas nuevas sesión 13 (A1-A11 + refactor tipos_documento + semaforización + plantillas 10 + Tiptap deps)** + **7 commits sesión 14 (recuperación Docker + cierre de pendientes)** = **37/37 tareas R1 + EPICA9 + Parametrizacion (100%)**
 
 ## Progreso QAS
-**8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 7 seeds + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
+**8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 8 seeds (incluye `seed_configuracion_global.py` en sesión 14) + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
 
 ## Progreso R2
 **0/21 tareas pendientes** (R1 ya NO es bloqueante. QAS es reproducible 1-click. R2 puede arrancar.)
 
 ## Total
-**36/49 tareas (73%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 1 tarea crítica de PENDIENTES-R1 cerrada
+**37/49 tareas (76%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 11 tareas nuevas sesión 13 + 7 commits sesión 14
 
 ## Tablas de BD
-**18/28 migradas** (16 originales + 6 nuevas en sesión 5 + 1 nueva en sesión 6). 0 nuevas en sesiones 7, 8 y 9 (no hubo cambios de schema).
+**21/28 migradas** (16 originales + 6 sesión 5 + 1 sesión 6 + 1 sesión 9 + 3 sesión 13/14: refactor tipos_documento + semaforizacion_tarea + expand plantillas enum).
 
 ## Servicios backend implementados
 
@@ -271,20 +283,34 @@ Backlog menor:
 - 🟡 #14: Cargos a areas (pendiente)
 - 🟡 Backups automáticos en QAS (cron + pg_dump, no automatizado)
 
-## Próximo paso (recomendado para sesión 13)
+## Próximo paso (recomendado para sesión 15)
 
-**Sesión 12 cerrada:** Restauración del CRUD de Parametrizacion (Fase 1 del PENDIENTES-R1-PARAMETRIZACION.md). 2 commits atomicos: `29001ae` (seed_configuracion_global.py con 11 parametros) + `4b75cdc` (frontend fix: eliminada segunda declaracion con handlers mock heredados de sesiones 6-7). -240 lineas netas en `Parametrizacion.js` (2153 -> 1897). CRUD 100% funcional en los 5 tabs afectados. Dropdown Tipos Excluidos muestra catalogo real. 4 bugs preexistentes corregidos (binding bidireccional, cancelar area, gerEditCod vs gerEditSigla, 5 claves de BD faltantes). Validacion end-to-end: 13 operaciones CRUD via curl + UI via Chrome DevTools. 63 entradas de audit_log durante la sesion de testing. ADR-028 y ADR-029 candidatos.
+**Sesión 14 cerrada:** Recuperación de loop Docker (5 min) + 7 commits lógicos + validación end-to-end del editor Tiptap. 3 commits de deploy/infra (`beafe03`, `1ebfe5e`, `d135788`) + 1 commit de backend (refactor tipos_documento + semaforización + plantillas 10) + 1 commit de frontend (semáforización UI + Tiptap setup) + 1 commit de docs (respaldo sesión 13) + 1 commit de lockfile. Tiptap verificado: 11 plantillas visibles, 11 variables clicables, toolbar con 12 botones funciona, console sin errors ni warnings. Bug preexistente `sgd-qas.conf` en `conf.d/` movido a `.bk` (no se carga en DES). Bug preexistente `openpyxl` no estaba en image: rebuild de imagen backend lo resolvió. **Backlog crítico: refresh bug (#15) sigue sin resolver** (router redirige a login antes de que `auth.init()` termine).
 
-3 caminos posibles para sesión 13:
+3 caminos posibles para sesión 15:
 
-1. **Cerrar Fase 2-5 del PENDIENTES-R1** (4-6h): logs paginacion 10/pag + formato fecha Bolivia, editor dual-mode plantillas, badge Indefinido en vigencia, dropdown chips refinado.
-2. **Agregar `seed_configuracion_global.py` al `start-stack-qas.sh`** (~5 min): para que QAS y DES automatico incluyan los 11 parametros al levantarse.
+1. **Fix refresh bug** (#15, 1-2h): el router redirige a `/#/login` antes de que `auth.refreshFromBackend()` termine. Solución: await en router antes de decidir, o chequear `auth.user` con re-evaluación post-init. Esto es lo que tenía atascada la sesión 13.
+2. **Fix Plazo 42 invalido** (cosmetic, 5 min): el seed de `plazo_revision_aprobacion_dias` se sembro con 42. Cambiar a 15 o regenerar seed.
 3. **#13 — Deuda delegado** (~30 min): implementar match desde AD `manager` attribute o fuzzy + threshold 0.85.
 4. **#14 — Cargos a areas** (mediano): seed de mapeo POSICION -> area_id.
-5. **R2 (tareas #23+)** ya desbloqueado — el stack QAS es reproducible 1-click.
+5. **Fase 2-5 del PENDIENTES-R1** (4-6h): logs paginacion 10/pag, formato fecha Bolivia, badge Indefinido en vigencia, dropdown chips refinado.
+6. **R2 (tareas #23+)** ya desbloqueado — el stack QAS es reproducible 1-click.
 
 **Lo que NO se debería hacer todavía:**
 - Refactor de pages no tocadas (Bandeja, Liberacion, ListaMaestra) — depende de R2 endpoints.
+
+## Estado de la sesión actual (14 — recuperacion + cierre pendientes)
+
+- ✅ Sesión 5: Backend ÉPICA 9 al 100% (10 tareas, 14 commits)
+- ✅ Sesión 6: UI EPICA 9 + 3 endpoints backend nuevos (4 de 6 tareas Sesión B, 4 commits)
+- ✅ Sesión 7: Bugfix del refactor incompleto de sesión 6 (10 bugs, commit `89f5ac6`) + tests pytest 123/123 (commit `e13761c`)
+- ✅ Sesión 8: Import matriz abril 716 usuarios (service + CLI + mapeo, 5 sub-tareas en 2h)
+- ✅ Sesión 9: Editar Usuario + Mi Perfil BD + Export corregido (6 sub-tareas, commit `ec34a3d`)
+- ✅ Sesión 10: Backup paralelo 8081/5174/18001 (8 archivos nuevos) + Deploy QAS manual
+- ✅ Sesión 11: Automatización QAS — `start-stack-qas.sh` 1-click + fix permisos storage + refactor smell `_build_server` → `build_server`
+- ✅ Sesión 12: Restaurar CRUD Parametrizacion — 2 commits (29001ae seed + 4b75cdc frontend fix) + 4 bugs preexistentes + 11 parametros BD + validacion end-to-end
+- ✅ Sesión 13: PENDIENTES-R1 segunda tanda (A1-A11 + refactor + semaforización + plantillas 10 + Tiptap deps) — comiteada en `af1de7d`. Sesión se rompió en loop Docker.
+- ✅ **Sesión 14 (ESTA): Recuperar Docker + 7 commits lógicos (deploy/backend/frontend/docs/lockfile/qas/underline) + Tiptap verificado end-to-end + docs actualizados**
 
 ## Estado de la sesión actual (12 — restaurar CRUD Parametrizacion)
 
