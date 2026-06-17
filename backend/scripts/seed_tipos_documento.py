@@ -1,7 +1,13 @@
 """
-seed_tipos_documento.py — COFAR SGD (Sesion A, tarea #9b)
+seed_tipos_documento.py — COFAR SGD (Sesion A, tarea #9b, refactor sesion 13)
 
-Sembra los 13 tipos de documento del Excel 'TIPOS DE DOCUMENTO, C\xd3DIGO Y VIGENCIA.xlsx'.
+Sembra los 13 tipos de documento del Excel 'TIPOS DE DOCUMENTO, CODIGO Y VIGENCIA.xlsx'.
+
+REFACTOR sesion 13 (2026-06-16):
+  - `codigo` ahora es int (1-14), UNIQUE
+  - `slug` es str MAYUSCULAS, UNIQUE (lo que antes era el campo `codigo`)
+  - `nombre` UNIQUE
+  - `codigo_doc` se elimina del modelo
 
 Uso: docker exec sgd-backend python scripts/seed_tipos_documento.py
 Idempotente.
@@ -19,50 +25,55 @@ from app.core.database import AsyncSessionLocal
 from app.models.tipo_documento import TipoDocumento
 
 
-# (codigo, nombre, codigo_doc, periodo_vigencia_o_None, observacion_o_None)
+# (codigo_int, slug, nombre, periodo_vigencia_o_None, observacion_o_None)
 TIPOS = [
-    ("METODOLOGIA",             "Metodologia",                 1,  4,    None),
-    ("MANUAL_FUNCIONES",        "Manual de Funciones",         2,  None, "INDEFINIDO"),
-    ("POLITICA",                "Politica",                    3,  4,    None),
-    ("PLAN",                    "Plan",                        4,  4,    None),
-    ("PROCEDIMIENTO",           "Procedimiento",               5,  4,    None),
-    ("INSTRUCTIVO",             "Instructivo",                 6,  4,    None),
-    ("INSTRUCTIVO_TECNICO",     "Instructivo Tecnico",         6,  None, "SOLO APLICA PARA MANTENIMIENTO"),
-    ("ESPECIFICACION",          "Especificacion",              7,  4,    None),
-    ("PROTOCOLO",               "Protocolo",                   9,  None, "INDEFINIDO"),
-    ("MANUAL_PROCESO",          "Manual de Proceso",          10,  4,    None),
-    ("MANUAL",                  "Manual",                     12,  4,    None),
-    ("MANUAL_USUARIO",          "Manuales de Usuario",        13,  None, "INDEFINIDO"),
-    ("FICHA_CARACTERIZACION",   "Ficha de Caracterizacion",  14,  4,    None),
+    (1,  "METODOLOGIA",           "Metodologia",                 4,    None),
+    (2,  "MANUAL_FUNCIONES",      "Manual de Funciones",         None, "INDEFINIDO"),
+    (3,  "POLITICA",              "Politica",                    4,    None),
+    (4,  "PLAN",                  "Plan",                        4,    None),
+    (5,  "PROCEDIMIENTO",         "Procedimiento",               4,    None),
+    (6,  "INSTRUCTIVO",           "Instructivo",                 4,    None),
+    (6,  "INSTRUCTIVO_TECNICO",   "Instructivo Tecnico",         None, "SOLO APLICA PARA MANTENIMIENTO"),
+    (7,  "ESPECIFICACION",        "Especificacion",              4,    None),
+    (9,  "PROTOCOLO",             "Protocolo",                   None, "INDEFINIDO"),
+    (10, "MANUAL_PROCESO",        "Manual de Proceso",           4,    None),
+    (12, "MANUAL",                "Manual",                      4,    None),
+    (13, "MANUAL_USUARIO",        "Manuales de Usuario",         None, "INDEFINIDO"),
+    (14, "FICHA_CARACTERIZACION", "Ficha de Caracterizacion",    4,    None),
 ]
 
 
 async def seed_tipos(db: AsyncSession) -> tuple[int, int]:
     creados = 0
     actualizados = 0
-    for codigo, nombre, codigo_doc, periodo, obs in TIPOS:
+    for codigo_int, slug, nombre, periodo, obs in TIPOS:
         indefinido = periodo is None
+        # match por codigo int (unico) o por slug (unico) para idempotencia
         existing = (await db.execute(
-            select(TipoDocumento).where(TipoDocumento.codigo == codigo)
+            select(TipoDocumento).where(
+                (TipoDocumento.codigo == codigo_int) | (TipoDocumento.slug == slug)
+            )
         )).scalar_one_or_none()
 
         if existing is None:
             t = TipoDocumento(
-                codigo=codigo, nombre=nombre, codigo_doc=codigo_doc,
+                codigo=codigo_int, slug=slug, nombre=nombre,
                 periodo_vigencia=periodo, indefinido=indefinido,
                 max_descargas_dia=10,  # default US-9.02
                 observacion=obs, activo=True,
             )
             db.add(t)
             vig = "INDEF" if indefinido else f"{periodo}a"
-            print(f"  [+] {codigo:25} (cod_doc={codigo_doc:2}) {vig:5} {obs or ''}")
+            print(f"  [+] codigo={codigo_int:2} slug={slug:25} {vig:5} {obs or ''}")
             creados += 1
         else:
             changed = False
+            if existing.codigo != codigo_int:
+                existing.codigo = codigo_int; changed = True
+            if existing.slug != slug:
+                existing.slug = slug; changed = True
             if existing.nombre != nombre:
                 existing.nombre = nombre; changed = True
-            if existing.codigo_doc != codigo_doc:
-                existing.codigo_doc = codigo_doc; changed = True
             if existing.periodo_vigencia != periodo:
                 existing.periodo_vigencia = periodo; changed = True
             if existing.indefinido != indefinido:
@@ -72,10 +83,10 @@ async def seed_tipos(db: AsyncSession) -> tuple[int, int]:
             if not existing.activo:
                 existing.activo = True; changed = True
             if changed:
-                print(f"  [~] {codigo:25} actualizado")
+                print(f"  [~] codigo={codigo_int:2} slug={slug:25} actualizado")
                 actualizados += 1
             else:
-                print(f"  [=] {codigo:25} sin cambios")
+                print(f"  [=] codigo={codigo_int:2} slug={slug:25} sin cambios")
         await db.flush()
     return creados, actualizados
 
@@ -84,7 +95,7 @@ async def main() -> None:
     print("=" * 70)
     print("COFAR SGD - Seed Tipos de Documento (US-9.03 sub-1)")
     print("=" * 70)
-    print(f"Total: {len(TIPOS)} tipos del Excel")
+    print(f"Total: {len(TIPOS)} tipos del Excel (REFACTOR sesion 13)")
 
     async with AsyncSessionLocal() as db:
         try:

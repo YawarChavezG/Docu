@@ -2,13 +2,31 @@
 Modelo: TipoDocumento
 Catalogo de tipos de documento del SGD (US-9.03 sub-tarjeta 1).
 
-Datos del Excel 'TIPOS DE DOCUMENTO, CÓDIGO Y VIGENCIA.xlsx':
-  13 tipos, 2 comparten codigo_doc=6 (INSTRUCTIVO e INSTRUCTIVO TECNICO).
-  `codigo_doc` es campo LOGICO (no unique) — la PK es el `codigo` (string).
+REFACTOR sesion 13 (2026-06-16):
+  Antes:
+    - `codigo` (str slug, ej: 'PROCEDIMIENTO')  -- unico
+    - `codigo_doc` (int, 1-14)                  -- NO unico (INSTRUCTIVO
+                                                   e INSTRUCTIVO_TECNICO
+                                                   comparten 6)
+    - `nombre` (str)
+
+  Despues:
+    - `codigo` (int, 1-14)   -- UNIQUE, es el codigo logico del tipo
+                                (usado en nomenclatura CC-5-001 v01
+                                donde 5 = PROCEDIMIENTO)
+    - `slug` (str)           -- UNIQUE, slug humano en MAYUSCULAS
+                                (METODOLOGIA, INSTRUCTIVO, etc.)
+    - `nombre` (str)         -- UNIQUE, nombre legible
+    - DROP `codigo_doc` (redundante con `codigo`)
+
+Datos del Excel 'TIPOS DE DOCUMENTO, CODIGO Y VIGENCIA.xlsx' (13 tipos,
+2 comparten codigo_doc=6: INSTRUCTIVO e INSTRUCTIVO_TECNICO; en el nuevo
+modelo ambos tienen codigo=6 pero slug y nombre distintos).
 
 US-9.02: cada tipo puede tener un max_descargas_dia distinto.
-US-9.04 (codigo de documento en plantilla): la sigla del tipo va en
-el codigo del documento (ej: CC-5-001 v01, donde 5=PROCEDIMIENTO).
+US-9.04 (codigo de documento en plantilla): el `codigo` (int) es el que
+aparece en la nomenclatura del documento (ej: CC-5-001 v01, donde
+5=PROCEDIMIENTO).
 """
 from datetime import datetime
 from typing import Optional
@@ -24,15 +42,15 @@ class TipoDocumento(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    # Codigo string, unico (slug). Ej: "METODOLOGIA", "INSTRUCTIVO", "INSTRUCTIVO_TECNICO"
-    codigo: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    # Codigo numerico (1-14). UNIQUE, sera el campo de referencia para
+    # otras tablas (correlativos, nomenclatura CC-5-001 v01, etc).
+    codigo: Mapped[int] = mapped_column(Integer, unique=True, nullable=False, index=True)
 
-    # Nombre humano del tipo. Ej: "Manual de Funciones"
-    nombre: Mapped[str] = mapped_column(String(150), nullable=False)
+    # Slug humano en MAYUSCULAS (METODOLOGIA, INSTRUCTIVO, etc). UNIQUE.
+    slug: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
 
-    # Codigo LOGICO del documento (1-14, NO unique porque INSTRUCTIVO y
-    # INSTRUCTIVO TECNICO comparten el 6).
-    codigo_doc: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    # Nombre legible (Metodologia, Instructivo, etc). UNIQUE.
+    nombre: Mapped[str] = mapped_column(String(150), unique=True, nullable=False)
 
     # Vigencia en anos (None si es indefinido)
     periodo_vigencia: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
@@ -59,4 +77,4 @@ class TipoDocumento(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<TipoDocumento {self.codigo} (cod_doc={self.codigo_doc})>"
+        return f"<TipoDocumento codigo={self.codigo} slug={self.slug!r}>"

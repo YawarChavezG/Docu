@@ -1,5 +1,11 @@
 """
-schemas/tipo_documento.py — Schemas Pydantic.
+schemas/tipo_documento.py — Schemas Pydantic para TipoDocumento (US-9.03 sub-1).
+
+REFACTOR sesion 13 (2026-06-16):
+  - `codigo` ahora es int (1-14), UNIQUE
+  - `slug` (str MAYUSCULAS) UNIQUE
+  - `nombre` (str) UNIQUE
+  - `codigo_doc` se elimina del modelo
 """
 from datetime import datetime
 from typing import Optional
@@ -10,11 +16,11 @@ from pydantic import BaseModel, ConfigDict, Field
 # ─── Inputs ───
 
 class TipoDocumentoBase(BaseModel):
-    codigo: str = Field(min_length=2, max_length=50, pattern=r"^[A-Z0-9_]+$",
-                        description="Slug unico mayuscula (ej: METODOLOGIA)")
+    codigo: int = Field(ge=1, le=99,
+                        description="Codigo numerico UNIQUE (1-14). Referencia para nomenclatura CC-5-001 v01.")
+    slug: str = Field(min_length=2, max_length=50, pattern=r"^[A-Z0-9_]+$",
+                      description="Slug unico MAYUSCULAS (ej: METODOLOGIA, INSTRUCTIVO).")
     nombre: str = Field(min_length=3, max_length=150)
-    codigo_doc: int = Field(ge=1, le=99,
-                              description="Codigo LOGICO del documento (1-14). NO unique.")
     periodo_vigencia: Optional[int] = Field(default=None, ge=1, le=99,
                                               description="Vigencia en anos (None si es indefinido)")
     indefinido: bool = False
@@ -28,8 +34,9 @@ class TipoDocumentoCreate(TipoDocumentoBase):
 
 class TipoDocumentoUpdate(BaseModel):
     """PATCH parcial. Todos los campos opcionales."""
+    codigo: Optional[int] = Field(default=None, ge=1, le=99)
+    slug: Optional[str] = Field(default=None, min_length=2, max_length=50, pattern=r"^[A-Z0-9_]+$")
     nombre: Optional[str] = Field(default=None, min_length=3, max_length=150)
-    codigo_doc: Optional[int] = Field(default=None, ge=1, le=99)
     periodo_vigencia: Optional[int] = Field(default=None, ge=1, le=99)
     indefinido: Optional[bool] = None
     max_descargas_dia: Optional[int] = Field(default=None, ge=0, le=9999)
@@ -43,9 +50,9 @@ class TipoDocumentoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    codigo: str
+    codigo: int
+    slug: str
     nombre: str
-    codigo_doc: int
     periodo_vigencia: Optional[int] = None
     indefinido: bool
     max_descargas_dia: Optional[int] = None

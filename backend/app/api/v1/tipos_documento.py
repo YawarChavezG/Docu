@@ -46,7 +46,8 @@ async def list_tipos(
     if q:
         pat = f"%{q.lower()}%"
         base = base.where(or_(
-            func.lower(TipoDocumento.codigo).like(pat),
+            func.cast(TipoDocumento.codigo, __import__("sqlalchemy").String).like(pat),
+            func.lower(TipoDocumento.slug).like(pat),
             func.lower(TipoDocumento.nombre).like(pat),
         ))
     if activo is None or activo == "true":
@@ -56,7 +57,7 @@ async def list_tipos(
     # activo == "all" -> no filtra
 
     rows = (await db.execute(
-        base.order_by(TipoDocumento.codigo_doc.asc(), TipoDocumento.codigo.asc())
+        base.order_by(TipoDocumento.codigo.asc(), TipoDocumento.slug.asc())
     )).scalars().all()
 
     return TipoDocumentoListResponse(
@@ -95,19 +96,36 @@ async def create_tipo(
             "Si 'indefinido' es True, 'periodo_vigencia' debe ser None",
         )
 
-    existing = (await db.execute(
+    # Validar unicidad de codigo y slug
+    existing_codigo = (await db.execute(
         select(TipoDocumento).where(TipoDocumento.codigo == payload.codigo)
     )).scalar_one_or_none()
-    if existing is not None:
+    if existing_codigo is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"Ya existe un tipo con codigo '{payload.codigo}'",
+            f"Ya existe un tipo con codigo '{payload.codigo}' ({existing_codigo.slug})",
+        )
+    existing_slug = (await db.execute(
+        select(TipoDocumento).where(TipoDocumento.slug == payload.slug)
+    )).scalar_one_or_none()
+    if existing_slug is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Ya existe un tipo con slug '{payload.slug}'",
+        )
+    existing_nombre = (await db.execute(
+        select(TipoDocumento).where(TipoDocumento.nombre == payload.nombre)
+    )).scalar_one_or_none()
+    if existing_nombre is not None:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Ya existe un tipo con nombre '{payload.nombre}'",
         )
 
     t = TipoDocumento(
         codigo=payload.codigo,
+        slug=payload.slug,
         nombre=payload.nombre,
-        codigo_doc=payload.codigo_doc,
         periodo_vigencia=payload.periodo_vigencia,
         indefinido=payload.indefinido,
         max_descargas_dia=payload.max_descargas_dia,
@@ -120,11 +138,11 @@ async def create_tipo(
     await write_audit(
         db, request, user,
         accion="CREATE", recurso="tipo_documento", recurso_id=t.id,
-        descripcion=f"TipoDocumento {t.codigo} (cod_doc={t.codigo_doc}) creado",
-        detalles={"despues": {"codigo": t.codigo, "nombre": t.nombre, "codigo_doc": t.codigo_doc, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}},
+        descripcion=f"TipoDocumento codigo={t.codigo} slug={t.slug!r} creado",
+        detalles={"despues": {"codigo": t.codigo, "slug": t.slug, "nombre": t.nombre, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}},
     )
     await db.commit()
-    logger.info(f"TipoDocumento creado: {t.codigo} (cod_doc={t.codigo_doc})")
+    logger.info(f"TipoDocumento creado: codigo={t.codigo} slug={t.slug!r}")
     return TipoDocumentoOut.model_validate(t)
 
 
@@ -147,7 +165,24 @@ async def update_tipo(
     if not data:
         return TipoDocumentoOut.model_validate(t)
 
-    antes = {"codigo": t.codigo, "nombre": t.nombre, "codigo_doc": t.codigo_doc, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}
+    # Validar unicidad si cambia codigo o slug
+    if "codigo" in data and data["codigo"] != t.codigo:
+        if (await db.execute(
+            select(TipoDocumento).where(TipoDocumento.codigo == data["codigo"], TipoDocumento.id != t.id)
+        )).scalar_one_or_none() is not None:
+            raise HTTPException(409, f"Ya existe un tipo con codigo '{data['codigo']}'")
+    if "slug" in data and data["slug"] != t.slug:
+        if (await db.execute(
+            select(TipoDocumento).where(TipoDocumento.slug == data["slug"], TipoDocumento.id != t.id)
+        )).scalar_one_or_none() is not None:
+            raise HTTPException(409, f"Ya existe un tipo con slug '{data['slug']}'")
+    if "nombre" in data and data["nombre"] != t.nombre:
+        if (await db.execute(
+            select(TipoDocumento).where(TipoDocumento.nombre == data["nombre"], TipoDocumento.id != t.id)
+        )).scalar_one_or_none() is not None:
+            raise HTTPException(409, f"Ya existe un tipo con nombre '{data['nombre']}'")
+
+    antes = {"codigo": t.codigo, "slug": t.slug, "nombre": t.nombre, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}
 
     for field, value in data.items():
         setattr(t, field, value)
@@ -161,15 +196,15 @@ async def update_tipo(
 
     await db.commit()
     await db.refresh(t)
-    despues = {"codigo": t.codigo, "nombre": t.nombre, "codigo_doc": t.codigo_doc, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}
+    despues = {"codigo": t.codigo, "slug": t.slug, "nombre": t.nombre, "periodo_vigencia": t.periodo_vigencia, "indefinido": t.indefinido, "max_descargas_dia": t.max_descargas_dia, "activo": t.activo}
     await write_audit(
         db, request, user,
         accion="UPDATE", recurso="tipo_documento", recurso_id=t.id,
-        descripcion=f"TipoDocumento {t.codigo} actualizado (campos={list(data.keys())})",
+        descripcion=f"TipoDocumento codigo={t.codigo} slug={t.slug!r} actualizado (campos={list(data.keys())})",
         detalles={"antes": antes, "despues": despues, "campos": list(data.keys())},
     )
     await db.commit()
-    logger.info(f"TipoDocumento actualizado: {t.codigo} (campos={list(data.keys())})")
+    logger.info(f"TipoDocumento actualizado: codigo={t.codigo} (campos={list(data.keys())})")
     return TipoDocumentoOut.model_validate(t)
 
 
@@ -194,9 +229,9 @@ async def delete_tipo(
     await write_audit(
         db, request, user,
         accion="DELETE", recurso="tipo_documento", recurso_id=t.id,
-        descripcion=f"TipoDocumento {t.codigo} borrado (logico)",
-        detalles={"codigo": t.codigo, "codigo_doc": t.codigo_doc},
+        descripcion=f"TipoDocumento codigo={t.codigo} slug={t.slug!r} borrado (logico)",
+        detalles={"codigo": t.codigo, "slug": t.slug},
     )
     await db.commit()
-    logger.info(f"TipoDocumento borrado (logico): {t.codigo}")
+    logger.info(f"TipoDocumento borrado (logico): codigo={t.codigo} slug={t.slug!r}")
     return TipoDocumentoOut.model_validate(t)

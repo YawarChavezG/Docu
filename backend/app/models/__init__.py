@@ -41,6 +41,7 @@ from app.models.matriz_enrutamiento_eto import (  # noqa: F401
 )
 from app.models.tipo_documento import TipoDocumento  # noqa: F401
 from app.models.estado import Estado, ContextoEstado  # noqa: F401
+from app.models.semaforizacion_tarea import SemaforizacionTarea, TipoTarea  # noqa: F401
 
 # ─── Auditoria (EPICA 9) ───
 from app.models.audit_log import AuditLog  # noqa: F401
@@ -77,5 +78,7 @@ __all__ = [
     "TipoDocumento",
     "Estado",
     "ContextoEstado",
+    "SemaforizacionTarea",
+    "TipoTarea",
     "AuditLog",
 ]

@@ -1,9 +1,9 @@
 """
-seed_email_templates.py — COFAR SGD (Sesion A, tarea #7)
+seed_email_templates.py — COFAR SGD (Sesion 13: 10 plantillas)
 
-Sembra las 6 plantillas de notificacion por email (US-9.04):
-  5 del PLANTILLAS DE NOTIFICACION.docx
-  1 del PDF HISTORIAS DE USUARIO (auto-delegacion-activada, contenido stub)
+Sembra las 10 plantillas de notificacion por email (US-9.04):
+  10 de docs/PR/PLANTILLAS DE NOTIFICACION.md
+  + 1 del PDF HISTORIAS DE USUARIO (auto-delegacion)
 
 Uso: docker exec sgd-backend python scripts/seed_email_templates.py
 Idempotente: si la plantilla existe, actualiza asunto/cuerpo/variables.
@@ -22,164 +22,222 @@ from app.models.email_template import EmailTemplate, CodigoPlantilla
 
 
 # Variables disponibles en TODAS las plantillas (panel UI "Etiquetas Disponibles")
-# US-9.04 del PDF oficial
-VARS_DISPONIBLES = [
+VARS_COMUNES = [
     "{{CODIGO}}", "{{TITULO}}", "{{USUARIO}}", "{{FECHA_LIMITE}}",
     "{{ETAPA}}", "{{LINK}}", "{{GERENCIA}}", "{{OBSERVACION}}",
+    "{{REASIGNADO_POR}}", "{{TAREA}}", "{{FECHA_VENCIMIENTO}}",
 ]
 
-
 PLANTILLAS = [
+    # ─── 1. Asignación de Revisión ───
     {
-        "codigo": CodigoPlantilla.NUEVA_TAREA,
-        "nombre": "Nueva Tarea Asignada",
-        "asunto": "[COFAR - SGD] Nueva tarea asignada: [{{CODIGO}}] - [{{TITULO}}]",
+        "codigo": CodigoPlantilla.ASIG_REVISION,
+        "nombre": "Asignación de Revisión",
+        "asunto": "[COFAR SGD] REVISAR DOCUMENTO - {{CODIGO}}",
         "cuerpo_html": """\
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #1a5fb4;">Nueva Tarea Asignada</h2>
-  <p>Estimado/a <strong>{{USUARIO}}</strong>,</p>
-  <p>Se le ha asignado una nueva tarea en el Sistema de Gestion Documental:</p>
-  <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Codigo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{CODIGO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Titulo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{TITULO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Gerencia</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{GERENCIA}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Etapa</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{ETAPA}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Fecha limite</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{FECHA_LIMITE}}</td></tr>
-  </table>
-  <p>Para acceder al documento haga clic en el siguiente enlace:</p>
-  <p><a href="{{LINK}}" style="background:#1a5fb4;color:white;padding:10px 20px;text-decoration:none;border-radius:4px;">Ver documento</a></p>
-  <hr style="margin-top: 30px;">
-  <p style="color: #888; font-size: 11px;">Este correo fue generado automaticamente por el SGD COFAR. No responda a este mensaje.</p>
-</div>
-""",
-        "variables_json": VARS_DISPONIBLES,
+  <h2 style="color: #1a5fb4;">REVISAR DOCUMENTO</h2>
+  <p>Estimado colaborador, le notificamos que se le ha asignado una tarea de <strong>REVISIÓN</strong> en el Sistema de Gestión Documental:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}</p>
+  <p>Para realizar la revisión correspondiente, favor ingresar al siguiente enlace: {{LINK}}</p>
+  <p>Agradecemos realizar la actividad dentro del plazo establecido.</p>
+  <p>Si tiene alguna duda, favor comunicarse con el área de ETO.<br>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
     },
+    # ─── 2. Asignación de Aprobación ───
     {
-        "codigo": CodigoPlantilla.ALERTA_VENCIMIENTO,
-        "nombre": "Alerta de Vencimiento",
-        "asunto": "[COFAR - SGD] URGENTE: Tarea proxima a vencer [{{CODIGO}}]",
+        "codigo": CodigoPlantilla.ASIG_APROBACION,
+        "nombre": "Asignación de Aprobación",
+        "asunto": "[COFAR SGD] APROBAR DOCUMENTO - {{CODIGO}}",
         "cuerpo_html": """\
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #d97706;">Alerta de Vencimiento</h2>
-  <p>Estimado/a <strong>{{USUARIO}}</strong>,</p>
-  <p>La siguiente tarea esta proxima a vencer:</p>
-  <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Codigo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{CODIGO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Titulo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{TITULO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Etapa</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{ETAPA}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Fecha limite</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd; color: #d97706; font-weight: bold;">{{FECHA_LIMITE}}</td></tr>
-  </table>
-  <p>Por favor complete la tarea a la brevedad posible.</p>
-  <p><a href="{{LINK}}">Acceder al documento</a></p>
-</div>
-""",
-        "variables_json": VARS_DISPONIBLES,
+  <h2 style="color: #1a5fb4;">APROBAR DOCUMENTO</h2>
+  <p>Estimado colaborador, le notificamos que se le ha asignado una tarea de <strong>APROBACIÓN</strong> en el Sistema de Gestión Documental:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}</p>
+  <p>Para revisar y aprobar el documento, favor ingresar al siguiente enlace: {{LINK}}</p>
+  <p>Agradecemos realizar la actividad dentro del plazo establecido.</p>
+  <p>Si tiene alguna duda, favor comunicarse con el área de ETO.<br>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
     },
+    # ─── 3. Solicitud de Corrección ───
+    {
+        "codigo": CodigoPlantilla.SOLICITUD_CORRECCION,
+        "nombre": "Solicitud de Corrección",
+        "asunto": "[COFAR SGD] CORREGIR DOCUMENTO - {{CODIGO}}",
+        "cuerpo_html": """\
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #d97706;">CORREGIR DOCUMENTO</h2>
+  <p>Estimado colaborador, le notificamos que el siguiente documento requiere la realización de <strong>CORRECCIONES</strong>:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}</p>
+  <p>Favor ingresar al siguiente enlace para revisar las observaciones registradas y efectuar las correcciones correspondientes: {{LINK}}</p>
+  <p>Agradecemos atender la solicitud dentro del plazo establecido.</p>
+  <p>Si tiene alguna duda, favor comunicarse con el área de ETO.<br>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
+    },
+    # ─── 4. Control de Lectura Asignado ───
+    {
+        "codigo": CodigoPlantilla.CONTROL_LECTURA,
+        "nombre": "Control de Lectura Asignado",
+        "asunto": "[COFAR SGD] REGISTRAR CONTROL DE LECTURA - {{CODIGO}}",
+        "cuerpo_html": """\
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #1a5fb4;">REGISTRAR CONTROL DE LECTURA</h2>
+  <p>Estimado colaborador, le notificamos que debe realizar el <strong>CONTROL DE LECTURA</strong> en el Sistema de Gestión Documental correspondiente al siguiente documento:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}<br>
+  <strong>Versión:</strong> 00</p>
+  <p>Para realizar la lectura y confirmación correspondiente, favor ingresar al siguiente enlace: {{LINK}}</p>
+  <p>Su participación es importante para asegurar la difusión y conocimiento de la documentación vigente.</p>
+  <p>Si tiene alguna duda, favor comunicarse con el área de ETO.<br>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
+    },
+    # ─── 5. Evaluación Asignada ───
+    {
+        "codigo": CodigoPlantilla.EVALUACION_ASIGNADA,
+        "nombre": "Evaluación Asignada",
+        "asunto": "[COFAR SGD] REGISTRAR EVALUACION DOCUMENTAL - {{CODIGO}}",
+        "cuerpo_html": """\
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #1a5fb4;">REGISTRAR EVALUACIÓN DOCUMENTAL</h2>
+  <p>Estimado colaborador, le notificamos que debe realizar una <strong>EVALUACIÓN</strong> en el Sistema de Gestión Documental correspondiente al siguiente documento:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}<br>
+  <strong>Versión:</strong> 00</p>
+  <p>Para realizar la evaluación correspondiente, favor ingresar al siguiente enlace: {{LINK}}</p>
+  <p>Agradecemos completar la actividad dentro del plazo establecido.</p>
+  <p>Si tiene alguna duda, favor comunicarse con el área de ETO.<br>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
+    },
+    # ─── 6. Liberación de Documento ───
+    {
+        "codigo": CodigoPlantilla.LIBERACION_DOCUMENTO,
+        "nombre": "Liberación de Documento",
+        "asunto": "[COFAR SGD] LIBERAR DOCUMENTO - {{CODIGO}}",
+        "cuerpo_html": """\
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #1a5fb4;">LIBERAR DOCUMENTO</h2>
+  <p>Estimado colaborador, le notificamos que el siguiente documento se encuentra listo para su <strong>LIBERACIÓN</strong>:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}</p>
+  <p>Para realizar la liberación correspondiente, favor ingresar al siguiente enlace: {{LINK}}</p>
+  <p>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
+    },
+    # ─── 7. Documento Aprobado ───
     {
         "codigo": CodigoPlantilla.DOCUMENTO_APROBADO,
-        "nombre": "Documento Aprobado",
-        "asunto": "[COFAR - SGD] Documento aprobado: [{{CODIGO}}] - [{{TITULO}}]",
+        "nombre": "Documento Aprobado (Difusión)",
+        "asunto": "[COFAR SGD] DIFUSION DOCUMENTAL ({{CODIGO}} v{{VERSION}})",
         "cuerpo_html": """\
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #059669;">Documento Aprobado</h2>
-  <p>Estimado/a <strong>{{USUARIO}}</strong>,</p>
-  <p>El siguiente documento ha sido <strong>aprobado</strong> y se publica en la Lista Maestra:</p>
-  <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Codigo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{CODIGO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Titulo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{TITULO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Gerencia</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{GERENCIA}}</td></tr>
-  </table>
-  <p>Ya esta disponible para descarga desde la Lista Maestra del SGD.</p>
-  <p><a href="{{LINK}}">Ver en Lista Maestra</a></p>
-</div>
-""",
-        "variables_json": VARS_DISPONIBLES,
+  <h2 style="color: #059669;">DIFUSIÓN DOCUMENTAL</h2>
+  <p>Estimado colaborador, le informamos que el siguiente documento ha sido <strong>APROBADO</strong> y se encuentra vigente a partir de la fecha:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}<br>
+  <strong>Versión:</strong> 00</p>
+  <p>Los documentos y sus formularios se encuentran disponibles para lectura y uso en el siguiente enlace: {{LINK}}</p>
+  <p><strong>CONSIDERACIONES ESPECIALES:</strong></p>
+  <ul>
+    <li>Difundir el documento a sus equipos de trabajo</li>
+    <li>Asegurarse de no contar con documentos físicos en versiones anteriores a la mencionada, de ser así favor remitir dichas copias al área de ETO.</li>
+    <li>A partir de la fecha deben utilizarse los registros actualizados en las versiones correspondientes.</li>
+    <li>Si las áreas involucradas requieren una copia controlada física favor comunicarse con el área de ETO</li>
+  </ul>
+  <p>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
     },
+    # ─── 8. Reasignación por Incumplimiento ───
     {
-        "codigo": CodigoPlantilla.DOCUMENTO_OBSERVADO,
-        "nombre": "Documento Observado",
-        "asunto": "[COFAR - SGD] Documento observado: [{{CODIGO}}] - [{{TITULO}}]",
+        "codigo": CodigoPlantilla.REASIG_INCUMPLIMIENTO,
+        "nombre": "Reasignación por Incumplimiento",
+        "asunto": "[COFAR SGD] REASIGNACION DE TAREA - {{CODIGO}}",
         "cuerpo_html": """\
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #dc2626;">Documento Observado</h2>
-  <p>Estimado/a <strong>{{USUARIO}}</strong>,</p>
-  <p>El siguiente documento ha sido <strong>observado</strong> y requiere correcciones:</p>
-  <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Codigo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{CODIGO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Titulo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{TITULO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Etapa</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{ETAPA}}</td></tr>
-  </table>
-  <p><strong>Observacion del revisor:</strong></p>
-  <blockquote style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 12px; margin: 12px 0;">
-    {{OBSERVACION}}
-  </blockquote>
-  <p>Por favor ingrese al SGD para revisar las observaciones y realizar las correcciones.</p>
-  <p><a href="{{LINK}}">Ir al documento</a></p>
-</div>
-""",
-        "variables_json": VARS_DISPONIBLES,
+  <h2 style="color: #dc2626;">REASIGNACIÓN DE TAREA</h2>
+  <p>Estimado colaborador, le notificamos que la siguiente tarea ha sido <strong>REASIGNADA</strong> debido al incumplimiento del plazo establecido para ejecutar la tarea:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}<br>
+  <strong>Tarea:</strong> {{TAREA}}</p>
+  <p><strong>Nuevo usuario asignado:</strong> {{USUARIO}}</p>
+  <p>Si tiene alguna duda, favor comunicarse con el área de ETO.<br>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
     },
+    # ─── 9. Reasignación Manual ───
     {
-        "codigo": CodigoPlantilla.EVALUACION_PENDIENTE,
-        "nombre": "Evaluacion Pendiente",
-        "asunto": "[COFAR - SGD] Evaluacion pendiente: [{{TITULO}}]",
+        "codigo": CodigoPlantilla.REASIG_MANUAL,
+        "nombre": "Reasignación Manual",
+        "asunto": "[COFAR SGD] REASIGNACION DE TAREA - {{CODIGO}}",
         "cuerpo_html": """\
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #1a5fb4;">Evaluacion Pendiente</h2>
-  <p>Estimado/a <strong>{{USUARIO}}</strong>,</p>
-  <p>Tiene una evaluacion de capacitacion pendiente:</p>
-  <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Documento</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{CODIGO}} - {{TITULO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Fecha limite</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{FECHA_LIMITE}}</td></tr>
-  </table>
-  <p>Complete la evaluacion antes de la fecha limite.</p>
-  <p><a href="{{LINK}}">Tomar evaluacion</a></p>
-</div>
-""",
-        "variables_json": VARS_DISPONIBLES,
+  <h2 style="color: #1a5fb4;">REASIGNACIÓN DE TAREA</h2>
+  <p>Estimado colaborador, le notificamos que se le ha reasignado una tarea de <strong>REVISIÓN / APROBACIÓN</strong> en el Sistema de Gestión Documental:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}</p>
+  <p><strong>Usuario que ha reasignado la tarea:</strong> {{REASIGNADO_POR}}</p>
+  <p>Para revisar y aprobar el documento, favor ingresar al siguiente enlace: {{LINK}}</p>
+  <p>Agradecemos realizar la actividad dentro del plazo establecido.</p>
+  <p>Si tiene alguna duda, favor comunicarse con el área de ETO.<br>Gracias.</p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
     },
+    # ─── 10. Tarea Próxima a Vencer ───
+    {
+        "codigo": CodigoPlantilla.TAREA_PROXIMA_VENCER,
+        "nombre": "Tarea Próxima a Vencer",
+        "asunto": "[COFAR SGD] TAREA PRÓXIMA A VENCER - {{CODIGO}}",
+        "cuerpo_html": """\
+<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  <h2 style="color: #dc2626;">⚠️ TAREA PRÓXIMA A VENCER</h2>
+  <p>Estimado colaborador, le recordamos que tiene una tarea próxima a vencer en el Sistema de Gestión Documental:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}<br>
+  <strong>Tarea:</strong> {{TAREA}}<br>
+  <strong>Fecha límite:</strong> {{FECHA_VENCIMIENTO}}</p>
+  <p>Favor ingresar al siguiente enlace para completar la actividad pendiente: {{LINK}}</p>
+  <p>Gracias.</p>
+  <p style="color: #888; font-size: 10px;"><em>Nota: esta notificación se envía cada día desde que la tarea se semáforo en ROJO hasta su ejecución.</em></p>
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
+    },
+    # ─── 11. Auto-delegación (mantenida del PDF original) ───
     {
         "codigo": CodigoPlantilla.AUTO_DELEGACION_ACTIVADA,
-        "nombre": "Auto-delegacion Activada",
-        "asunto": "[COFAR - SGD] Auto-delegacion activada en [{{CODIGO}}]",
-        # Plantilla 6 del PDF oficial (no estaba en el .docx). Contenido stub
-        # coherente con el flujo: si pasaron N dias sin accion, el sistema
-        # delega automaticamente al jefe inmediato.
+        "nombre": "Auto-delegación Activada",
+        "asunto": "[COFAR SGD] Auto-delegación activada en {{CODIGO}}",
         "cuerpo_html": """\
 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-  <h2 style="color: #d97706;">Auto-delegacion Activada</h2>
+  <h2 style="color: #d97706;">Auto-delegación Activada</h2>
   <p>Estimado/a <strong>{{USUARIO}}</strong>,</p>
-  <p>Por haber transcurrido <strong>{{ETAPA}}</strong> dias habiles sin accion sobre la siguiente tarea, el SGD ha activado la auto-delegacion:</p>
-  <table style="border-collapse: collapse; width: 100%; margin: 16px 0;">
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Codigo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{CODIGO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Titulo</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{TITULO}}</td></tr>
-    <tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Gerencia</strong></td>
-        <td style="padding: 8px; border: 1px solid #ddd;">{{GERENCIA}}</td></tr>
-  </table>
-  <p>La tarea ha sido reasignada automaticamente. Si necesita recuperarla, contacte al ETO.</p>
+  <p>Por haber transcurrido <strong>{{ETAPA}}</strong> días hábiles sin acción sobre la siguiente tarea, el SGD ha activado la auto-delegación:</p>
+  <p><strong>Código:</strong> {{CODIGO}}<br>
+  <strong>Título:</strong> {{TITULO}}<br>
+  <strong>Gerencia:</strong> {{GERENCIA}}</p>
+  <p>La tarea ha sido reasignada automáticamente. Si necesita recuperarla, contacte al ETO.</p>
   <p><a href="{{LINK}}">Ver historial</a></p>
-</div>
-""",
-        "variables_json": VARS_DISPONIBLES,
+  <hr><p style="color: #888; font-size: 11px;">Este correo fue generado automáticamente por el SGD COFAR.</p>
+</div>""",
+        "variables_json": VARS_COMUNES,
     },
 ]
 
@@ -195,7 +253,7 @@ async def seed_templates(db: AsyncSession) -> tuple[int, int]:
         if existing is None:
             t = EmailTemplate(**data, activo=True)
             db.add(t)
-            print(f"  [+] {data['codigo'].value} - {data['nombre']!r}")
+            print(f"  [+] {data['codigo'].value:30} - {data['nombre']!r}")
             creados += 1
         else:
             changed = False
@@ -208,19 +266,19 @@ async def seed_templates(db: AsyncSession) -> tuple[int, int]:
                 existing.activo = True
                 changed = True
             if changed:
-                print(f"  [~] {data['codigo'].value} actualizado")
+                print(f"  [~] {data['codigo'].value:30} actualizado")
                 actualizados += 1
             else:
-                print(f"  [=] {data['codigo'].value} sin cambios")
+                print(f"  [=] {data['codigo'].value:30} sin cambios")
         await db.flush()
     return creados, actualizados
 
 
 async def main() -> None:
     print("=" * 70)
-    print("COFAR SGD - Seed Email Templates (US-9.04)")
+    print("COFAR SGD - Seed Email Templates (US-9.04, sesion 13: 10 plantillas)")
     print("=" * 70)
-    print(f"Total: {len(PLANTILLAS)} plantillas (5 del .docx + 1 del PDF)")
+    print(f"Total: {len(PLANTILLAS)} plantillas (10 del doc + 1 PDF)")
 
     async with AsyncSessionLocal() as db:
         try:
