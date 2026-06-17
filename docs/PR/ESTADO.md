@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 18 — Fix refresh bug #15 + debug page `/_debug/session`)
+> Última actualización: 2026-06-17 (sesión 19 — **DEPLOY QAS v1.0.0-qas: 12/12 validaciones PASS**)
 
 ## Versión actual
-**v1.0.0-dev** (sesión 18: **Refresh bug #15 RESUELTO definitivamente** (deuda arrastrada desde sesión 14, 4 sesiones). Causa raíz: race entre `auth.init()` async (no awaited) y `initRouter()` (siguiente microtask). Router veía `isAuthenticated=false` en el primer tick porque `/me` estaba en vuelo → redirigía a `/login`. Fix de 3 cambios: (1) `auth.js` restaura sincrónicamente desde localStorage + flag `isReady`, (2) `router/index.js` guard `!isReady` con loader, (3) debug page permanente `/_debug/session` para diagnóstico futuro. 6/6 smoke tests con Chrome MCP pasaron. R1 sigue al 100%.)
+**v1.0.0-qas** (tag creado en sesión 19). Sesión 19 ejecutó el plan `PLAN-DEPLOY-QAS-SESION18.md` completo. Deploy del código R1+R1-fixes (22 commits desde último deploy QAS) en `https://sgdqas.cofar.com.bo`. 3 migraciones Alembic aplicadas (010 → 013). 8 seeds idempotentes. Sync AD real contra DC `10.10.0.2` (753 usuarios). nginx + healthchecks + CSRF + CORS todos OK. **12/12 validaciones A-L PASS.** Tag `v1.0.0-qas` con resumen del release.)
 
 ## Objetivo inmediato
 **R1 cerrado al 100% + R2 desbloqueado** (1 día restante del plazo original)

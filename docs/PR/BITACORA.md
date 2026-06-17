@@ -1857,3 +1857,156 @@ fix-01..08).
 Recomendacion: arrancar R2 ya que el R1 esta cerrado al 100% y el refresh
 bug esta resuelto. Si quedan sesiones pequenas antes de R2, #13 y #16 caben
 en 30-40 min.
+
+---
+
+## Sesion 19 — 2026-06-17 (miercoles) — DEPLOY QAS v1.0.0-qas (12/12 PASS)
+
+> Sesion dedicada a ejecutar el plan \docs/PR/PLAN-DEPLOY-QAS-SESION18.md\
+> completo. Deploy del codigo R1+R1-fixes (22 commits desde ultimo
+> deploy QAS) en \https://sgdqas.cofar.com.bo\. 12/12 validaciones A-L
+> en PASS. Tag \1.0.0-qas\ creado.
+
+### Contexto de inicio
+
+El usuario volvio con luz verde para ejecutar el deploy QAS pendiente de
+sesion 18. Plan completo en PLAN-DEPLOY-QAS-SESION18.md (11 secciones,
+estimado 40-50 min).
+
+### Diagnostico (guiado por INICIO-SESION.md)
+
+- Stack DES local: 16 contenedores Up (8 DES + 8 backup paralelo)
+- Working tree limpio, branch epica-1/rama-1, 24 commits ahead de origin
+- Plan completo commiteado (78caeb7)
+- Reposicion de las preguntas criticas del ritual: el plan ya esta
+  acordado, el usuario autorizo proceder. La validacion local + el
+  PRE-FLIGHT SSH son las tareas obligatorias previas.
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 19.1 | Validacion LOCAL: 8 seeds + 3 migraciones + openpyxl + Tiptap deps + Dockerfiles | (analisis) | TODO presente |
+| 19.2 | PRE-FLIGHT SSH: conectividad + disco 225GB libres + cert SSL 1 ano + .env.qas (LDAP_SERVER=10.10.0.2) | (sin commit) | Todo OK |
+| 19.3 | Backup pre-deploy: BD (100KB custom v1.15-0) + nginx confs + compose | (sin commit) | OK |
+| 19.4 | FIX 1: rename sgd-qas.conf.bk -> sgd-qas.conf en deploy-qas.bat:75 | 5b22bde | 9 lineas agregadas |
+| 19.5 | Fix preexistente seed_tipos_documento.py: INSTRUCTIVO_TECNICO 6 -> 15 (alineado con migracion 011) | 5b22bde | 1 linea modificada |
+| 19.6 | Commit atomico FIX 1 + fix seed (2 archivos, 10 insertions, 1 deletion) | 5b22bde | OK |
+| 19.7 | Re-confirmacion SSH + health QAS pre-deploy | (sin commit) | OK |
+| 19.8 | Ejecutar scripts\\deploy-qas.bat (zip + scp + extract + rename + rebuild + restart) | (sin commit) | Deploy completo |
+| 19.9 | Diagnostico: nginx 502 por IP cacheada del container backend viejo | (sin commit) | docker restart sgd-qas-nginx |
+| 19.10 | Re-ejecutar start-stack-qas.sh (8/8 seeds aplicados: 11 email_templates, 11 configuracion_global, 4 semaforizacion) | (sin commit) | OK |
+| 19.11 | BUG CRITICO detectado: zip del deploy NO contenia archivos del frontend | (sin commit) | Robo copia fallo |
+| 19.12 | Causa raiz: /worktrees no es parametro valido de robocopy, aborta silenciosamente | d183ead | 1 linea modificada |
+| 19.13 | Re-empaquetar frontend manualmente + SCP + extract + rebuild imagen + restart container | (sin commit) | OK |
+| 19.14 | npm install DENTRO del container (bind mount deja node_modules vacio) | (sin commit) | 45 packages |
+| 19.15 | Validaciones A-L exhaustivas (12 categorias) | (analisis) | 12/12 PASS |
+| 19.16 | Tag v1.0.0-qas | (tag) | Resumen del release |
+
+### Validaciones A-L (12/12 PASS)
+
+| # | Categoria | Resultado |
+|---|---|---|
+| A | Health | ? HTTPS 200, interno 200, 8/8 servicios Up |
+| B | Librerias nuevas | ? openpyxl 3.1.5, 27 paquetes Tiptap instalados |
+| C | Migraciones (3 nuevas) | ? alembic 6451593bcab5 (013), semaforizacion_tarea existe, tipos_documento refactor OK |
+| D | Datos BD | ? 5/11/10/50/754/13/5/20/11/10/11/4 (13 contadores), INSTRUCTIVO_TECNICO=15 |
+| E | Login | ? aromero local 200, /me 200 con user completo |
+| F | Endpoints nuevos | ? audit-log, semaforizacion-tarea, admin/impersonate/list (753 usuarios), PATCH /usuarios |
+| G | Refresh fix #15 (Chrome MCP) | ? isReady=true, isAuthenticated=true, localStorage presente, refresh mantiene sesion |
+| H | Tiptap editor plantillas | ? 11 plantillas + toolbar B/I/U/S/H1-3/listas/code/color/fontSize/undo/redo |
+| I | Impersonate funcional | ? banner sticky visible, boton Impersonar, audit IMPERSONATE_START/STOP (9 entries previas) |
+| J | Sync AD | ? 753 usuarios CSV, LDAP contra DC 10.10.0.2 OK |
+| K | nginx | ? HTTP->HTTPS 301, HTTPS 200, sgd-qas.conf activo sin .bk |
+| L | Seguridad | ? CORS 200, CSRF cookie no HttpOnly |
+
+### Logros tecnicos
+
+1. **Deploy QAS 100% funcional** en https://sgdqas.cofar.com.bo con
+   codigo R1+R1-fixes sincronizado.
+2. **2 fixes preexistentes** descubiertos y corregidos (commit 5b22bde
+   + 5b22bde). Sin ellos el deploy NO habria sido completo.
+3. **3 migraciones Alembic** aplicadas (010 -> 013). Ninguna fallo.
+4. **8 seeds idempotentes** corriendo OK. conteos finales: 11
+   email_templates, 11 configuracion_global, 4 semaforizacion_tarea.
+5. **Bug preexistente #1** (\/worktrees\ en robocopy) que arrastraba
+   silencio desde sesion 14 (4 deploys con frontend desactualizado).
+   Documentado y arreglado en commit d183ead.
+6. **Tag v1.0.0-qas** con resumen del release.
+7. **Cero regresiones**: el bug preexistente \Plazo 42 invalid\ del
+   plan ya estaba en DES y sigue en QAS (cosmetic, no bloqueante).
+
+### Bugs preexistentes descubiertos durante el deploy
+
+1. **\/worktrees\ no es parametro valido de robocopy** (sesion 14
+   heredo el patron malo). El comando aborta silenciosamente y el
+   frontend nunca se copiaba. FIX en commit d183ead.
+2. **nginx cachea la IP del container backend** entre deploys. El
+   container recreado recibe nueva IP, nginx sigue intentando la vieja
+   -> 502. Fix operacional: \docker restart sgd-qas-nginx\ despues
+   del deploy.
+3. **\
+ode_modules\ vacio en container** por bind mount + \COPY . .\
+   en Dockerfile. El bind mount de compose (\../frontend:/app\) pisa
+   el node_modules que npm install creo en el build. Fix operacional
+   para este deploy: \docker exec sgd-qas-frontend npm install\. Fix
+   permanente requiere Dockerfile/compose cambio (no urgente).
+4. **Path real admin-impersonate es \/api/v1/admin/impersonate/list\**
+   (con slash, no guion). El plan PLAN-DEPLOY-QAS-SESION18.md tenia
+   typo. Documentado en ESTADO.
+
+### Conteo final QAS post-deploy
+
+\\\
+roles:                   5
+modulos:                11
+gerencias:              10
+areas:                  50
+usuarios:              754   (4 stubs DES + 750 AD)
+tipos_documento:        13   (DES tiene 14, +1 INSTRUCTIVO_TECNICO codigo=15)
+estados:                 5
+feriados:               20
+email_templates:        11   (NUEVO, antes 0 post-migracion 013)
+matriz_eto:             10
+configuracion_global:   11   (NUEVO, antes 0)
+semaforizacion_tarea:    4   (NUEVO, tabla creada por migracion 012)
+audit_log:               1
+alembic:         6451593bcab5 (013)  (NUEVO, antes b397cd9bfb91 = 010)
+\\\
+
+### Decisiones tecnicas (ADRs candidatos sesion 20)
+
+- **ADR-028**: El script \deploy-qas.bat\ debe usar \worktrees\ (no
+  \/worktrees\) en robocopy \/XD\. Cualquier parametro invalido
+  causa abort silencioso sin error visible.
+- **ADR-029**: Post-deploy de QAS, siempre ejecutar \docker restart
+  sgd-qas-nginx\ para refrescar el cache DNS del container backend
+  (su IP cambia en cada recreacion).
+- **ADR-030**: El compose \docker-compose.qas.yml\ frontend debe
+  excluir el bind mount de \/app/node_modules\ o el Dockerfile debe
+  tener un paso final \
+pm install\ que no sea sobrescrito por
+  \COPY . .\. Workaround actual: \docker exec npm install\.
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + Parametrizacion + Tiptap + Impersonate + Refresh fix + Deploy QAS**:
+  100% CERRADO Y DESPLEGADO.
+- **QAS**: v1.0.0-qas desplegado con 8 servicios + 754 usuarios AD + 11 plantillas + 11 params config.
+- **R2**: 0/21 (sigue desbloqueado, no fue tocado).
+- **Total commits sesion 19**: 2 (5b22bde + d183ead).
+- **Tag**: v1.0.0-qas.
+
+### Proxima sesion (sesion 20) — recomendaciones
+
+1. **Fix permanente del bind mount node_modules** (ADR-030). Modificar
+   \deploy/Dockerfile\ del frontend para excluir node_modules del
+   \COPY . .\ o agregar un \.dockerignore\. Despues: rebuild imagen
+   + restart container.
+2. **Fix permanente del cache DNS de nginx** (ADR-029). Agregar paso al
+   \start-stack-qas.sh\ que haga \docker restart sgd-qas-nginx\ al
+   final.
+3. **Fix Plazo 42 invalid** (cosmetic, 5 min): cambiar el seed de
+   \plazo_revision_aprobacion_dias\ a 15.
+4. **R2 - Wizard de creacion** (tareas #23+): ya esta todo listo.
+5. **#13 Deuda delegado** (fuzzy + threshold 0.85): pequeno.
