@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 23 — **Bloques A+B+C cerrados: 13 sub-tareas, 3 commits atómicos**)
+> Última actualización: 2026-06-17 (sesión 23 — **Bloques A+B+C+D cerrados: 14 sub-tareas, 4 commits atómicos**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
@@ -111,6 +111,8 @@
 | **Sesion 23 (Bloque C — sync AD mejorado)** | | | | |
 | C1 | Sync AD: usuarios deshabilitados → estado=desvinculado | ✅ | 17-jun | usuarios.py POST /sync-ad: despues de procesar AD, busca en BD usuarios con ad_postal_code y estado activo/inactivo cuyo username no esta en AD, los marca como desvinculado. NUNCA se eliminan. Si estaba desvinculado y vuelve a AD, se reactiva. SyncAdResponse ahora incluye campo 'desvinculados'. |
 | C2 | Flag es_usuario_ad (AD vs local) | ✅ | 17-jun | Migracion 8aa4cfa0f92f: nueva columna es_usuario_ad (bool, indexed). Backfill: 754 usuarios con ad_postal_code → true, 10 sin SAP → false. auth.py y usuarios.py setean true al crear desde AD. |
+| **Sesion 23 (Bloque D — impersonate end-to-end)** | | | | |
+| D1 | Impersonate: roles/modulos/bandejas del impersonado | ✅ | 17-jun | get_current_user_from_cookie prioriza impersonated_user. write_audit agrega impersonated_by al campo detalles para trazabilidad. admin_impersonate.start: fallback a BD si AD no encuentra al usuario. Validado con curl: aromero impersona a visualizador_cl, bandejas reflejan roles/permisos del visualizador (403 en liberacion), stop vuelve a aromero. |
 | N36 | Fix refresh bug: race auth.init vs initRouter | ✅ | 17-jun | 3 cambios: (1) auth.js init() restaura SINCRONO desde localStorage + flag isReady. (2) router/index.js guard !isReady con loader (no redirige durante init). (3) debug page /_debug/session permanente. 6/6 smoke tests Chrome MCP. Commit `733e8b6` |
 
 ### R2 — Wizard de creación
