@@ -34,17 +34,50 @@ export const authStore = {
   /* ─── State ─────────────────────────────────────────────── */
   user: null,
   role: null,
+  // isReady = true cuando YA sabemos el estado de la sesion (cache sincrono
+  // + /me completado). Hasta entonces, el router NO debe tomar decisiones
+  // de redireccion (mostrar loader en su lugar).
+  isReady: false,
+  // Promesa de la llamada de refresh en curso. La pueden usar main.js
+  // y el router para await antes de iniciar la UI.
+  _refreshPromise: null,
 
   /* ─── Persistencia ──────────────────────────────────────── */
 
   init() {
-    // Intentar restaurar sesión llamando a /me (que lee la cookie)
-    this.refreshFromBackend().catch(() => {
-      // Si falla, limpiar storage local
-      this.user = null
-      this.role = null
-      localStorage.removeItem('cofar_session')
-    })
+    // Paso 1 (sincronico): restaurar sesion desde localStorage.
+    // Esto evita que el router vea isAuthenticated=false en el primer tick
+    // y nos mande a /login cuando en realidad tenemos cookies + cache validos.
+    this.isReady = false
+    const cached = localStorage.getItem('cofar_session')
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        if (parsed && parsed.user && parsed.role) {
+          this.user = parsed.user
+          this.role = parsed.role
+          // Con cache sincrono ya podemos declarar listo: el backend
+          // validara en background; si las cookies vencieron, _refreshPromise
+          // limpiara el estado y disparara isReady=true de nuevo.
+          this.isReady = true
+        }
+      } catch (_) {
+        localStorage.removeItem('cofar_session')
+      }
+    }
+
+    // Paso 2 (async): validar contra el backend. Si falla, limpiar todo.
+    this._refreshPromise = this.refreshFromBackend()
+      .catch(() => {
+        this.user = null
+        this.role = null
+        localStorage.removeItem('cofar_session')
+      })
+      .finally(() => {
+        this.isReady = true
+        this._refreshPromise = null
+      })
+
     // Sesion 17: evento global para terminar impersonate desde el banner
     // del AppLayout (que no tiene acceso directo al store).
     window.addEventListener('sgd-stop-impersonate', () => this.stopImpersonate())

@@ -4,6 +4,7 @@
 
 const routes = {
   '/login':                () => import('../pages/Login.js'),
+  '/_debug/session':       () => import('../pages/DebugSession.js'),
   '/403':                  () => import('../pages/Error403.js'),
   '/404':                  () => import('../pages/Error404.js'),
   // Tanda 3
@@ -87,18 +88,72 @@ function updatePageTitle(hash) {
   if (app) app.setPageTitle(title)
 }
 
+/* ── Loader mientras auth.init() termina de validar contra backend ──
+   Se muestra solo cuando no tenemos cache localStorage y /me esta en vuelo.
+   Si hay cache, isReady=true sincronico y nunca aparece. */
+function showAuthLoader() {
+  const appEl = document.getElementById('app')
+  if (!appEl) return
+  appEl.innerHTML = `<div style="min-height:60vh;display:flex;align-items:center;justify-content:center;background:#f8fafc">
+    <div style="text-align:center;font-family:system-ui,sans-serif">
+      <div style="display:inline-block;width:36px;height:36px;border:3px solid #e2e8f0;border-top-color:#1d4ed8;border-radius:50%;animation:dsg-spin 0.7s linear infinite;margin-bottom:12px"></div>
+      <div style="color:#475569;font-size:14px">Verificando sesion...</div>
+    </div>
+  </div>
+  <style>@keyframes dsg-spin{to{transform:rotate(360deg)}}</style>`
+}
+
+/* Polling: si isReady pasa a true mientras estamos en la pantalla de loader,
+   re-disparamos handleRoute() automaticamente. Limite 5s por seguridad. */
+let _authReadyPoll = null
+function watchAuthReady() {
+  if (_authReadyPoll) return
+  _authReadyPoll = setInterval(() => {
+    if (window.Alpine?.store('auth')?.isReady) {
+      clearInterval(_authReadyPoll)
+      _authReadyPoll = null
+      handleRoute()
+    }
+  }, 60)
+  setTimeout(() => {
+    if (_authReadyPoll) {
+      clearInterval(_authReadyPoll)
+      _authReadyPoll = null
+    }
+  }, 5000)
+}
+
 async function handleRoute() {
   const auth = window.Alpine?.store('auth')
   const hash = getHash()
   const appEl = document.getElementById('app')
 
   if(!appEl) return
-  if(!auth?.isAuthenticated && hash!=='/login'){setHash('/login');return}
+
+  // ── Guard #1: si auth todavia no termino de inicializar, mostrar loader
+  //    y NO tomar decisiones de redireccion. Esto resuelve el bug "F5 me
+  //    bota al login": sin este guard, isAuthenticated era false en el
+  //    primer tick (porque /me estaba en vuelo) y el router redirigia. ──
+  if (!auth?.isReady) {
+    showAuthLoader()
+    watchAuthReady()
+    return
+  }
+
+  if(!auth?.isAuthenticated && hash!=='/login' && hash!=='/_debug/session'){setHash('/login');return}
   if(auth?.isAuthenticated && hash==='/login'){setHash(auth.homeRoute);return}
 
   if(hash==='/login'){
     appEl.innerHTML=''
     const {page}=await import('../pages/Login.js')
+    page.init?.();appEl.innerHTML=page.template;window.Alpine?.initTree(appEl)
+    updatePageTitle(hash)
+    return
+  }
+
+  if(hash==='/_debug/session'){
+    appEl.innerHTML=''
+    const {page}=await import('../pages/DebugSession.js')
     page.init?.();appEl.innerHTML=page.template;window.Alpine?.initTree(appEl)
     updatePageTitle(hash)
     return
