@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 15 — UI/UX Vigencia + Tiptap fixes + Export fixes + 1 bug conocido no resuelto)
+> Última actualización: 2026-06-17 (sesión 16 — Tiptap+Alpine root cause fixed + debug page eliminada)
 
 ## Versión actual
-**v0.5.6-dev** (sesión 15: UI/UX Vigencia rediseñada (zebra + header + ancho fijo), Tiptap fixes (x-if + async cleanup + cache HTML + commands vs chain), Export Excel fix (download directo en user gesture sin await previo), `extension-underline` restaurado en package.json. **Bug conocido**: `Applying a mismatched transaction` persiste en tests automatizados — mitigación: reload limpio del browser.)
+**v0.5.7-dev** (sesión 16: Tiptap+Alpine root cause FIXED. Editor en closure del factory Alpine.data (patron oficial). TextStyleKit + commands.setColor/setFontSize. @mousedown.prevent en toolbar. Persistencia validada en BD. Debug page eliminada. `Applying a mismatched transaction` RESUELTO definitivamente.)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
@@ -68,13 +68,19 @@
 | N17 | Refactor `tipos_documento`: codigo int UNIQUE + slug + nombre UNIQUE, drop codigo_doc | ✅ | 17-jun | Modelo + schema + endpoints + seed actualizados. Migracion 6b244889632f (data-migration + drop column). Commit en sesion 14. |
 | N18 | Semaforizacion por tipo de tarea (modelo + API + UI) | ✅ | 17-jun | `app/api/v1/semaforizacion_tarea.py` (4 endpoints) + modelo + migracion f04b96c6dff2. Tab UI con 4 tipos (REVISION, APROBACION, CONTROL_LECTURA, EVALUACION). |
 | N19 | Plantillas notificacion: 10 plantillas (ampliar enum) | ✅ | 17-jun | enum de 6 a 10 codigos. Seed actualizado. Migracion 6451593bcab5. |
-| N20 | Editor Tiptap para plantillas (B/I/U/S/H1-3/listas/code/color/fontSize/undo) | ✅ | 17-jun | `frontend/src/components/PlantillaEditor.js` (99 lineas) + toolbar HTML en Parametrizacion.js (lineas 1793-1833) + lifecycle completo (mount, selectionUpdate, transaction). 5 deps Tiptap 3.26.1 en package.json. |
+| N20 | Editor Tiptap para plantillas (B/I/U/S/H1-3/listas/code/color/fontSize/undo) | ✅ | 17-jun | `frontend/src/components/PlantillaEditor.js` (106 lineas) + toolbar HTML en Parametrizacion.js (lineas 1912-1951) + lifecycle completo (mount, selectionUpdate, transaction). 5 deps Tiptap 3.26.1 en package.json. **Sesion 16**: editor en closure del factory (root cause fix), TextStyleKit, @mousedown.prevent, commands.setColor/setFontSize. |
 | **Tareas nuevas sesión 14 (recuperacion + cierre pendientes)** |  |  |  |  |
 | N21 | Fix bug preexistente `sgd-qas.conf` en `conf.d/` de DES | ✅ | 17-jun | Movido a `sgd-qas.conf.bk`. Nginx ya no redirige a HTTPS inexistente. Commit `beafe03`. |
 | N22 | Docker compose con `${VAR:-default}` en env vars | ✅ | 17-jun | Todas las env vars del backend tienen default. Resuelve el loop de sesión 13. |
 | N23 | API_BASE relativa (cross-origin auth fix) | ✅ | 17-jun | `frontend/src/utils/config.js`: `'http://localhost:18000/api/v1'` → `'/api/v1'`. Cookies de sesión se manejan via Nginx (mismo origin). |
 | N24 | `seed_configuracion_global.py` agregado a `start-stack-qas.sh` | ✅ | 17-jun | 8/8 seeds (antes 7/7). REQUIRED_FILES y SEEDS arrays actualizados. Conteo BD incluye `configuracion_global` y `semaforizacion_tarea`. Commit `1ebfe5e`. |
 | N25 | Fix Tiptap duplicate underline | ✅ | 17-jun | Tiptap 3.x StarterKit ya incluye Underline. Removido import adicional y dep `extension-underline`. Commit `d135788`. |
+| **Sesion 16** | | | | |
+| N26 | Tiptap+Alpine root cause fix (closure pattern) | ✅ | 17-jun | Editor movido a `let editor` en closure del factory `Alpine.data('paramPage', ...)` segun doc oficial de Tiptap Alpine. Eliminado el `_editorHandle` intermedio. Commit `a154bc4`. **Bug "Applying a mismatched transaction" RESUELTO definitivamente** (workaround de reload limpio ya no necesario). |
+| N27 | Tiptap color/fontSize con TextStyleKit | ✅ | 17-jun | Reemplazado `TextStyle + Color` por `TextStyleKit` (incluye FontSize). Usar `editor.commands.setColor/setFontSize` (commands, no chain methods). |
+| N28 | WSIWYG @mousedown.prevent en toolbar | ✅ | 17-jun | Aplicado a 17 botones (16 toolbar + 1 chip de variable) para evitar que roben focus del editor. |
+| N29 | Validacion persistencia Tiptap -> BD | ✅ | 17-jun | Editor -> PATCH /email-templates/{cod} -> BD verificada con `psql`. F5 + re-login recupera contenido correctamente. |
+| N30 | Validacion previsualizar con MOCK data | ✅ | 17-jun | Preview genera HTML con variables {{...}} sustituidas por mock. |
 
 ### R2 — Wizard de creación
 
@@ -114,7 +120,7 @@
 ---
 
 ## Progreso R1
-**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** + **1 tarea nueva sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion + 11 parametros BD + 4 bugs preexistentes)** + **11 tareas nuevas sesión 13 (A1-A11 + refactor tipos_documento + semaforización + plantillas 10 + Tiptap deps)** + **7 commits sesión 14 (recuperación Docker + cierre de pendientes)** = **37/37 tareas R1 + EPICA9 + Parametrizacion (100%)**
+**16/23 tareas R1 (70%)** + **7 tareas nuevas sesión 5 (backend ÉPICA 9)** + **4 tareas nuevas sesión 6 (audit-log, ops jerarquicas, export, refactor UI)** + **1 tarea nueva sesión 7 (bugfix refactor Parametrizacion)** + **1 tarea nueva sesión 8 (import matriz abril 730 usuarios)** + **tests pytest 123/123** + **6 tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** + **1 tarea nueva sesión 12 (Fase 1 PENDIENTES-R1: restaurar CRUD Parametrizacion + 11 parametros BD + 4 bugs preexistentes)** + **11 tareas nuevas sesión 13 (A1-A11 + refactor tipos_documento + semaforización + plantillas 10 + Tiptap deps)** + **7 commits sesión 14 (recuperación Docker + cierre de pendientes)** + **5 tareas nuevas sesión 16 (Tiptap closure fix + TextStyleKit + mousedown.prevent + persistencia BD + previsualizar mock)** = **38/38 tareas R1 + EPICA9 + Parametrizacion (100%)**
 
 ## Progreso QAS
 **8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 8 seeds (incluye `seed_configuracion_global.py` en sesión 14) + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
@@ -123,7 +129,7 @@
 **0/21 tareas pendientes** (R1 ya NO es bloqueante. QAS es reproducible 1-click. R2 puede arrancar.)
 
 ## Total
-**37/49 tareas (76%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 11 tareas nuevas sesión 13 + 7 commits sesión 14
+**38/49 tareas (78%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 5 tareas nuevas sesión 16
 
 ## Tablas de BD
 **21/28 migradas** (16 originales + 6 sesión 5 + 1 sesión 6 + 1 sesión 9 + 3 sesión 13/14: refactor tipos_documento + semaforizacion_tarea + expand plantillas enum).
@@ -322,3 +328,36 @@ Backlog menor:
 - ✅ Sesión 10: Backup paralelo 8081/5174/18001 (8 archivos nuevos) + Deploy QAS manual
 - ✅ Sesión 11: Automatización QAS — `start-stack-qas.sh` 1-click + fix permisos storage + refactor smell `_build_server` → `build_server`
 - ✅ **Sesión 12 (ESTA): Restaurar CRUD Parametrizacion — 2 commits (29001ae seed + 4b75cdc frontend fix) + 4 bugs preexistentes + 11 parametros BD + validacion end-to-end**
+
+## Estado de la sesion actual (16 � Tiptap+Alpine root cause)
+
+- ? Sesion 15: UI/UX Vigencia + Tiptap fixes (mitigacion) + Export fixes (commit ed35e33)
+- ? **Sesion 16 (ESTA): Tiptap+Alpine root cause FIXED**
+  - let editor movido a closure del factory Alpine.data
+  - Eliminado _editorHandle (state reactivo era la causa del bug)
+  - PlantillaEditor.js reducido a API simple {editor, destroy}
+  - TextStyleKit (incluye Color + FontSize)
+  - @mousedown.prevent en 17 botones (patron WSIWYG)
+  - Persistencia BD validada con query directo
+  - Previsualizar con MOCK data funciona
+  - Debug page /_debug/tiptap eliminada completamente
+  - 1 commit: 154bc4 fix(frontend): Tiptap 3.x + Alpine 3.x root cause of mismatched transaction
+- ? **Bug Applying a mismatched transaction RESUELTO definitivamente** (workaround de reload limpio ya no necesario)
+
+### Validacion end-to-end (Chrome DevTools en localhost:8080)
+
+| Verificacion | Resultado |
+|---|---|
+| Bold/Italic/Underline/Strike | OK |
+| H1/H2/H3 | OK |
+| Bullet list / Ordered list | OK |
+| Blockquote / CodeBlock | OK |
+| Undo / Redo | OK |
+| Color picker (setColor) | OK |
+| FontSize (setFontSize) | OK |
+| Cambio de plantilla (setContent) | OK sin mismatched transaction |
+| Insercion de variable {{CODIGO}} desde chip | OK |
+| Guardar plantilla (PATCH /email-templates) | OK, verificado en BD |
+| F5 + re-login recupera contenido | OK |
+| Previsualizar con MOCK data | OK (566 chars HTML) |
+| Console errors / warnings | 0 / 0 |

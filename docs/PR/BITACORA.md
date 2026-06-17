@@ -1493,3 +1493,120 @@ como string vacio al compose, y Docker asigna puertos aleatorios. El backend con
 5. **#14 Cargos a areas** (seed POSICION -> area_id): mediano.
 6. **R2 â€” Wizard de creacion** (tareas #23+): ya esta todo listo, recomendacion empezar aqui.
 
+
+---
+
+## Sesion 16 — 2026-06-17 (miercoles) — Tiptap+Alpine root cause + eliminacion debug page
+
+### Contexto
+Sesion 15 habia intentado mitigar el bug preexistente "Applying a
+mismatched transaction" con un workaround (reload limpio del browser)
+sin resolver la causa raiz. Sesion 16 arranca con el objetivo de
+investigar la doc oficial de Tiptap para encontrar la causa raiz y
+probar cosas NUEVAS (no el workaround).
+
+### Investigacion
+- webfetch a https://tiptap.dev/docs/editor/getting-started/install/alpine
+- La doc oficial dice verbatim: "Alpine's reactive engine automatically
+  wraps component properties in proxy objects. If you attempt to use a
+  proxied editor instance to apply a transaction, it will cause a Range
+  Error: Applying a mismatched transaction, so be sure to unwrap it using
+  Alpine.raw(), or simply avoid storing your editor as a component
+  property."
+- Esto confirma que la sesion 15 estaba mitigando el sintoma (usando
+  chain().focus().X().run() en vez de editor.commands.X() directo)
+  pero NO resolvia la causa: el editor seguia siendo wrapped en un
+  Proxy porque estaba guardado en 	his._editorHandle (state reactivo
+  de Alpine).
+
+### Tareas ejecutadas
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 16.1 | Crear rontend/src/pages/DebugTiptap.js (pagina debug independiente) | (debug, eliminado al final) | Pagina fullscreen que replica EXACTAMENTE el patron de la doc oficial: let editor en closure del factory de Alpine.data, chain().focus().X().run() para la mayoria de los marks. Toolbar B/I/U/S/H1-3/listas/code/blockquote + undo/redo. 5 plantillas precargadas para testear cambio de contenido. |
+| 16.2 | Registrar ruta /_debug/tiptap en router con render fullscreen (bypass auth + AppLayout) | (debug, eliminado) | Caso especial en handleRoute() similar a /login. URL accesible sin autenticacion. |
+| 16.3 | Validar patron del debug con Chrome DevTools | OK | 0 errors, 0 warnings en consola. Typing, bold, H1, listas, cambio de plantilla, undo, color picker, fontSize, localStorage — TODO funciona. |
+| 16.4 | Agregar persistencia localStorage al debug | OK | Boton "Guardar en navegador" + "Cargar del navegador" + "Limpiar". F5 recupera contenido automaticamente. Sirvio para validar que el patron funciona end-to-end sin BD. |
+| 16.5 | Investigar setColor en Tiptap 3.x | OK | El source @tiptap/extension-text-style/dist/index.js linea 166 confirma: setColor: (color) => ({chain}) => chain().setMark(...).run(). Es un COMMAND (no chain method). Hay que usar editor.commands.setColor(color) directo, NO editor.chain().focus().setColor(color).run() (que falla con "setColor is not a function"). |
+| 16.6 | Investigar setFontSize en Tiptap 3.x | OK | Mismo patron: setFontSize: (fontSize) => ({chain}) => chain().setMark(...).run(). Command, no chain method. |
+| 16.7 | Reemplazar TextStyle + Color por TextStyleKit | OK | TextStyleKit de @tiptap/extension-text-style incluye TextStyle + Color + FontSize + FontFamily + BackgroundColor + LineHeight + emoveEmptyTextStyle. Es la forma recomendada por la doc oficial. |
+| 16.8 | Refactor PlantillaEditor.js: API simple {editor, destroy} | 154bc4 | Eliminada la "handle API" intermedia. El modulo retorna {editor, destroy} y el caller es responsable de guardar el editor en closure. |
+| 16.9 | Refactor ESTRUCTURAL del factory paramPage en Parametrizacion.js | 154bc4 | Convertido de Alpine.data('paramPage', () => ({...})) a Alpine.data('paramPage', () => { let editor = null; let editorDestroy = null; return {...}; }). Todos los metodos tbToggle, tbSetColor, tbSetFontSize, _mountTiptap, _cleanupEditor, insertarEtiqueta, guardarPlantilla acceden al editor del closure. |
+| 16.10 | Validar TODO en Parametrizacion > Plantillas | OK | Bold, Italic, Underline, H1-3, listas (bullet/ordered), blockquote, codeBlock, undo/redo, color picker, fontSize, cambio de plantilla, insercion de variable {{CODIGO}} desde chips — TODO funciona. |
+| 16.11 | Validar persistencia end-to-end | OK | data.guardarPlantilla() -> PATCH /api/v1/email-templates/ASIG_REVISION -> BD. Verificado con psql: contenido guardado correctamente. F5 + re-login -> editor carga HTML desde BD correctamente. |
+| 16.12 | Validar previsualizar con MOCK data | OK | Click en "Previsualizar" -> POST /api/v1/email-templates/{codigo}/preview con mock { {{CODIGO}}: 'PRO-CAL-045', ... } -> HTML renderizado con variables sustituidas. |
+| 16.13 | Agregar @mousedown.prevent a TODOS los botones de toolbar | 154bc4 | Patron WSIWYG: evita que el boton robe el focus del editor al hacer click. Aplicado a 17 botones (16 toolbar + 1 chip de variable). |
+| 16.14 | Eliminar debug page + ruta | 154bc4 | Borrado DebugTiptap.js. Removida entrada en outes y outeTitles. Removido caso especial /_debug/* en handleRoute(). Removida excepcion de auth para /_debug/*. Limpiados screenshots de debug. |
+
+### Causa raiz final (la que la sesion 15 no vio)
+
+La sesion 15 intentaba mitigar el bug cambiando chain().X() por
+editor.commands.X() (y viceversa) segun el contexto. Pero el bug NO
+estaba ahi. Estaba en que el editor se guardaba en 	his._editorHandle
+(state reactivo de Alpine). Alpine wrappea TODAS las props de 	his
+en Proxies para detectar cambios. Cuando ProseMirror intentaba ejecutar
+un command, el wrapper Proxy causaba el "Applying a mismatched
+transaction" porque ProseMirror detecta que la transaction se origino
+desde un state diferente.
+
+El fix definitivo (segun la doc oficial): el editor debe vivir en el
+CLOSURE del factory de Alpine.data, NO en 	his. Asi Alpine no tiene
+forma de wrappear el editor en un Proxy.
+
+### Logros tecnicos
+
+1. **Causa raiz del bug "Applying a mismatched transaction" identificada
+   y resuelta** — ya no es necesario el workaround de "reload limpio"
+   de la sesion 15.
+2. **Tiptap 3.x + Alpine 3.x + TextStyleKit + StarterKit** funcionando
+   end-to-end en Parametrizacion.js.
+3. **Color picker + fontSize** funcionando con TextStyleKit (requirio
+   descubrir que son commands, no chain methods).
+4. **Persistencia BD** verificada con query directo a email_templates.
+5. **Previsualizar con MOCK data** funcionando (las variables {{...}}
+   se sustituyen por datos de prueba antes de renderizar el HTML).
+6. **Patron @mousedown.prevent** aplicado a todos los botones de
+   toolbar (problema conocido de editores WSIWYG que la sesion 15
+   habia intentado mitigar con timing/setTimeout).
+7. **Debug page eliminada** — sin rastros en el codigo final.
+
+### Bugs preexistentes confirmados (no relacionados, fuera de scope)
+
+- sync-status devuelve 403 para aromero (ETO). El frontend lo llama
+  sin verificar permisos. Bug preexistente, NO relacionado con Tiptap.
+- Refresh bug (#15): despues de F5 el browser termina en /#/login
+  aunque la sesion siga activa. Bug preexistente, NO resuelto en esta
+  sesion (esta documentado para sesion futura).
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + Parametrizacion + Tiptap**: 100% funcional sin
+  workaround. Sesion 15 -> 16 cierra definitivamente el bug.
+- **QAS**: 8/8 seeds automatizados (sin cambios).
+- **R2**: 0/21 (sigue desbloqueado, no hubo avances).
+- **Total**: 38/49 (78%) + 4 bonus.
+- **Migraciones Alembic**: 13 aplicadas (sin cambios).
+- **Endpoints totales**: 53+ REST (sin cambios).
+- **Commit**: 154bc4 fix(frontend): Tiptap 3.x + Alpine 3.x root cause of mismatched transaction
+
+### Decisiones tecnicas (ADRs candidatos para sesion 17)
+
+- ADR-032: Tiptap 3.x + Alpine 3.x requiere que el editor viva en
+  closure del factory, NO en 	his. Patron oficial de
+  https://tiptap.dev/docs/editor/getting-started/install/alpine.
+- ADR-033: Tiptap 3.x con TextStyle expone setColor/setFontSize como
+  COMMANDS, no chain methods. Usar editor.commands.X() directo.
+- ADR-034: Para Color+FontSize usar TextStyleKit de
+  @tiptap/extension-text-style (incluye todas las styling extensions).
+
+### Proxima sesion (sesion 17) — recomendaciones
+
+1. **Fix refresh bug #15** (1-2h): el router redirige a /#/login
+   antes de que auth.init() termine. Solucion: await refreshFromBackend
+   en router antes de decidir.
+2. **Fix Plazo 42 invalido** (cosmetic, 5 min): seed de
+   plazo_revision_aprobacion_dias se sembro con 42, deberia ser 15.
+3. **Fix 403 sync-status** para ETO (backlog).
+4. **R2 — Wizard de creacion** (tareas #23+): ya esta todo listo.
+5. **#13 Deuda delegado** (fuzzy + threshold 0.85): ~30 min.
+6. **#14 Cargos a areas** (seed POSICION -> area_id): mediano.
