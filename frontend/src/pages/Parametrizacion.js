@@ -409,14 +409,37 @@ export const page = {
           }))
           if (matRes.ok) this.matrizETO = (matRes.data.items || []).map(m => ({
             id: m.id, gerencia: m.gerencia_sigla, gerencia_id: m.gerencia_id,
-            analista: m.analista_username, analista_id: m.analista_usuario_id,
+            analista: m.analista_username,
+            analista_id: m.analista_usuario_id == null ? null : String(m.analista_usuario_id),
             analista_nombre: m.analista_nombre,
-            delegado: m.delegado_username, delegado_id: m.delegado_usuario_id,
+            delegado: m.delegado_username,
+            delegado_id: m.delegado_usuario_id == null ? null : String(m.delegado_usuario_id),
             delegado_nombre: m.delegado_nombre,
             disponible: m.disponibilidad === 'DISPONIBLE', disponibilidad: m.disponibilidad,
           }))
           if (uRes.ok) this.analistas = (uRes.data.items || []).map(u => ({ id: u.id, username: u.username, nombre: u.nombre_completo }))
           if (uaRes.ok) this.usuariosActivos = (uaRes.data.items || []).map(u => ({ id: u.id, username: u.username, nombre: u.nombre_completo }))
+          // Re-bind de los controles de la matriz ETO: x-model/x-model no se
+          // re-bindea cuando las options (o el DOM) se cargan DESPUÉS del
+          // initial render de Alpine. Fix: forzar el value/checked después de
+          // poblar `analistas` y `usuariosActivos`, dentro de un nextTick para
+          // esperar el render de las options.
+          await this.$nextTick()
+          document.querySelectorAll('select[data-matriz-select="analista"]').forEach(sel => {
+            const mid = sel.getAttribute('data-matriz-id')
+            const fila = this.matrizETO.find(x => String(x.id) === String(mid))
+            if (fila) sel.value = fila.analista_id == null ? '' : String(fila.analista_id)
+          })
+          document.querySelectorAll('select[data-matriz-select="delegado"]').forEach(sel => {
+            const mid = sel.getAttribute('data-matriz-id')
+            const fila = this.matrizETO.find(x => String(x.id) === String(mid))
+            if (fila) sel.value = fila.delegado_id == null ? '' : String(fila.delegado_id)
+          })
+          document.querySelectorAll('input[data-matriz-check="disponible"]').forEach(cb => {
+            const mid = cb.getAttribute('data-matriz-id')
+            const fila = this.matrizETO.find(x => String(x.id) === String(mid))
+            if (fila) cb.checked = !!fila.disponible
+          })
           if (cfgRes.ok) {
             const cfg = (cfgRes.data.items || []).reduce((acc, c) => { acc[c.clave] = c.valor; return acc }, {})
             this.tiempoVigenciaDefault = parseInt(cfg.tiempo_vigencia_anios || '3', 10)
@@ -506,8 +529,8 @@ export const page = {
           }
           const payload = {
             disponibilidad: m.disponible ? 'DISPONIBLE' : 'AUSENTE',
-            analista_usuario_id: m.analista_id || null,
-            delegado_usuario_id: !m.disponible ? (m.delegado_id || null) : null,
+            analista_usuario_id: m.analista_id ? Number(m.analista_id) : null,
+            delegado_usuario_id: !m.disponible ? (m.delegado_id ? Number(m.delegado_id) : null) : null,
           }
           const res = await matrizEto.update(m.id, payload)
           if (res.ok) {
@@ -674,8 +697,6 @@ export const page = {
       plantillaSelect: 0,
       plantillas: [],
       etiquetas: [], // variables JSON de la plantilla seleccionada
-      previewMode: false,
-      previewHtml: '',
       // Editor Tiptap (Sesion 16: editor en closure del factory, NO en `this`)
       _editorMounted: false,    // flag para evitar doble mount (el editor vive en closure)
       // Toolbar state (se actualiza desde Tiptap selectionUpdate)
@@ -702,8 +723,6 @@ export const page = {
               variables: t.variables_json || [], activo: t.activo,
             }))
             this.plantillaSelect = 0
-            this.previewMode = false
-            this.previewHtml = ''
             if (this.plantillas.length) {
               const p = this.plantillas[0]
               this.etiquetas = p?.variables || []
@@ -722,8 +741,6 @@ export const page = {
       onSelectPlantillaClick(i) {
         if (this.plantillaSelect === i) return
         this.plantillaSelect = i
-        this.previewMode = false
-        this.previewHtml = ''
         const p = this.plantillas[i]
         this.etiquetas = p?.variables || []
         if (editor && !editor.isDestroyed && p) {
@@ -889,40 +906,6 @@ export const page = {
           else window.toast(`Error: ${res.data?.detail || res.status}`, 'error')
         } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
       },
-      async previsualizarPlantilla() {
-        const p = this.plantillas[this.plantillaSelect]
-        if (!p) return
-        const mock = {
-          '{{CODIGO}}': 'PRO-CAL-045',
-          '{{TITULO}}': 'Procedimiento de Calibracion de Balanzas',
-          '{{USUARIO}}': 'Aracely Romero',
-          '{{FECHA_LIMITE}}': '15/05/2026',
-          '{{ETAPA}}': 'Revision Paralela',
-          '{{LINK}}': 'https://sgd.cofar.com/bandeja',
-          '{{GERENCIA}}': 'Calidad',
-          '{{OBSERVACION}}': 'Sin observaciones',
-          '{{REASIGNADO_POR}}': 'aromero',
-          '{{TAREA}}': 'Revision',
-          '{{FECHA_VENCIMIENTO}}': '18/05/2026',
-          '{{VERSION}}': '01',
-        }
-        try {
-          const res = await emailTemplates.preview(p.codigo, mock)
-          if (res.ok) {
-            const r = res.data
-            this.previewHtml = `
-              <div class="space-y-2">
-                <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1">📧 Asunto</div>
-                <div class="text-[12.5px] font-semibold text-slate-800">${r.asunto_rendered}</div>
-                <div class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1 pt-2">📄 Cuerpo</div>
-                <div class="text-[12px] text-slate-700 leading-relaxed">${r.cuerpo_html_rendered}</div>
-              </div>`
-            if (r.vars_faltantes?.length) window.toast(`Variables faltantes: ${r.vars_faltantes.join(', ')}`, 'warn')
-            this.previewMode = true
-          }
-        } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
-      },
-      cerrarPreview() { this.previewMode = false },
 
       /* ─── Gestión de Usuarios (lee del backend real, no mock) ─── */
       usuarios: [],
@@ -1167,7 +1150,21 @@ export const page = {
         },
 
       async impersonarUsuario(u) {
-        if (!confirm(`¿Impersonar a ${u.nombre_completo} (${u.username})? Tu sesión actual se mantiene en segundo plano.`)) {
+        // Sesion 17: validaciones de frontend antes de pegarle al backend.
+        const auth = window.Alpine?.store('auth')
+        const me = auth?.user
+        const myRole = auth?.role
+        // Solo ADMIN o ETO pueden impersonar (el backend tambien valida esto).
+        if (myRole !== 'admin' && myRole !== 'eto') {
+          window.toast('⛔ Solo ADMIN o ETO pueden impersonar usuarios', 'error')
+          return
+        }
+        // No se puede impersonar a si mismo.
+        if (me && me.username === u.username) {
+          window.toast('⛔ No puede impersonarse a si mismo', 'error')
+          return
+        }
+        if (!confirm(`¿Impersonar a ${u.nombre_completo} (${u.username})? Tu sesión actual (${me?.username}) se mantiene en segundo plano. El backend registrará este evento en el log de auditoría.`)) {
           return
         }
         try {
@@ -1184,9 +1181,41 @@ export const page = {
           }
           const data = await res.json()
           window.toast(`🕵️ Impersonando a ${data.user.nombre_completo} (${data.user.username})`, 'info')
-          this.pushLog('Impersonate', 'admin_local', data.user.username, 'usuarios')
-          // Recargar la pagina para que el router detecte el cambio de sesion
-          setTimeout(() => window.location.hash = '#/bandeja', 800)
+          // Sesion 17: refrescar el store para que el banner aparezca, en vez
+          // de hacer window.location.hash (que rompe el estado del wizard/editor).
+          await auth.refreshFromBackend()
+          this.cargarLogs()
+        } catch (e) {
+          window.toast(`Error de red: ${e.message}`, 'error')
+        }
+      },
+
+      async stopImpersonate() {
+        // Sesion 17: terminar el impersonate. Llama a /admin/impersonate/stop,
+        // refresca el store y muestra toast.
+        const auth = window.Alpine?.store('auth')
+        if (!auth?.user?.impersonated_by) {
+          window.toast('No estás impersonando a nadie', 'info')
+          return
+        }
+        const who = `${auth.user.nombre_completo} (${auth.user.username})`
+        if (!confirm(`¿Terminar impersonate de ${who} y volver a tu sesión original (${auth.user.impersonated_by})?`)) {
+          return
+        }
+        try {
+          const res = await fetch(`${this.API_BASE}/admin/impersonate/stop`, {
+            method: 'POST',
+            credentials: 'include',
+          })
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            window.toast(`Error terminando impersonate: ${err.detail || res.status}`, 'error')
+            return
+          }
+          const data = await res.json()
+          window.toast(`✅ Impersonate terminado. Volvió a su sesión como ${data.message || auth.user.impersonated_by}`, 'success')
+          await auth.refreshFromBackend()
+          this.cargarLogs()
         } catch (e) {
           window.toast(`Error de red: ${e.message}`, 'error')
         }
@@ -1734,21 +1763,25 @@ export const page = {
               <tr>
                 <td class="font-bold text-slate-800 whitespace-nowrap" x-text="m.gerencia"></td>
                 <td>
-                  <select class="form-input text-xs" x-model.number="m.analista_id">
+                  <select class="form-input text-xs" x-model="m.analista_id"
+                          :data-matriz-id="m.id" data-matriz-select="analista">
                     <option value="">— Seleccionar —</option>
-                    <template x-for="a in analistas" :key="a.id"><option :value="a.id" x-text="(a.nombre || a.username)"></option></template>
+                    <template x-for="a in analistas" :key="a.id"><option :value="String(a.id)" x-text="(a.nombre || a.username)"></option></template>
                   </select>
                 </td>
                 <td class="text-center">
                   <label class="inline-flex items-center gap-1.5 cursor-pointer text-[11.5px]">
-                    <input type="checkbox" x-model="m.disponible" class="w-4 h-4 accent-brand-500">
+                    <input type="checkbox" x-model="m.disponible"
+                           :data-matriz-id="m.id" data-matriz-check="disponible"
+                           class="w-4 h-4 accent-brand-500">
                     <span :class="m.disponible ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'" x-text="m.disponible ? 'Disp.' : 'Ausente'"></span>
                   </label>
                 </td>
                 <td>
-                  <select x-show="!m.disponible" class="form-input text-xs" x-model.number="m.delegado_id">
+                  <select x-show="!m.disponible" class="form-input text-xs" x-model="m.delegado_id"
+                          :data-matriz-id="m.id" data-matriz-select="delegado">
                     <option value="">— Seleccionar —</option>
-                    <template x-for="u in usuariosActivos" :key="'da'+u.id"><option :value="u.id" x-text="(u.nombre || u.username)"></option></template>
+                    <template x-for="u in usuariosActivos" :key="'da'+u.id"><option :value="String(u.id)" x-text="(u.nombre || u.username)"></option></template>
                   </select>
                   <span x-show="m.disponible" class="text-[11px] text-slate-400">—</span>
                 </td>
@@ -1882,25 +1915,15 @@ export const page = {
         </template>
       </div>
 
-      <!-- Editor / Preview (sesion 13: Tiptap rich text) -->
+      <!-- Editor (Sesion 13: Tiptap rich text. Sesion 17: sin previsualizar) -->
       <div class="card-base">
         <div class="flex items-center justify-between mb-3.5">
           <h2 class="text-[13px] font-bold text-slate-800" x-text="plantillas[plantillaSelect]?.nombre || 'Sin plantilla seleccionada'"></h2>
-          <button @click="previsualizarPlantilla()" class="btn btn-sm text-[11px]" :disabled="!plantillas[plantillaSelect] || previewMode">✉️ Previsualizar</button>
-        </div>
-
-        <!-- Preview overlay -->
-        <div x-show="previewMode" class="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-3.5">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-[10.5px] font-bold text-slate-500 uppercase tracking-wider">👁 Vista previa del correo (mock aplicado)</span>
-            <button @click="cerrarPreview()" class="text-slate-400 hover:text-red-500 text-sm leading-none cursor-pointer">✕</button>
-          </div>
-          <div class="bg-white border border-slate-200 rounded-lg p-4 shadow-sm" x-html="$sanitize(previewHtml)"></div>
         </div>
 
         <!-- Asunto del correo: x-if para que Alpine NO evalue x-model cuando
              no hay plantilla seleccionada (evita "Cannot read properties of undefined"). -->
-        <template x-if="!previewMode && plantillas[plantillaSelect]">
+        <template x-if="plantillas[plantillaSelect]">
           <div class="mb-3">
             <label class="form-label text-[10.5px]">Asunto del correo</label>
             <input type="text" x-model="plantillas[plantillaSelect].asunto" class="form-input text-xs">
@@ -1908,7 +1931,7 @@ export const page = {
         </template>
 
         <!-- Etiquetas: x-if por la misma razon. -->
-        <template x-if="!previewMode && plantillas[plantillaSelect]">
+        <template x-if="plantillas[plantillaSelect]">
           <div class="mb-3">
             <label class="form-label text-[10.5px]">Etiquetas disponibles (clic para insertar en el editor):</label>
             <div class="flex flex-wrap gap-1.5">
@@ -1919,11 +1942,11 @@ export const page = {
           </div>
         </template>
 
-        <!-- ─── Tiptap Toolbar + Editor (solo cuando NO hay preview y HAY plantilla) ───
+        <!-- ─── Tiptap Toolbar + Editor (solo cuando HAY plantilla) ───
              Usamos x-if (template) en lugar de x-show para que Alpine NO evalue
              las expresiones x-model / x-text internas cuando la plantilla no
              existe (evita el "Cannot read properties of undefined (reading 'asunto')"). -->
-        <template x-if="!previewMode && plantillas[plantillaSelect]">
+        <template x-if="plantillas[plantillaSelect]">
           <div class="mb-3">
             <label class="form-label text-[10.5px]">Cuerpo del correo (editor rich text)</label>
 
@@ -2118,7 +2141,8 @@ export const page = {
                   <div x-show="u.ad_warning" class="text-amber-600 mt-0.5" :title="u.ad_warning" x-text="u.ad_warning"></div>
                 </td>
                 <td class="text-center">
-                  <button @click="impersonarUsuario(u)" class="btn btn-sm text-[10px] mr-1" title="Iniciar sesion como este usuario">Impersonar</button>
+                  <button x-show="$store.auth.role === 'admin' || $store.auth.role === 'eto'"
+                          @click="impersonarUsuario(u)" class="btn btn-sm text-[10px] mr-1" title="Iniciar sesion como este usuario">Impersonar</button>
                   <button @click="editarUsuario(u)" class="btn btn-sm text-[10px] btn-primary" title="Editar usuario">Editar</button>
                 </td>
               </tr>
