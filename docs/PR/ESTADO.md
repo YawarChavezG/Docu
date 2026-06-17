@@ -4,7 +4,9 @@
 > Última actualización: 2026-06-17 (sesión 20 — **Fixes preventivos deploy: 6 fixes + .dockerignore + validate-qas.sh + plan reescrito**)
 
 ## Versión actual
-**v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.)
+**v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
+
+**Sesión 21 (2026-06-17)**: R2 arranca oficialmente con la rama `r2/wizard-y-version-editable`. Se cierra FASE 1 (modelos + endpoints + seed + tests). Tag no bumpeado todavía (Fase 2 + deploy QAS pendiente).
 
 ## Objetivo inmediato
 **R1 cerrado al 100% + R2 desbloqueado** (1 día restante del plazo original)
@@ -94,27 +96,29 @@
 
 | # | Tarea | Estado | Fecha | Evidencia |
 |---|---|---|---|---|
-| 23 | Schema SQLAlchemy Documentos (3 tablas) | ❌ | — | (no iniciadas) |
-| 24 | Schema SQLAlchemy Workflow (3 tablas) | ❌ | — | (no iniciadas) |
-| 25 | Schema SQLAlchemy Archivos (2 tablas) | ❌ | — | (no iniciadas) |
+| 23 | Schema SQLAlchemy Documentos (3 tablas) | ✅ | 17-jun | Sesión 21: `documento`, `documento_flujo`, `archivo_adjunto` + 5 enums. Plan: `docs/PR/R2-PLAN-EJECUCION.md` § 3.1-3.3 |
+| 24 | Schema SQLAlchemy Workflow (3 tablas) | 🟡 | 17-jun | `documento_flujo` cubre parcialmente. Tablas N:M de tareas individuales (R3) |
+| 25 | Schema SQLAlchemy Archivos (2 tablas) | ✅ | 17-jun | Sesión 21: `archivos_adjunto` con storage stub |
 | 26 | Schema SQLAlchemy Soporte (4 tablas) | ❌ | — | (no iniciadas) |
 | 27 | Schema SQLAlchemy Misceláneos (6 tablas) | ❌ | — | (no iniciadas) |
-| 28 | Migración Alembic 002: 19 tablas restantes | ❌ | — | depende de 23-27 |
-| 29 | Servicio `correlativo_service.py` con `SELECT FOR UPDATE` | ❌ | — | |
-| 30 | Trigger SQL de obsolescencia automática | ❌ | — | |
-| 31 | Endpoints `/api/v1/documentos` (CRUD borrador paso 1-4) | ❌ | — | |
-| 32 | Endpoint `POST /api/v1/documentos/{id}/archivos` con validación MIME | ❌ | — | |
-| 33 | Endpoint `POST /api/v1/documentos/{id}/enviar` con firma | ❌ | — | |
-| 34 | Storage service: `LocalStorage` (volumen) + stub `SharePointStorage` | ❌ | — | |
-| 35 | Endpoint `GET /api/v1/bandeja?tipo=liberacion` para ETO | ❌ | — | |
-| 36 | Endpoint `POST /api/v1/documentos/{id}/liberar` (fan-out a revisores) | ❌ | — | |
-| 37 | Endpoint `GET /api/v1/bandeja` general (por tipo y estado) | ❌ | — | |
+| 28 | Migración Alembic 014: 3 tablas R2 | ✅ | 17-jun | Sesión 21: head `b88801d59687`. Tablas: `documentos`, `documento_flujo`, `archivos_adjuntos` |
+| 29 | Servicio `correlativo_service.py` con `SELECT FOR UPDATE` | ✅ | 17-jun | Sesión 21: `pg_try_advisory_xact_lock` como fallback portable. 10/10 tests pytest |
+| 30 | Trigger SQL de obsolescencia automática | ❌ | — | DIFERIDO a R5 (decision validada en sesion 21) |
+| 31 | Endpoints `/api/v1/documentos` (4 lectura) | ✅ | 17-jun | Sesión 21: `buscar`, `preview-codigo`, `GET /{id}`, `GET /` paginado. 23/23 tests pytest |
+| 32 | Endpoint `POST /api/v1/documentos/{id}/archivos` con validación MIME | ❌ | — | Pendiente Fase 2 (sesion 22) |
+| 33 | Endpoint `POST /api/v1/documentos/{id}/enviar` con firma | ❌ | — | Pendiente Fase 2 (sesion 22) |
+| 34 | Storage service: `LocalStorage` (volumen) + stub `SharePointStorage` | ❌ | — | Pendiente Fase 2 (sesion 22) |
+| 35 | Endpoint `GET /api/v1/bandeja?tipo=liberacion` para ETO | ❌ | — | Pendiente Fase 2 (sesion 22) |
+| 36 | Endpoint `POST /api/v1/documentos/{id}/liberar` (fan-out a revisores) | ❌ | — | Pendiente Fase 2 (sesion 22) |
+| 37 | Endpoint `GET /api/v1/bandeja` general (por tipo y estado) | ❌ | — | Pendiente Fase 2 (sesion 22) |
 | 38 | Frontend: refactorizar `src/pages/Bandeja.js` para usar API | ❌ | — | (última edición 6/5/2026, no tocado para R2) |
 | 39 | Frontend: refactorizar `src/pages/LiberacionDetalle.js` | ❌ | — | (última edición 6/5/2026) |
 | 40 | Frontend: refactorizar `src/pages/ListaMaestra.js` | ❌ | — | (última edición 6/5/2026) |
-| 41 | **TESTING R2** | ❌ | — | |
+| 41 | **TESTING R2** | 🟡 | 17-jun | 33/33 nuevos tests pasan. Pendiente tests de Fase 2 (POST/enviar/firma 2FA) |
 | 42 | Documentación: `docs/RUNBOOK.md` | ❌ | — | |
 | 43 | Documentación: `docs/ARQUITECTURA.md` y `ARQUITECTURA-DB.md` | 🟡 | 14-jun | Están en `docs/Diagramas_Matrices/`, falta unificar |
+
+**Fase 1 cerrada (sesión 21):** 7/21 tareas R2 completadas (modelos + migración + 4 endpoints + correlativo + seed + 33 tests + placeholder fix). Detalle completo en `docs/PR/R2-PLAN-EJECUCION.md` § 4.1.
 
 ### Bonus — tareas que aparecieron fuera del plan original
 
@@ -134,7 +138,7 @@
 **8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 8 seeds (incluye `seed_configuracion_global.py` en sesión 14) + sync AD automatizado (753 usuarios) + `start-stack-qas.sh` 1-click.
 
 ## Progreso R2
-**0/21 tareas pendientes** (R1 ya NO es bloqueante. QAS es reproducible 1-click. R2 puede arrancar.)
+**7/21 tareas R2 completadas (Fase 1 cerrada en sesion 21, branch `r2/wizard-y-version-editable`)**. Plan completo + 2 fases documentado en `docs/PR/R2-PLAN-EJECUCION.md`. 33 tests pytest nuevos, 100% verde. 10 documentos sembrados idempotentemente. Regla del usuario "VENCIDO → APROBADO u OBSOLETO" validada.
 
 ## Total
 **38/49 tareas (78%)** + 4 bonus ya entregados + 8 tareas QAS automatizadas + 5 tareas nuevas sesión 16 + 1 tarea nueva sesión 18 (refresh bug fix) = **86%**
