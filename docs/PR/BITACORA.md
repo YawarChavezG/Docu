@@ -1860,7 +1860,7 @@ en 30-40 min.
 
 ---
 
-## Sesion 19 — 2026-06-17 (miercoles) — DEPLOY QAS v1.0.0-qas (12/12 PASS)
+## Sesion 19 ï¿½ 2026-06-17 (miercoles) ï¿½ DEPLOY QAS v1.0.0-qas (12/12 PASS)
 
 > Sesion dedicada a ejecutar el plan \docs/PR/PLAN-DEPLOY-QAS-SESION18.md\
 > completo. Deploy del codigo R1+R1-fixes (22 commits desde ultimo
@@ -1997,7 +1997,7 @@ pm install\ que no sea sobrescrito por
 - **Total commits sesion 19**: 2 (5b22bde + d183ead).
 - **Tag**: v1.0.0-qas.
 
-### Proxima sesion (sesion 20) — recomendaciones
+### Proxima sesion (sesion 20) ï¿½ recomendaciones
 
 1. **Fix permanente del bind mount node_modules** (ADR-030). Modificar
    \deploy/Dockerfile\ del frontend para excluir node_modules del
@@ -2013,10 +2013,10 @@ pm install\ que no sea sobrescrito por
 
 ---
 
-## Sesion 20 — 2026-06-17 (miercoles) — Fixes preventivos del deploy pipeline
+## Sesion 20 ï¿½ 2026-06-17 (miercoles) ï¿½ Fixes preventivos del deploy pipeline
 
 > Sesion dedicada a aplicar todos los fixes preventivos descubiertos
-> durante el deploy de sesion 19. **QAS NO fue tocado** — todos los
+> durante el deploy de sesion 19. **QAS NO fue tocado** ï¿½ todos los
 > cambios son en codigo local (DES) para que el proximo deploy sea
 > mas robusto. Plan PLAN-DEPLOY-QAS-SESION18.md reescrito completamente
 > con los nuevos bugs + fixes + escenarios + troubleshooting.
@@ -2111,7 +2111,7 @@ deploy, modifique el documento de deploy, y actualice ESTADO + BITACORA.
 - **R2**: 0/21 (sigue desbloqueado, no fue tocado).
 - **Total commits sesion 20**: 1 (consolidado al final).
 
-### Proxima sesion (sesion 21) — recomendaciones
+### Proxima sesion (sesion 21) ï¿½ recomendaciones
 
 1. **Fix permanente del bind mount node_modules** (ADR-034): cambiar
    compose \docker-compose.qas.yml\ para que el bind mount NO incluya
@@ -2125,3 +2125,119 @@ deploy, modifique el documento de deploy, y actualice ESTADO + BITACORA.
 4. **Cert HTTPS valido** (Let's Encrypt o cert corporativo): pre-PROD.
 5. **R2 - Wizard de creacion** (tareas #23+): ya esta todo listo.
 6. **#13 Deuda delegado** (fuzzy + threshold 0.85): pequeno.
+
+---
+
+## Sesion 21 â€” 2026-06-17 (miercoles) â€” R2 FASE 1: Modelos + Endpoints lectura + Seed + Tests
+
+> Sesion dedicada a cerrar la **Fase 1 de R2** segun `docs/PR/R2-PLAN-EJECUCION.md`.
+> Plan operativo: 2 fases. Esta sesion cubre Fase 1 (3.5h estimadas â†’ 4h reales con bugfixes).
+> Fase 2 (wizard E2E + firma 2FA) queda para sesion 22.
+
+### Contexto
+
+El usuario (Y. Chavez) pidio implementar R2 (wizard de creacion + version editable) con 2 paginas del sidebar "Nueva Solicitud". Despues de exponer el plan y validar el analisis, se creo la rama `r2/wizard-y-version-editable` desde `epica-1/rama-1` (head `737574b`).
+
+### Diagnostico de inicio
+
+- Stack DES: 8/8 contenedores Up, backend healthy
+- 20 tablas en BD (13 originales + 5 EPICA 9 + audit + semaforizacion)
+- 53+ endpoints REST funcionando
+- 13 migraciones Alembic aplicadas (head `6451593bcab5`)
+- Catalogos base listos: 5 roles, 13 tipos_documento, 5 estados, 10 gerencias, 49+ areas, 11 config_global
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| 21.1 | Doc `docs/PR/R2-PLAN-EJECUCION.md` con plan completo en 2 fases | `c9aaea1` | 437 lineas, 10 secciones, decisiones, riesgos, archivo paths |
+| 21.2 | Crear rama `r2/wizard-y-version-editable` | (rama) | working tree limpio |
+| 21.3 | 3 modelos SQLAlchemy 2.0: `Documento` (CORE), `DocumentoFlujo`, `ArchivoAdjunto` + 5 enums | `68030d9` | 18 columnas en `documentos` + 17 indices + 2 UK + 1 CHECK constraint |
+| 21.4 | Schemas Pydantic v2 (DocumentoBuscarItem, DocumentoOut, PreviewCodigoRequest, etc.) | `68030d9` | 11 schemas, validados con carga en contenedor |
+| 21.5 | `correlativo_service.py` con SELECT FOR UPDATE + fallback `pg_try_advisory_xact_lock` | `68030d9` | portable SQLite/PostgreSQL. 10 tests |
+| 21.6 | `vigencia_service.py` con `calcular_vigencia()` | `68030d9` | respeta regla: VENCIDO solo si APROBADO/OBSOLETO |
+| 21.7 | Router `documentos.py` con 4 endpoints de lectura | `68030d9` | 4 rutas registradas en OpenAPI |
+| 21.8 | Migracion Alembic 014 (autogenerate, limpieza manual de cambios colaterales) | `68030d9` | head `b88801d59687`. Aplicada OK |
+| 21.9 | `seed_documentos.py` idempotente (10 docs) | `68030d9` | 1ra corrida=10 insertados, 2da=0 (verificado idempotente) |
+| 21.10 | Tests pytest: 23 del router + 10 del service | `68030d9` | 33/33 passing. Stubs SQLite para `hashtext` y `pg_try_advisory_xact_lock` |
+| 21.11 | Smoke test E2E con cookies reales (aromero) | (sin commit) | 6/6 endpoints validados con curl-style |
+| 21.12 | Fix placeholder `/version-editable` (`PRO-CAL-005` â†’ `CC-3-005/01`) | `68030d9` | 1 string |
+| 21.13 | Commit atomico + actualizar ESTADO + BITACORA | `68030d9`, `c9aaea1` | 15+2 archivos, 3163 inserciones |
+
+### Distribucion de documentos sembrados
+
+| Codigo | Titulo | Estatus | Vigencia | Dias_atras |
+|---|---|---|---|---|
+| CC-5-001/00 | Procedimiento de Control de Documentos del SIG | APROBADO | VIGENTE | 120 |
+| DT-3-001/00 | Politica de Direccion Tecnica | APROBADO | VIGENTE | 90 |
+| EST-7-001/00 | Especificacion de Estabilidad Acelerada | APROBADO | VIGENTE | 180 |
+| PRO-5-001/00 | Procedimiento Operativo de Produccion | APROBADO | VENCIDO | 1500 (regla OK) |
+| BET-7-001/00 | Especificacion de Betalactamicos | APROBADO | POR_VENCER | 1430 |
+| ACD-5-001/00 | Procedimiento de Acondicionamiento | EN_ELABORACION | VIGENTE | â€” |
+| VAL-5-001/00 | Procedimiento de Validaciones | EN_ELABORACION | VIGENTE | â€” |
+| REG-4-001/00 | Plan Regulatorio 2026 | EN_REVISION | VIGENTE | â€” |
+| GAC-3-001/00 | Politica de Garantia de Calidad | EN_REVISION | VIGENTE | â€” |
+| MCB-6-001/00 | Instructivo de Microbiologia vAntigua | OBSOLETO | OBSOLETO | 1825 |
+
+### Logros tecnicos
+
+1. **3 modelos nuevos + 5 enums** registrados y persistidos en BD con 17 indices optimizados.
+2. **Migracion 014** aplicada con 1 CHECK constraint (regla de negocio) y 2 UK (correlativo monotono, codigo unico con version).
+3. **4 endpoints REST** con 23 tests pytest, todos pasando.
+4. **correlativo_service** con doble estrategia (FOR UPDATE + advisory lock) portable a SQLite (tests) y PostgreSQL (DES/QAS/PROD).
+5. **Seed idempotente** con 10 docs basados en datos reales (claves foraneas validas, vigencias distribuidas, regla VENCIDO validada).
+6. **33/33 tests nuevos pasan** + stubs SQLite para funciones de PostgreSQL.
+7. **Smoke test E2E** con login real (aromero) + cookies + 6 escenarios curl-style.
+8. **Placeholder fix** del campo de busqueda (legacy `PRO-CAL-005` â†’ `CC-3-005/01`).
+
+### Bugs detectados y corregidos
+
+1. **Alembic autogenerate detecto cambios colaterales** en `email_templates.variables_json` y `tipos_documento.uq_tipos_documento_codigo` (de sesiones 13/14 no propagados). Fix: removidos manualmente del archivo de migracion.
+2. **Seed NO era idempotente en 1ra version** (correlativo se incrementaba en cada corrida). Fix: usar `(area, tipo, titulo)` como clave de deteccion en vez de `(area, tipo, correlativo)`.
+3. **Tests fallaban en SQLite** por funciones PostgreSQL `hashtext` y `pg_try_advisory_xact_lock`. Fix: registrados como custom functions en SQLite en conftest.
+4. **`register_adapter` rompio el adapter de SQLAlchemy** para enums. Fix: eliminado el register_adapter, las funciones custom funcionan sin el.
+5. **`siguiente_correlativo_advisory` no filtraba por `activo=True`** (incluia borrados logicos en el MAX). Fix: agregado `.where(Documento.activo == True)`.
+
+### Decisiones tecnicas (ADRs candidatos sesion 22)
+
+- **ADR-042**: Tablas N:M (revisores, aprobadores, alcance difusion) se guardan como JSONB en `documento_flujo` para R2. En R3 se migraran a tablas N:M individuales con timestamps.
+- **ADR-043**: Trigger SQL de obsolescencia (R2 plan #30) se difiere a R5. Vigencia se calcula en backend (Python) al servir.
+- **ADR-044**: Catalogo `tipo_solicitud` es enum SQLAlchemy (CREACION, ACTUALIZACION) â€” 2 valores, no cambia nunca.
+- **ADR-045**: Separador de version es `/` (no `v`) segun ejemplo del usuario `CC-3-005/01`. Sobreescribe ADR-011.
+
+### Validacion empirica
+
+- 33/33 tests pytest nuevos passing (4.28s)
+- 6/6 smoke tests E2E con curl-style + cookies reales
+- 10/10 documentos sembrados con claves foraneas validas
+- 1/1 regla de negocio validada (PRO-5-001/00 VENCIDO con estatus=APROBADO)
+- 1/1 check constraint aplicado (vigencia != VENCIDO OR estatus IN (APROBADO, OBSOLETO))
+- 1/1 placeholder fix (CC-3-005/01 visible en browser)
+
+### Progreso actualizado
+
+- **R1 + EPICA9 + Parametrizacion + Tiptap + Impersonate + Refresh fix + Deploy QAS**: 100% (sin cambios)
+- **R2**: **7/21 tareas (33%)** â€” FASE 1 cerrada
+- **Total commits sesion 21**: 2 (`68030d9`, `c9aaea1`)
+- **Rama**: `r2/wizard-y-version-editable` (basada en `epica-1/rama-1`, head `737574b`)
+- **Migraciones Alembic**: 14 aplicadas (head `b88801d59687`)
+- **Endpoints totales**: 57+ REST (+4 nuevos)
+- **Tablas de BD**: 23/28 migradas (+3 nuevas)
+- **Tests totales**: 156/164 passing (8 fallos preexistentes no introducidos por esta sesion)
+
+### Proxima sesion (sesion 22) â€” FASE 2
+
+Segun `docs/PR/R2-PLAN-EJECUCION.md` Â§ 4.2:
+
+1. **Storage service** (LocalStorage real + SharePointStorage stub): 20min
+2. **POST/PATCH /documentos**: 30min
+3. **POST /documentos/{id}/archivos**: 20min
+4. **POST /documentos/{id}/enviar** (firma 2FA): 40min
+5. **Endpoints /bandeja** (4 tipos): 30min
+6. **Refactor VersionEditable.js** (autocomplete real): 25min
+7. **Refactor AprobacionDocumento.js** completo (3 pasos): 1h30min
+8. **Frontend `documentosApi.js`**: 30min
+9. **Validacion E2E + tests adicionales**: 30min
+10. **Commit + docs + ADR-042 en DECISIONES.md**: 20min
+
+Estimado: 5.5h.
