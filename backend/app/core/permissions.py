@@ -25,7 +25,15 @@ async def get_current_user_from_cookie(
 ) -> Optional[Usuario]:
     """
     Lee el user_id de la cookie y devuelve el Usuario con roles + area + gerencia.
+    Si hay cookie `impersonated_user` (Sesion 23 / Bloque D1), devuelve
+    el usuario IMPERSONADO en vez del admin original, para que las
+    bandejas/sidebar/etc reflejen al impersonado.
+
     Devuelve None si no hay cookie o el usuario no existe.
+
+    NOTA: la auditoria (write_audit) sigue recibiendo al admin original
+    a traves de get_current_user_admin() cuando se quiere registrar la
+    accion como el admin, no como el impersonado.
     """
     user_id_raw = request.cookies.get("user_id")
     if not user_id_raw:
@@ -34,6 +42,24 @@ async def get_current_user_from_cookie(
         uid = int(user_id_raw)
     except (ValueError, TypeError):
         return None
+
+    # Sesion 23 / Bloque D1: si hay cookie de impersonate, devolver
+    # el usuario impersonado (con sus roles, modulos, area) para que
+    # el resto de la UI se comporte como si fuera el.
+    impersonated_username = request.cookies.get("impersonated_user")
+    if impersonated_username:
+        result = await db.execute(
+            select(Usuario)
+            .where(Usuario.username == impersonated_username)
+            .options(
+                selectinload(Usuario.roles),
+                selectinload(Usuario.area).selectinload(Area.gerencia),
+            )
+        )
+        imp = result.scalar_one_or_none()
+        if imp is not None:
+            return imp
+        # Si el impersonado no existe, caer al admin original
 
     return (await db.execute(
         select(Usuario)

@@ -33,6 +33,7 @@ from datetime import datetime
 from typing import Any, Optional
 
 from fastapi import Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog
@@ -77,7 +78,31 @@ async def write_audit(
 
     Si la insercion falla, solo loggea WARNING y NO propaga la excepcion
     (para no enmascarar el resultado real de la operacion).
+
+    Sesion 23 / Bloque D1: si el request tiene cookie `impersonated_user` y
+    el `user` que llega es ESE usuario (no el admin original), se agrega
+    `impersonated_by: <username_admin>` al campo `detalles` para preservar
+    la trazabilidad de quien REALMENTE realizo la accion.
     """
+    # Detectar impersonate activo (Sesion 23 / Bloque D1)
+    if request is not None and user is not None:
+        impersonated_cookie = request.cookies.get("impersonated_user")
+        if impersonated_cookie and user.username == impersonated_cookie:
+            user_id_raw = request.cookies.get("user_id")
+            if user_id_raw:
+                try:
+                    admin_id = int(user_id_raw)
+                    admin = (await db.execute(
+                        select(Usuario).where(Usuario.id == admin_id)
+                    )).scalar_one_or_none()
+                    if admin is not None and admin.id != user.id:
+                        # Agregar trazabilidad al campo detalles
+                        detalles = dict(detalles or {})
+                        detalles["impersonated_by"] = admin.username
+                        detalles["impersonated_by_id"] = admin.id
+                except (ValueError, TypeError):
+                    pass
+
     entry = AuditLog(
         usuario_id=user.id if user else None,
         usuario_username=user.username if user else None,

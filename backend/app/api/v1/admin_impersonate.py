@@ -187,14 +187,19 @@ async def start_impersonate(
 
     ad_user = None
 
-    # Modo QAS/PRD: AD real
+    # Sesion 23 / Bloque D1: buscar primero en AD (si LDAP_ENABLED), y
+    # si no se encuentra, hacer fallback a la BD local. Esto permite
+    # impersonar a usuarios sembrados como stubs de DES (aromero,
+    # cecEspinoza, visualizador, etc.) aunque LDAP_ENABLED=true.
     if settings.ldap_enabled:
         try:
             ad_user = obtener_usuario_ad(sam)
-        except UserNotFoundError as e:
-            raise HTTPException(status_code=404, detail=str(e))
-    else:
-        # Modo DES: fallback al usuario en BD (los 4 stub seeded)
+        except UserNotFoundError:
+            # Fallback a BD local (Sesion 23)
+            ad_user = None
+
+    if ad_user is None:
+        # Buscar en BD local (incluye stubs de DES y usuarios creados por sync-ad)
         from app.models.usuario import Usuario
         result = await db.execute(
             select(Usuario)
@@ -205,7 +210,7 @@ async def start_impersonate(
         if bd_user is None:
             raise HTTPException(
                 status_code=404,
-                detail=f"Usuario '{sam}' no encontrado en BD ni en AD (modo DES usa BD)",
+                detail=f"Usuario '{sam}' no encontrado en AD ni en BD local",
             )
         # Convertir el Usuario de BD en un dict "tipo AD" para reutilizar
         # construir_usuario_virtual_para_impersonate.
