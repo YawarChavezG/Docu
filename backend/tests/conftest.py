@@ -228,6 +228,22 @@ async def seed_catalogos(db_session: AsyncSession):
     db_session.add(area)
     await db_session.flush()
 
+    # Estados del workflow (Sesion 22 R2 FASE 2 - necesario para POST /documentos)
+    estados_data = [
+        (1, "ELABORACION", "Documento en elaboracion por el usuario"),
+        (2, "EN_REVISION", "Documento enviado a revisores"),
+        (3, "EN_APROBACION", "Documento en aprobacion por aprobadores"),
+        (4, "APROBADO", "Documento aprobado y vigente"),
+        (5, "OBSOLETO", "Documento marcado como obsoleto"),
+        (6, "RECHAZADO", "Documento rechazado en revision/aprobacion"),
+    ]
+    estados_catalogo = {}
+    for ord_id, codigo, descripcion in estados_data:
+        est = Estado(codigo=codigo, nombre=codigo.title(), descripcion=descripcion, orden=ord_id, activo=True)
+        db_session.add(est)
+        estados_catalogo[codigo] = est
+    await db_session.flush()
+
     # 1 admin y 1 ETO
     admin = Usuario(
         username="admin",
@@ -283,6 +299,7 @@ async def seed_catalogos(db_session: AsyncSession):
         "modulos": modulos,
         "gerencia": ger,
         "area": area,
+        "estados": estados_catalogo,
         "admin": admin,
         "eto": eto,
         "sin_rol": sin_rol,

@@ -165,3 +165,90 @@ class PreviewCodigoResponse(BaseModel):
     correlativo_sugerido: int  # siguiente correlativo disponible
     area_sigla: str            # "CC" — para debugging del front
     tipo_codigo: int           # 3 — para debugging del front
+
+
+# ════════════════════════════════════════════════════════════════
+#  Input schemas (POST / PATCH) — Sesion 22 R2 FASE 2
+# ════════════════════════════════════════════════════════════════
+
+class DocumentoCreate(BaseModel):
+    """Body para POST /documentos. Crea el Documento + DocumentoFlujo inicial."""
+    gerencia_id: int = Field(..., gt=0, description="ID de la gerencia responsable")
+    area_id: int = Field(..., gt=0, description="ID del area responsable")
+    tipo_documento_id: int = Field(..., gt=0, description="ID del tipo de documento")
+    titulo: str = Field(..., min_length=3, max_length=200, description="Titulo del documento")
+    codigo_antiguo: Optional[str] = Field(None, max_length=50, description="Codigo del sistema legacy")
+    comentarios_eto: Optional[str] = Field(None, max_length=50, description="Comentarios para ETO (max 50 chars)")
+    tipo_solicitud: str = Field(
+        default="CREACION",
+        pattern=r"^(CREACION|ACTUALIZACION)$",
+        description="CREACION o ACTUALIZACION",
+    )
+    # Para ACTUALIZACION: id del documento a actualizar (correlativo destino)
+    documento_anterior_id: Optional[int] = Field(None, gt=0)
+
+
+class DocumentoUpdate(BaseModel):
+    """Body para PATCH /documentos/{id}. Solo permite editar campos no-firma."""
+    titulo: Optional[str] = Field(None, min_length=3, max_length=200)
+    codigo_antiguo: Optional[str] = Field(None, max_length=50)
+    comentarios_eto: Optional[str] = Field(None, max_length=50)
+    # Cambiar estatus solo lo pueden hacer ETO/ADMIN. Se valida en el endpoint.
+    estatus: Optional[str] = Field(
+        None,
+        pattern=r"^(EN_ELABORACION|EN_REVISION|APROBADO|OBSOLETO)$",
+    )
+
+
+class DocumentoCreateResponse(BaseModel):
+    """Respuesta del POST /documentos. Devuelve el doc creado + el flujo inicial."""
+    documento: DocumentoOut
+    flujo_id: int
+    message: str = "Documento creado exitosamente"
+
+
+class EnviarRequest(BaseModel):
+    """Body para POST /documentos/{id}/enviar (firma 2FA + transicion a EN_REVISION)."""
+    password: str = Field(..., min_length=1, description="Password del usuario para 2FA")
+    # Snapshot del wizard paso 3 (se persisten en documento_flujo)
+    revisor_ids: list[int] = Field(..., min_length=1, description="Minimo 1 revisor")
+    aprobador_ids: list[int] = Field(..., min_length=1, description="Minimo 1 aprobador")
+    requiere_evaluacion: bool = False
+    requiere_control_lectura: bool = False
+    alcance_difusion_ids: list[int] = Field(default_factory=list)
+    reemplaza_documento_ids: Optional[list[int]] = None
+    justificacion: Optional[str] = Field(None, max_length=1000)
+
+
+class EnviarResponse(BaseModel):
+    """Respuesta del POST /documentos/{id}/enviar."""
+    ok: bool
+    documento_id: int
+    flujo_id: int
+    estatus: str
+    message: str = "Solicitud enviada a liberacion"
+
+
+# ════════════════════════════════════════════════════════════════
+#  Archivo adjunto (output) — Sesion 22 R2 FASE 2
+# ════════════════════════════════════════════════════════════════
+
+class ArchivoAdjuntoOut(BaseModel):
+    """Respuesta de POST /documentos/{id}/archivos."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    documento_id: int
+    nombre_original: str
+    nombre_storage: str
+    mime_type: str
+    tamano_bytes: int
+    tipo_adjunto: str
+    storage_backend: str
+    storage_path: str
+    created_at: datetime
+
+
+class ArchivoUploadResponse(BaseModel):
+    """Respuesta del upload con metadata completa."""
+    archivo: ArchivoAdjuntoOut
+    message: str = "Archivo subido exitosamente"
