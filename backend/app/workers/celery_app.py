@@ -34,6 +34,11 @@ celery_app.conf.update(
 # ─── Schedule (cron jobs) ───
 # En R1 se completarán las tareas reales. Por ahora placeholders.
 celery_app.conf.beat_schedule = {
+    # Sesion 23 / Bloque B2: desactivar ausencias vencidas (00:05)
+    "desactivar-ausencias-vencidas": {
+        "task": "app.workers.tasks.desactivar_ausencias_vencidas",
+        "schedule": crontab(hour=0, minute=5),  # 00:05 hrs todos los dias
+    },
     # "sla-timeout-check": {
     #     "task": "app.workers.tasks.reasignar_tareas_vencidas",
     #     "schedule": crontab(hour=23, minute=59),

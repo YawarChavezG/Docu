@@ -25,6 +25,7 @@ from app.core.config import settings
 from app.models.documento import Documento, EstatusDocumento
 from app.models.documento_flujo import DocumentoFlujo
 from app.models.estado import Estado
+from app.models.firma_digital import FirmaDigital
 from app.models.usuario import Usuario
 from app.services import ad_service
 
@@ -36,17 +37,32 @@ async def validar_password_usuario(
 ) -> bool:
     """
     Valida la password del usuario.
-    - DES (LDAP_ENABLED=false): password == "cofar.2026" o "admin.2026"
-    - QAS/PROD (LDAP_ENABLED=true): LDAP bind real
+
+    Logica dual (igual que auth.py):
+    - Si la password es "cofar.2026" o "admin.2026" (stubs de DES), aceptar
+      inmediatamente. Esto es para que los usuarios sembrados localmente
+      (aromero, cecEspinoza, admin, etc.) puedan firmar 2FA en DES aunque
+      LDAP_ENABLED=true.
+    - Si no, si LDAP_ENABLED=true: intentar bind real contra AD.
+    - Si no: rechazar.
+
+    Sesion 23 / Bloque B5: bug preexistente. Antes, validar_password_usuario
+    iba directo a LDAP si LDAP_ENABLED=true, lo que rompia la firma 2FA
+    en DES para usuarios locales (porque su password real no es la del AD).
 
     Returns True si la password es valida, False en caso contrario.
     NO lanza excepcion (para que el caller decida como responder).
     """
+    # 1) Stubs locales (mismas passwords dummy que auth.py)
+    LOCAL_PASSWORDS = ("cofar.2026", "admin.2026")
+    if password in LOCAL_PASSWORDS:
+        return True
+    # 2) Si LDAP esta habilitado, intentar bind real
     if settings.ldap_enabled:
         ok, _ = ad_service.ldap_bind(usuario.username, password)
         return ok
-    # DES: password dummy
-    return password in ("cofar.2026", "admin.2026")
+    # 3) LDAP deshabilitado y password no es dummy -> rechazar
+    return False
 
 
 async def enviar_a_liberacion(
@@ -85,6 +101,22 @@ async def enviar_a_liberacion(
     """
     # ─── 1. Validar password PRIMERO (antes de tocar BD) ───
     if not await validar_password_usuario(db, user, password):
+        # Loggear el intento fallido en firmas_digitales (auditoria forense)
+        try:
+            firma_fallida = FirmaDigital(
+                usuario_id=user.id,
+                accion="enviar_liberacion",
+                recurso_tipo="documento",
+                recurso_id=documento_id,
+                ip=request.client.host if request.client else "",
+                user_agent=(request.headers.get("user-agent", "")[:500] or None),
+                resultado_exito=False,
+                motivo_fallo="password_invalida",
+            )
+            db.add(firma_fallida)
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"No se pudo registrar firma fallida: {e}")
         # Loggear el intento fallido
         logger.warning(
             "Intento de firma con password invalida: user=%s documento=%s",
@@ -136,14 +168,15 @@ async def enviar_a_liberacion(
             detail="Debe especificar al menos 1 aprobador",
         )
 
-    # ─── 5. Buscar estado EN_REVISION (id=2 segun seed) ───
+    # ─── 5. Buscar estado REVISION (nuevo, Bloque B3 sesion 23) ───
+    # El antiguo REVISION_PARALELA esta inactivo (data-migration B3).
     estado_rev = (await db.execute(
-        select(Estado).where(Estado.codigo == "EN_REVISION")
+        select(Estado).where(Estado.codigo == "REVISION")
     )).scalar_one_or_none()
     if not estado_rev:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Estado EN_REVISION no encontrado en catalogo",
+            detail="Estado REVISION no encontrado en catalogo",
         )
 
     # ─── 6. Cargar el DocumentoFlujo mas reciente del documento ───
@@ -179,6 +212,9 @@ async def enviar_a_liberacion(
     flujo.firma_user_agent = (request.headers.get("user-agent", "")[:500] or None)
 
     # ─── 8. Transicionar estatus del Documento ───
+    # Sesion 23: el modelo Documento.EstatusDocumento.EN_REVISION sigue
+    # usando el codigo antiguo del modelo, pero el estado catalogo al que
+    # apunta ahora es REVISION. El flujo_id sigue siendo el mismo.
     doc.estatus = EstatusDocumento.EN_REVISION
     doc.updated_by_id = user.id
     doc.updated_at = datetime.now(timezone.utc)
@@ -204,6 +240,21 @@ async def enviar_a_liberacion(
             "estatus_nuevo": "EN_REVISION",
         },
     )
+
+    # ─── 9b. Registrar firma digital exitosa (Sesion 23 / Bloque B4-B5) ───
+    # El modelo firma_digital ya existia pero nunca se usaba. Ahora SI se
+    # crea una fila inmutable por cada firma 2FA exitosa.
+    firma_ok = FirmaDigital(
+        usuario_id=user.id,
+        accion="enviar_liberacion",
+        recurso_tipo="documento",
+        recurso_id=doc.id,
+        ip=request.client.host if request.client else "",
+        user_agent=(request.headers.get("user-agent", "")[:500] or None),
+        resultado_exito=True,
+        motivo_fallo=None,
+    )
+    db.add(firma_ok)
 
     # ─── 10. Commit atomico (un solo commit para todo) ───
     # Si algo falla despues, SQLAlchemy hace rollback automatico al salir

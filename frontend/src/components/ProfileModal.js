@@ -5,7 +5,7 @@
  * Sesion 9: lee la info del backend (rol, delegado, ausente, estado)
  * en vez del mock legacy `data/users.js`.
  */
-import { apiGet, apiPatch } from '../utils/api.js'
+import { apiGet, apiPatch, apiPost, apiDelete } from '../utils/api.js'
 
 export function initProfileModal() {
   window.Alpine?.data('profileModalData', () => ({
@@ -43,6 +43,9 @@ export function initProfileModal() {
     fechaInicio: '',
     fechaFin: '',
     observaciones: '',
+    ausencias: [],  // historial de ausencias (Sesion 23 / Bloque B1)
+    ausenciaVigenteId: null,
+    ausenciaMotivo: 'vacaciones',
 
     async abrir() {
       this.loading = true
@@ -69,11 +72,13 @@ export function initProfileModal() {
           // Lo cargamos abajo.
         }
         // 2) Traer info completa del usuario (incluye delegado)
+        let miId = null
         if (this.username) {
           const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
           if (resList.ok && resList.data.items) {
             const me = resList.data.items.find(x => x.username === this.username)
             if (me) {
+              miId = me.id
               this.delegadoId = me.delegado_id || null
               this.delegadoNombre = me.delegado_nombre || ''
               this.delegadoUsername = me.delegado_username || ''
@@ -95,10 +100,107 @@ export function initProfileModal() {
         if (resActivos.ok) {
           this.usuariosActivos = (resActivos.data.items || []).filter(u => u.username !== this.username)
         }
+        // 5) Sesion 23 / Bloque B1: cargar ausencias (vigente + historial)
+        if (miId) {
+          await this._cargarAusencias(miId)
+        }
       } catch (e) {
         console.error('[ProfileModal] abrir error:', e)
       } finally {
         this.loading = false
+      }
+    },
+
+    async _cargarAusencias(usuarioId) {
+      try {
+        const res = await apiGet(`/ausencias?usuario_id=${usuarioId}`)
+        if (res.ok) {
+          this.ausencias = res.data.items || []
+          // Si hay una vigente, pre-llenar el formulario con sus fechas
+          const vigente = this.ausencias.find(a => a.esta_vigente)
+          if (vigente) {
+            this.ausente = true
+            this.fechaInicio = vigente.fecha_desde
+            this.fechaFin = vigente.fecha_hasta
+            this.ausenciaVigenteId = vigente.id
+            this.ausenciaMotivo = vigente.motivo || 'vacaciones'
+          } else {
+            this.ausenciaVigenteId = null
+            this.ausenciaMotivo = 'vacaciones'
+          }
+        }
+      } catch (e) {
+        console.error('[ProfileModal] _cargarAusencias error:', e)
+      }
+    },
+
+    async guardarAusencia() {
+      if (!this.fechaInicio || !this.fechaFin) {
+        window.toast('⚠️ Indica fecha de inicio y fin.', 'warn')
+        return
+      }
+      if (this.fechaInicio > this.fechaFin) {
+        window.toast('⚠️ La fecha de inicio no puede ser mayor al fin.', 'warn')
+        return
+      }
+      // Necesito el id del usuario actual
+      const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
+      if (!resList.ok) return
+      const me = (resList.data.items || []).find(x => x.username === this.username)
+      if (!me) return
+      const resActivos = await apiGet('/usuarios?estado=activo&page_size=200')
+      const myId = me.id
+      let res
+      if (this.ausenciaVigenteId) {
+        // Actualizar
+        res = await apiPatch(`/ausencias/${this.ausenciaVigenteId}`, {
+          fecha_desde: this.fechaInicio,
+          fecha_hasta: this.fechaFin,
+          motivo: this.ausenciaMotivo || 'vacaciones',
+          notas: this.observaciones || null,
+        })
+      } else {
+        // Crear
+        res = await apiPost(`/ausencias/usuarios/${myId}`, {
+          fecha_desde: this.fechaInicio,
+          fecha_hasta: this.fechaFin,
+          motivo: this.ausenciaMotivo || 'vacaciones',
+          notas: this.observaciones || null,
+        })
+      }
+      if (res.ok) {
+        window.toast('✅ Vacaciones registradas.', 'success')
+        await this._cargarAusencias(myId)
+        // Refrescar auth store para actualizar el flag ausente
+        const auth = window.Alpine?.store('auth')
+        if (auth && auth.refreshFromBackend) await auth.refreshFromBackend()
+      } else {
+        window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
+      }
+    },
+
+    async cancelarAusencia() {
+      if (!this.ausenciaVigenteId) {
+        // Si no hay ausencia activa, solo desmarca el checkbox
+        this.ausente = false
+        this.fechaInicio = ''
+        this.fechaFin = ''
+        return
+      }
+      if (!confirm('¿Cancelar tus vacaciones registradas?')) return
+      const res = await apiDelete(`/ausencias/${this.ausenciaVigenteId}`)
+      if (res.ok) {
+        window.toast('✅ Vacaciones canceladas.', 'success')
+        const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
+        const me = (resList.data.items || []).find(x => x.username === this.username)
+        if (me) await this._cargarAusencias(me.id)
+        const auth = window.Alpine?.store('auth')
+        if (auth && auth.refreshFromBackend) await auth.refreshFromBackend()
+        this.ausente = false
+        this.fechaInicio = ''
+        this.fechaFin = ''
+      } else {
+        window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
       }
     },
 
@@ -145,14 +247,6 @@ export function initProfileModal() {
         window.toast('⚠️ Tu rol requiere delegado. Asigna uno antes de guardar.', 'warn')
         return
       }
-      if (this.ausente && (!this.fechaInicio || !this.fechaFin)) {
-        window.toast('⚠️ Para ausentarte, indica la fecha de inicio y fin.', 'warn')
-        return
-      }
-      if (this.fechaInicio && this.fechaFin && this.fechaInicio > this.fechaFin) {
-        window.toast('⚠️ La fecha de inicio no puede ser mayor al fin.', 'warn')
-        return
-      }
       this.saving = true
       try {
         // 1) Necesito el ID del usuario actual
@@ -166,9 +260,9 @@ export function initProfileModal() {
           window.toast('Error: usuario no encontrado', 'error')
           return
         }
-        // 2) PATCH con los cambios
+        // 2) PATCH con los cambios (Sesion 23 / Bloque B1: ausente se maneja
+        //    via /ausencias, NO en PATCH /usuarios/{id}).
         const payload = {
-          ausente: this.ausente,
           delegado_id: this.delegadoId,
         }
         if (this.observaciones && this.observaciones.trim()) {
@@ -362,20 +456,24 @@ export const ProfileModalTemplate = /* html */`
               </div>
             </div>
 
-            <!-- Checkbox ausencia -->
+            <!-- Checkbox ausencia (Sesion 23 / Bloque B1) -->
             <div class="border-t border-slate-200 pt-3 mt-3.5">
               <label class="flex items-center gap-2 text-xs font-semibold cursor-pointer text-slate-800">
-                <input type="checkbox" x-model="ausente" class="w-4 h-4 accent-brand-500 cursor-pointer">
+                <input type="checkbox" x-model="ausente" @change="ausente && !ausenciaVigenteId ? null : null" class="w-4 h-4 accent-brand-500 cursor-pointer">
                 🏖️ Marcarme como ausente (Vacaciones / Licencia)
               </label>
             </div>
 
-            <!-- Fechas ausencia -->
-            <div x-show="ausente"
-                 class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3"
-                 style="display:none"
-                 :style="ausente ? 'display:block' : 'display:none'">
-              <div class="text-[10.5px] text-blue-700 mb-2.5 leading-snug">Durante este periodo, las nuevas tareas se enrutarán automáticamente a tu delegado.</div>
+            <!-- Fechas ausencia (Sesion 23 / Bloque B1) -->
+            <div class="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div class="text-[10.5px] text-blue-700 mb-2.5 leading-snug">
+                <template x-if="ausenciaVigenteId">
+                  <span>✅ Tienes vacaciones registradas. Edita el rango o cancela.</span>
+                </template>
+                <template x-if="!ausenciaVigenteId">
+                  <span>Indica el rango de fechas. El sistema marcará ausente=true automáticamente y desactivará al llegar la fecha fin.</span>
+                </template>
+              </div>
               <div class="grid grid-cols-2 gap-2.5">
                 <div>
                   <label class="text-[10.5px] text-blue-700 font-semibold block mb-1">Desde:</label>
@@ -386,7 +484,41 @@ export const ProfileModalTemplate = /* html */`
                   <input type="date" x-model="fechaFin" class="form-input text-[11px] py-1.5">
                 </div>
               </div>
+              <div class="mt-2">
+                <label class="text-[10.5px] text-blue-700 font-semibold block mb-1">Motivo:</label>
+                <select x-model="ausenciaMotivo" class="form-input text-[11px] py-1.5">
+                  <option value="vacaciones">🏖️ Vacaciones</option>
+                  <option value="licencia">🏥 Licencia medica</option>
+                  <option value="capacitacion">📚 Capacitacion</option>
+                  <option value="otro">📌 Otro</option>
+                </select>
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button @click="guardarAusencia()" class="btn btn-primary text-[11px] flex-1">
+                  <span x-text="ausenciaVigenteId ? 'Actualizar vacaciones' : 'Registrar vacaciones'"></span>
+                </button>
+                <template x-if="ausenciaVigenteId">
+                  <button @click="cancelarAusencia()" class="btn btn-danger text-[11px] flex-1">Cancelar vacaciones</button>
+                </template>
+              </div>
             </div>
+
+            <!-- Historial de ausencias -->
+            <template x-if="ausencias.length > 0">
+              <div class="border-t border-slate-200 pt-3 mt-3.5">
+                <label class="text-[10.5px] text-slate-600 font-semibold block mb-1.5">📅 Historial de ausencias</label>
+                <div class="space-y-1 max-h-[100px] overflow-y-auto">
+                  <template x-for="a in ausencias" :key="a.id">
+                    <div class="text-[10.5px] text-slate-600 flex items-center gap-2 px-2 py-1 bg-slate-50 rounded">
+                      <span x-text="a.fecha_desde + ' → ' + a.fecha_hasta"></span>
+                      <span class="text-slate-400" x-text="a.motivo"></span>
+                      <span x-show="a.esta_vigente" class="text-emerald-600 font-semibold">VIGENTE</span>
+                      <span x-show="!a.activo" class="text-amber-600">cancelada</span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </template>
 
             <!-- Observaciones -->
             <div class="border-t border-slate-200 pt-3 mt-3.5">

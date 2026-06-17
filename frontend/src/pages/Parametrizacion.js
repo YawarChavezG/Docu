@@ -27,6 +27,7 @@
 
 import { initPlantillaEditor } from '../components/PlantillaEditor.js'
 import { API_BASE } from '../utils/config.js'
+import { apiFetch } from '../utils/api.js'
 
 import {
   configGlobal,
@@ -933,6 +934,12 @@ export const page = {
         delegado_id: null,
         delegado_nombre: '',
         observaciones: '',
+        // Sesion 23 / Bloque B1: vacaciones con fechas
+        fecha_inicio_ausencia: '',
+        fecha_fin_ausencia: '',
+        ausencias: [],
+        ausenciaVigenteId: null,
+        ausenciaMotivo: 'vacaciones',
       },
 
       // ─── Carga inicial al entrar al tab ───
@@ -1241,6 +1248,32 @@ export const page = {
           delegado_id: u.delegado_id || null,
           delegado_nombre: u.delegado_nombre || '',
           observaciones: '',
+          // Sesion 23 / Bloque B1: vacaciones con fechas
+          fecha_inicio_ausencia: '',
+          fecha_fin_ausencia: '',
+          ausencias: [],
+          ausenciaVigenteId: null,
+          ausenciaMotivo: 'vacaciones',
+        }
+        // Cargar ausencias del usuario (Sesion 23 / Bloque B1)
+        try {
+          const resAus = await fetch(`${API_BASE}/ausencias?usuario_id=${u.id}`, {
+            method: 'GET', credentials: 'include',
+          })
+          if (resAus.ok) {
+            const dataAus = await resAus.json()
+            this.editForm.ausencias = dataAus.items || []
+            const vigente = this.editForm.ausencias.find(a => a.esta_vigente)
+            if (vigente) {
+              this.editForm.ausente = true
+              this.editForm.fecha_inicio_ausencia = vigente.fecha_desde
+              this.editForm.fecha_fin_ausencia = vigente.fecha_hasta
+              this.editForm.ausenciaVigenteId = vigente.id
+              this.editForm.ausenciaMotivo = vigente.motivo || 'vacaciones'
+            }
+          }
+        } catch (e) {
+          // ignore - las ausencias son opcionales
         }
         // Guardar el rol original para setearlo despues de cargar las options
         const rolOriginal = (u.roles && u.roles.length > 0) ? u.roles[0] : ''
@@ -1341,7 +1374,8 @@ export const page = {
           const payload = {}
           if (u) {
             if (this.editForm.estado !== u.estado) payload.estado = this.editForm.estado
-            if (this.editForm.ausente !== !!u.ausente) payload.ausente = this.editForm.ausente
+            // Sesion 23 / Bloque B1: ausente se maneja via /ausencias, NO en PATCH.
+            // Quitamos la linea de ausente del payload.
             const rolOrig = (u.roles && u.roles[0]) || ''
             if (this.editForm.rol_codigo !== rolOrig) payload.rol_codigo = this.editForm.rol_codigo
             if ((this.editForm.delegado_id || null) !== (u.delegado_id || null)) {
@@ -1350,16 +1384,65 @@ export const page = {
           } else {
             // Fallback: mandar todo
             payload.estado = this.editForm.estado
-            payload.ausente = this.editForm.ausente
             payload.rol_codigo = this.editForm.rol_codigo
             payload.delegado_id = this.editForm.delegado_id
           }
           if (this.editForm.observaciones && this.editForm.observaciones.trim()) {
             payload.observaciones = this.editForm.observaciones.trim()
           }
+          // Sesion 23 / Bloque B1: gestionar ausencias via endpoint propio
+          // Logica:
+          //   1) Si el usuario quiere ausente y NO tiene ausencia vigente -> POST
+          //   2) Si tiene ausencia vigente y quiere cambiar fechas -> PATCH
+          //   3) Si tiene ausencia vigente y NO quiere ausente -> DELETE
+          //   4) Si no quiere ausente y no tiene -> nada
+          const quiereAusente = this.editForm.ausente && this.editForm.fecha_inicio_ausencia && this.editForm.fecha_fin_ausencia
+          if (quiereAusente && this.editForm.ausenciaVigenteId) {
+            // PATCH
+            const rAus = await apiFetch(`/ausencias/${this.editForm.ausenciaVigenteId}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                fecha_desde: this.editForm.fecha_inicio_ausencia,
+                fecha_hasta: this.editForm.fecha_fin_ausencia,
+                motivo: this.editForm.ausenciaMotivo || 'vacaciones',
+              }),
+            })
+            if (!rAus.ok) {
+              window.toast(`Error guardando ausencia: ${rAus.data?.detail || rAus.status}`, 'error')
+              this.editModalSaving = false
+              return
+            }
+          } else if (quiereAusente && !this.editForm.ausenciaVigenteId) {
+            // POST
+            const rAus = await apiFetch(`/ausencias/usuarios/${this.editForm.id}`, {
+              method: 'POST',
+              body: JSON.stringify({
+                fecha_desde: this.editForm.fecha_inicio_ausencia,
+                fecha_hasta: this.editForm.fecha_fin_ausencia,
+                motivo: this.editForm.ausenciaMotivo || 'vacaciones',
+              }),
+            })
+            if (!rAus.ok) {
+              window.toast(`Error creando ausencia: ${rAus.data?.detail || rAus.status}`, 'error')
+              this.editModalSaving = false
+              return
+            }
+          } else if (!quiereAusente && this.editForm.ausenciaVigenteId) {
+            // DELETE
+            const rAus = await apiFetch(`/ausencias/${this.editForm.ausenciaVigenteId}`, {
+              method: 'DELETE',
+            })
+            if (!rAus.ok) {
+              window.toast(`Error cancelando ausencia: ${rAus.data?.detail || rAus.status}`, 'error')
+              this.editModalSaving = false
+              return
+            }
+          }
+
           if (Object.keys(payload).length === 0) {
-            window.toast('Sin cambios que guardar', 'info')
+            window.toast('Vacaciones actualizadas', 'success')
             this.cerrarModalEdicion()
+            this.cargarUsuarios()
             return
           }
           const res = await usuarios.override(this.editForm.id, payload)
@@ -2347,13 +2430,29 @@ export const page = {
             </div>
           </div>
 
-          <!-- VACACIONES -->
+          <!-- VACACIONES (Sesion 23 / Bloque B1: con fechas) -->
           <div>
             <label class="form-label flex items-center gap-2 cursor-pointer">
               <input type="checkbox" x-model="editForm.ausente" class="w-4 h-4 accent-brand-500 cursor-pointer">
               <span>🏖️ En vacaciones / Licencia</span>
             </label>
             <div class="form-hint">Marca al usuario como ausente. Las tareas se re-enrutan a su delegado.</div>
+            <!-- Edicion de rango (Sesion 23 / Bloque B1) -->
+            <div class="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label class="text-[10px] text-slate-600 font-semibold block mb-1">Desde:</label>
+                <input type="date" x-model="editForm.fecha_inicio_ausencia" class="form-input text-xs">
+              </div>
+              <div>
+                <label class="text-[10px] text-slate-600 font-semibold block mb-1">Hasta:</label>
+                <input type="date" x-model="editForm.fecha_fin_ausencia" class="form-input text-xs">
+              </div>
+            </div>
+            <div class="text-[10px] text-slate-500 mt-1">
+              <span x-show="editForm.ausencias && editForm.ausencias.length > 0">
+                <span x-text="editForm.ausencias.length"></span> ausencia(s) registrada(s)
+              </span>
+            </div>
           </div>
 
           <!-- ESTADO -->

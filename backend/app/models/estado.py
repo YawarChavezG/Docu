@@ -20,6 +20,7 @@ from app.core.database import Base
 class ContextoEstado(str, enum.Enum):
     PROCESO = "PROCESO"
     TAREA = "TAREA"
+    ACCION = "ACCION"
     AMBOS = "AMBOS"
 
 

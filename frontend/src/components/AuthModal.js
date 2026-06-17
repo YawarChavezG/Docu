@@ -43,9 +43,11 @@ export function initAuthModal() {
       setTimeout(() => {
         this.submitting = false
         this.open = false
-        window.toast('Firma digital registrada. Accion realizada exitosamente.', 'success')
+        // Sesion 23 / Bloque B5: NO mostrar toast de exito aca.
+        // El callback onSuccess() es responsable de mostrar el resultado
+        // (exito o error) segun la respuesta del backend.
         if (this._onSuccess) this._onSuccess({ usuario: this.usuario, timestamp: new Date().toISOString(), password: this.pass })
-      }, 600)
+      }, 300)
     },
   }))
 
