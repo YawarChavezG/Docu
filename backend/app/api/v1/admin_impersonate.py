@@ -1,19 +1,23 @@
 """
-Endpoints de impersonate (solo para rol ADMIN).
+Endpoints de impersonate (rol ADMIN o ETO).
 
 Flujo:
-1. Admin hace login normal (con su cuenta real, sea del AD o stub en DES).
-2. Admin accede a `GET /api/v1/admin/impersonate/list?query=...` y ve los usuarios
+1. Admin/ETO hace login normal (con su cuenta real, sea del AD o stub en DES).
+2. Admin/ETO accede a `GET /api/v1/admin/impersonate/list?query=...` y ve los usuarios
    reales de COFAR (filtrados por los 17 CNs excluidos + el resto de filtros).
-3. Admin hace `POST /api/v1/admin/impersonate/start` con el sAMAccountName elegido.
+3. Admin/ETO hace `POST /api/v1/admin/impersonate/start` con el sAMAccountName elegido.
 4. El backend crea una cookie `impersonated_user` y mantiene la cookie `user_id`
-   apuntando al ADMIN.
+   apuntando al ADMIN/ETO.
 5. Todas las requests siguientes del frontend incluyen esta cookie; el backend
    sabe que debe "ser" el usuario impersonado.
-6. Admin hace `POST /api/v1/admin/impersonate/stop` para volver a su sesión.
+6. Admin/ETO hace `POST /api/v1/admin/impersonate/stop` para volver a su sesión.
 
 El usuario impersonado es un dict "virtual" (no se persiste en BD). Solo
 existe durante la sesión con la cookie activa.
+
+Sesion 17: ademas de ADMIN, ETO puede impersonar. Ambos eventos (start y
+stop) se loguean en `audit_log` con `recurso='impersonate'` y
+`accion='IMPERSONATE_START'/'IMPERSONATE_STOP'`.
 """
 import logging
 
@@ -25,6 +29,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.audit import write_audit
 from app.models.usuario import Usuario
 from app.models.rol import CodigoRol
 from app.models.area import Area
@@ -33,13 +38,21 @@ from app.services.impersonate_service import (
     buscar_usuarios_ad,
     obtener_usuario_ad,
     construir_usuario_virtual_para_impersonate,
-    validar_que_es_admin,
     UserNotFoundError,
-    NoEsAdminError,
 )
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin/impersonate", tags=["Impersonate"])
+
+
+# ─── Roles permitidos ───
+
+ROLES_PERMITIDOS_IMPERSONATE = {CodigoRol.ADMIN, CodigoRol.ETO}
+
+
+def _user_can_impersonate(user: Usuario) -> bool:
+    """True si el user tiene rol ADMIN o ETO (sesion 17: ambos permitidos)."""
+    return any(r.codigo in ROLES_PERMITIDOS_IMPERSONATE for r in user.roles)
 
 
 # ─── Schemas ───
@@ -111,13 +124,16 @@ async def list_users(
 ):
     """
     Lista usuarios reales de COFAR desde AD (filtrados).
-    Solo accesible para rol ADMIN.
+    Accesible para rol ADMIN o ETO (sesion 17).
     """
     current = await _get_current_user_from_cookie(request, db)
     if current is None:
         raise HTTPException(status_code=401, detail="No autenticado")
-    if not any(r.codigo == CodigoRol.ADMIN for r in current.roles):
-        raise HTTPException(status_code=403, detail="Solo ADMIN puede listar usuarios de AD")
+    if not _user_can_impersonate(current):
+        raise HTTPException(
+            status_code=403,
+            detail="Solo ADMIN o ETO pueden listar usuarios de AD",
+        )
 
     if page < 1:
         page = 1
@@ -136,18 +152,38 @@ async def start_impersonate(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Inicia impersonate del sAMAccountName dado. Solo ADMIN.
+    Inicia impersonate del sAMAccountName dado. ADMIN o ETO.
     Setea cookie `impersonated_user` (no-HttpOnly para que el frontend la lea).
+    Loguea el evento en audit_log (recurso='impersonate', accion='IMPERSONATE_START').
     """
     current = await _get_current_user_from_cookie(request, db)
     if current is None:
         raise HTTPException(status_code=401, detail="No autenticado")
-    if not any(r.codigo == CodigoRol.ADMIN for r in current.roles):
-        raise HTTPException(status_code=403, detail="Solo ADMIN puede impersonar")
+    if not _user_can_impersonate(current):
+        raise HTTPException(
+            status_code=403,
+            detail="Solo ADMIN o ETO pueden impersonar",
+        )
 
     sam = payload.sAMAccountName.strip()
     if not sam:
         raise HTTPException(status_code=400, detail="sAMAccountName es obligatorio")
+
+    # Sesion 17: no se puede impersonar a si mismo
+    if sam.lower() == current.username.lower():
+        raise HTTPException(
+            status_code=422,
+            detail="No puede impersonarse a si mismo",
+        )
+
+    # Sesion 17: si ya esta impersonando, no puede iniciar otro sin antes
+    # terminar el actual (evita confusion sobre quien es "el admin real").
+    existing_imp = request.cookies.get("impersonated_user")
+    if existing_imp:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Ya esta impersonando a '{existing_imp}'. Termine primero con /stop.",
+        )
 
     ad_user = None
 
@@ -207,6 +243,26 @@ async def start_impersonate(
         max_age=60 * 60 * 8,  # 8 horas
     )
 
+    # ─── Audit log (recurso='impersonate', accion='IMPERSONATE_START') ───
+    await write_audit(
+        db, request, current,
+        accion="IMPERSONATE_START",
+        recurso="impersonate",
+        recurso_id=None,
+        descripcion=(
+            f"Impersonate iniciado: {current.username} -> {sam} "
+            f"({ad_user.get('nombre_completo', sam)})"
+        ),
+        detalles={
+            "impersonado_username": sam,
+            "impersonado_nombre": ad_user.get("nombre_completo", sam),
+            "admin_username": current.username,
+            "admin_roles": [r.codigo for r in current.roles],
+            "modo": "AD" if settings.ldap_enabled else "BD",
+        },
+    )
+    await db.commit()
+
     return ImpersonateStartResponse(
         message=f"Impersonando a {ad_user['nombre_completo']} ({sam})",
         user=ImpersonateUserOut(**virtual),
@@ -215,7 +271,51 @@ async def start_impersonate(
 
 
 @router.post("/stop")
-async def stop_impersonate(response: Response):
-    """Sale del modo impersonate. Borra la cookie."""
+async def stop_impersonate(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Sale del modo impersonate. Borra la cookie.
+    Loguea el evento en audit_log (recurso='impersonate', accion='IMPERSONATE_STOP').
+    No-op si no hay cookie activa (no loguea para evitar entradas huerfanas).
+    """
+    current = await _get_current_user_from_cookie(request, db)
+    if current is None:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    if not _user_can_impersonate(current):
+        raise HTTPException(
+            status_code=403,
+            detail="Solo ADMIN o ETO pueden terminar un impersonate",
+        )
+
+    previous = request.cookies.get("impersonated_user")
     response.delete_cookie("impersonated_user", path="/")
-    return {"message": "Impersonate finalizado. Volvió a su sesión original."}
+
+    if previous:
+        # ─── Audit log (recurso='impersonate', accion='IMPERSONATE_STOP') ───
+        await write_audit(
+            db, request, current,
+            accion="IMPERSONATE_STOP",
+            recurso="impersonate",
+            recurso_id=None,
+            descripcion=(
+                f"Impersonate terminado: {current.username} salio de {previous}"
+            ),
+            detalles={
+                "impersonado_username": previous,
+                "admin_username": current.username,
+                "admin_roles": [r.codigo for r in current.roles],
+            },
+        )
+        await db.commit()
+    else:
+        logger.info(f"stop_impersonate no-op: {current.username} no estaba impersonando")
+
+    return {
+        "message": (
+            f"Impersonate finalizado. Volvio a su sesion original como {current.username}."
+        ),
+        "previous_impersonated": previous,
+    }

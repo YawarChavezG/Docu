@@ -45,6 +45,32 @@ export const authStore = {
       this.role = null
       localStorage.removeItem('cofar_session')
     })
+    // Sesion 17: evento global para terminar impersonate desde el banner
+    // del AppLayout (que no tiene acceso directo al store).
+    window.addEventListener('sgd-stop-impersonate', () => this.stopImpersonate())
+  },
+
+  /**
+   * Sesion 17: termina el impersonate llamando al endpoint del backend y
+   * refresca el store. Maneja la respuesta del banner sticky.
+   */
+  async stopImpersonate() {
+    if (!this.user?.impersonated_by) return
+    try {
+      const res = await fetch(`${_API_BASE}/admin/impersonate/stop`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        if (window.toast) window.toast(`Error terminando impersonate: ${err.detail || res.status}`, 'error')
+        return
+      }
+      if (window.toast) window.toast('✅ Impersonate terminado. Volvió a su sesión original.', 'success')
+      await this.refreshFromBackend()
+    } catch (e) {
+      if (window.toast) window.toast(`Error de red: ${e.message}`, 'error')
+    }
   },
 
   async refreshFromBackend() {
