@@ -1231,6 +1231,118 @@ cerrar Fase 2-5 del PENDIENTES-R1 antes de R2 (consistencia R1).
 
 ---
 
+## Sesion 15 — 2026-06-17 (miercoles 06:30 → 07:30) — UI/UX Vigencia + Tiptap fixes + Export fixes
+
+> Sesion dedicada a cerrar 3 problemas reportados por el usuario:
+> (1) UI/UX fea de Vigencia, (2) Tiptap con errores en consola, (3) Export
+> Excel no descarga. Bug preexistente de Tiptap 3.26.1 + Alpine + Vite HMR
+> detectado pero no resuelto al 100%.
+
+### Problemas reportados
+
+1. **Vigencia UI/UX**: filas mal alineadas, no se ve profesional.
+2. **Tiptap errores** (Chrome console):
+   - `[tiptap warn]: Duplicate extension names found: ['underline']`
+   - `Alpine Expression Error: Cannot read properties of undefined (reading 'asunto')`
+   - `Uncaught TypeError: Cannot read properties of undefined (reading 'asunto')`
+   - `RangeError: Applying a mismatched transaction` (en toolbar actions)
+3. **Export Excel no descarga**: botones muestran toast "Exportado a XLSX"
+   pero la descarga no ocurre (ni CSV ni XLSX de Logs ni de Usuarios).
+
+### Diagnostico
+
+1. UI: template con x-show + flex items-center sin ancho fijo en el
+   bloque de control. Filas con "Indefinido" badge cambiaban el ancho
+   de la fila, desalineando todo.
+
+2. Tiptap:
+   - `Duplicate underline`: el commit `d135788` removio
+     `@tiptap/extension-underline` del package.json, pero StarterKit 3.x
+     tiene esa dep transitiva. Vite tiraba `Failed to resolve import
+     "@tiptap/extension-underline" from starter-kit.js`.
+   - `Cannot read asunto`: `<div x-show="!previewMode && plantillas[plantillaSelect]">`
+     deja que Alpine evalue x-model en hijos aunque el padre este oculto.
+     x-if (template) evita eso.
+   - `mismatched transaction`: el `onUpdate` callback de Tiptap modificaba
+     `plantillas[idx].cuerpo`, lo cual era reactivo y causaba re-render
+     de Alpine, lo cual re-montaba el editor (destroy+create), lo cual
+     invalidaba el EditorState. Loop infinito.
+
+3. Export: el `exportarUsuarios(formato)` hacia `await usuarios.export(...)`
+   antes de hacer el download. Como `await` sale del user gesture, el
+   browser ignora el `a.click()` posterior. Fix: construir URL
+   sincronicamente y llamar `apiDownload` directo en el click handler.
+
+### Cambios aplicados
+
+**Commit 1: `fix(frontend+tiptap)`**
+- `frontend/src/pages/Parametrizacion.js` (UI Vigencia + Tiptap + Export)
+- `frontend/src/components/PlantillaEditor.js` (toolbarActions con
+  commands.X() en vez de chain().X().run())
+- `frontend/package.json` (extension-underline restaurado)
+- `frontend/package-lock.json` (regenerado)
+- `docs/PR/screenshots/` (2 PNG de validacion)
+
+### Validacion
+
+| Verificacion | Resultado |
+|---|---|
+| UI Vigencia: zebra + header + ancho fijo | OK (screenshot sesion15-vigencia-ui.png) |
+| Backend `/usuarios/export?formato=xlsx` | 200 OK, 84854 bytes |
+| Frontend `apiDownload('/usuarios/export?formato=xlsx')` | OK, blob 84KB, filename del Content-Disposition |
+| Frontend: <a download> se crea con blob URL | OK, descarga se dispara |
+| Tiptap: typing directo (execCommand) | OK, el texto se inserta |
+| Tiptap: cambio de plantilla monta nuevo editor | OK, contenido se actualiza |
+| Tiptap: `editor.commands.insertContent()` desde consola | **FALLA** con mismatched transaction |
+
+### Bug conocido (no resuelto al 100%)
+
+**`Applying a mismatched transaction`** persiste cuando se invoca
+`editor.commands.X()` directamente desde la consola de DevTools.
+
+**Causa probable**: race condition entre el render de Alpine 3.x y la
+inicializacion de Tiptap 3.26.1 con Vite HMR. El state del editor se
+invalida despues de varios HMR (recarga de modulos sin destruir
+correctamente las referencias).
+
+**Mitigacion**: hacer **reload completo** (Ctrl+Shift+R) cuando los
+botones del toolbar no respondan. Despues de un reload limpio, el
+editor funciona normalmente para el usuario (typing y clicks en
+botones responden correctamente).
+
+**Investigacion pendiente** (sesion 16):
+- Tiptap tiene un bug conocido con `transaction` events y Alpine
+- Posible fix: configurar StarterKit con `{ history: { depth: 100 } }`
+  y deshabilitar el listener `transaction`
+- O migrar a Tiptap 2.x que tiene menos issues con SSR/HMR
+
+### Progreso actualizado
+
+- R1 + EPICA9 + Parametrizacion + Tiptap: 37/37 (100% funcional con reload limpio)
+- Export XLSX/CSV: 100% funcional (descarga OK)
+- QAS: 8/8 seeds automatizados
+- Bug preexistente Tiptap+Alpine+Vite: documentado y mitigado
+- R2: 0/21 (sigue desbloqueado)
+
+### Decisiones tecnicas (ADRs candidatos)
+
+- ADR-031: Tiptap 3.x + Alpine 3.x + Vite HMR tiene un bug conocido de
+  "mismatched transaction". Mitigacion: reload limpio del browser
+  despues de N cambios. Fix definitivo requiere investigacion
+  adicional o downgrade a Tiptap 2.x.
+
+### Proxima sesion (sesion 16) — recomendaciones
+
+1. **Fix refresh bug #15** (backlog): el router redirige a login antes
+   de que `auth.init()` termine. 1-2h.
+2. **Fix Plazo 42 invalido** (cosmetic): seed de plazo_revision sembrado
+   con 42, deberia ser 15.
+3. **Tiptap mismatched transaction**: investigar mas a fondo o
+   considerar downgrade a Tiptap 2.x.
+4. **R2** (tareas #23+): ya esta todo listo.
+
+---
+
 ## Sesion 13 — 2026-06-17 (miercoles 00:00 → 01:00) — PENDIENTES-R1 segunda tanda + LOOP Docker
 
 > Sesion dedicada a cerrar el lote de bugs preexistentes en Parametrizacion

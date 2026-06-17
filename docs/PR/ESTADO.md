@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> Última actualización: 2026-06-17 (sesión 14 — recuperación de loop Docker + 7 commits + cierre 3 tareas pendientes de sesión 13)
+> Última actualización: 2026-06-17 (sesión 15 — UI/UX Vigencia + Tiptap fixes + Export fixes + 1 bug conocido no resuelto)
 
 ## Versión actual
-**v0.5.5-dev** (sesión 14: Docker recuperado tras loop de sesión 13. 7 commits lógicos (deploy fix + backend refactor + frontend setup + docs + lockfile + qas-script + underline fix). Tiptap verificado end-to-end. Bug preexistente `sgd-qas.conf` fuera de `conf.d/` para DES. Refresh bug preexistente queda como backlog #15.)
+**v0.5.6-dev** (sesión 15: UI/UX Vigencia rediseñada (zebra + header + ancho fijo), Tiptap fixes (x-if + async cleanup + cache HTML + commands vs chain), Export Excel fix (download directo en user gesture sin await previo), `extension-underline` restaurado en package.json. **Bug conocido**: `Applying a mismatched transaction` persiste en tests automatizados — mitigación: reload limpio del browser.)
 
 ## Objetivo inmediato
 **R1 + R2 para el martes 17 de junio de 2026** (1 día restante)
