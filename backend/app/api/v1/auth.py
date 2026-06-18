@@ -393,6 +393,9 @@ async def me(
                 area_id=imp.area_id,
                 gerencia_sigla=imp.area.gerencia.sigla if imp.area and imp.area.gerencia else None,
                 area_sigla=imp.area.sigla if imp.area else None,
+                # ad_info = "department | office" del AD (si existe)
+                ad_department=imp.ad_info,
+                ad_physical_delivery_office=None,
                 estado=imp.estado.value if hasattr(imp.estado, "value") else str(imp.estado),
                 ausente=imp.ausente,
                 es_impersonado=True,
@@ -417,6 +420,9 @@ async def me(
             area_id=user.area_id,
             gerencia_sigla=user.area.gerencia.sigla if user.area and user.area.gerencia else None,
             area_sigla=user.area.sigla if user.area else None,
+            # ad_info = "department | office" del AD (si existe)
+            ad_department=user.ad_info,
+            ad_physical_delivery_office=None,
             estado=user.estado.value if hasattr(user.estado, "value") else str(user.estado),
             ausente=user.ausente,
             es_impersonado=False,

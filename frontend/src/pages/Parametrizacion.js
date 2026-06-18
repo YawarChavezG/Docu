@@ -1875,7 +1875,7 @@ export const page = {
                           :data-matriz-id="m.id" data-matriz-select="delegado">
                     <option value="">— Seleccionar —</option>
                     <!-- Issue 7.1: dropdown delegado SOLO usuarios con rol ETO
-                         (mismo array `analistas` que el dropdown de analista) -->
+                         (mismo array 'analistas' que el dropdown de analista) -->
                     <template x-for="u in analistas" :key="'de'+u.id"><option :value="String(u.id)" x-text="(u.nombre || u.username)"></option></template>
                   </select>
                   <span x-show="m.disponible" class="text-[11px] text-slate-400">—</span>
