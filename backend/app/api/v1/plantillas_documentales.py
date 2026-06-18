@@ -1,0 +1,249 @@
+"""
+api/v1/plantillas_documentales.py — Plantillas documentales (Sesion 24 / Bloque E).
+
+Las plantillas son archivos estaticos servidos desde /app/storage/plantillas/.
+No se persisten en BD: el listado se genera escaneando el directorio en cada
+request (hay 8 archivos, es despreciable).
+
+Endpoints (todos bajo prefix /api/v1/plantillas-documentales):
+  GET  /                          lista las plantillas disponibles (auth required)
+  GET  /{nombre_archivo}/download  descarga la plantilla (auth + audit_log)
+
+Auditoria: cada descarga queda registrada en audit_log con accion=DOWNLOAD
+y recurso=plantilla_documental.
+"""
+import logging
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.audit import write_audit
+from app.core.config import settings
+from app.core.database import get_db
+from app.core.permissions import require_authenticated
+from app.schemas.plantilla_documental import PlantillaDocumentalOut, PlantillaListResponse
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/plantillas-documentales", tags=["Plantillas Documentales"])
+
+
+# ─── Metadata hardcoded de las plantillas ───────────────────────────────
+# Como no hay tabla en BD, la descripcion legible + version se mantiene
+# aqui. Es estatico: si se agregan/renombran archivos, hay que actualizar
+# esta constante. En R3 (cuando se persistan en BD) esto se migra a la tabla.
+_PLANTILLAS_META: dict[str, dict] = {
+    "ficha_caracterizacion.docx": {
+        "nombre_display": "Ficha de Caracterizacion",
+        "descripcion": "Formato estandar para fichas de caracterizacion de procesos.",
+        "version": "v1",
+    },
+    "instructivo.docx": {
+        "nombre_display": "Instructivo",
+        "descripcion": "Formato para instructivos paso a paso.",
+        "version": "v1",
+    },
+    "instructivo_tecnico_mantenimiento.docx": {
+        "nombre_display": "Instructivo Tecnico (Mantenimiento)",
+        "descripcion": "Formato para instructivos tecnicos de mantenimiento.",
+        "version": "v1",
+    },
+    "manual_proceso.docx": {
+        "nombre_display": "Manual de Proceso",
+        "descripcion": "Formato para manuales de proceso.",
+        "version": "v1",
+    },
+    "manual_usuario.docx": {
+        "nombre_display": "Manual de Usuario",
+        "descripcion": "Formato para manuales de usuario.",
+        "version": "v1",
+    },
+    "plan.docx": {
+        "nombre_display": "Plan",
+        "descripcion": "Formato para planes (operativos, estrategicos, etc.).",
+        "version": "v1",
+    },
+    "politica.docx": {
+        "nombre_display": "Politica",
+        "descripcion": "Formato para politicas institucionales.",
+        "version": "v1",
+    },
+    "procedimiento.docx": {
+        "nombre_display": "Procedimiento (SOP)",
+        "descripcion": "Formato para procedimientos operativos estandar bajo BPM-2024.",
+        "version": "v1",
+    },
+}
+
+_EXT_TO_CATEGORIA: dict[str, str] = {
+    ".doc": "word",
+    ".docx": "word",
+    ".xls": "excel",
+    ".xlsx": "excel",
+    ".ppt": "ppt",
+    ".pptx": "ppt",
+    ".pdf": "otro",
+}
+
+
+# ─── Helpers ────────────────────────────────────────────────────────────
+
+def _get_storage_root() -> Path:
+    """Devuelve la ruta absoluta al directorio de plantillas.
+
+    Configurable via env var PLANTILLAS_STORAGE_PATH (default: /app/storage/plantillas).
+    En tests se puede pasar un directorio temporal.
+    """
+    env_root = os.getenv("PLANTILLAS_STORAGE_PATH")
+    if env_root:
+        return Path(env_root)
+    # Default: asumimos que el contenedor expone /app/storage/plantillas.
+    # Si el path no existe (ej: dev nativo en Windows), fallback a una
+    # ruta relativa al backend para no romper el endpoint.
+    container_default = Path("/app/storage/plantillas")
+    if container_default.exists():
+        return container_default
+    # Fallback dev: backend/storage/plantillas (donde start-stack-des.bat copia los archivos)
+    repo_default = Path(__file__).resolve().parent.parent.parent / "storage" / "plantillas"
+    if repo_default.exists():
+        return repo_default
+    return container_default  # el endpoint devolvera lista vacia
+
+
+def _is_safe_filename(nombre: str) -> bool:
+    """Valida que el nombre no contenga path traversal ni caracteres raros."""
+    if not nombre:
+        return False
+    if "/" in nombre or "\\" in nombre or ".." in nombre:
+        return False
+    # Solo permitir alfanumerico, guion bajo, guion medio, punto
+    return all(c.isalnum() or c in "._-" for c in nombre)
+
+
+def _safe_ext(path: Path) -> str:
+    """Extrae la extension de manera segura y la devuelve normalizada."""
+    return path.suffix.lower()
+
+
+# ─── Endpoints ──────────────────────────────────────────────────────────
+
+@router.get("", response_model=PlantillaListResponse)
+async def list_plantillas(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Lista las plantillas disponibles en /app/storage/plantillas/.
+
+    Auth required: cualquier usuario autenticado puede ver el listado.
+    La descarga es un endpoint separado (/download) que SI requiere auth
+    y se audita.
+    """
+    await require_authenticated(request, db)
+
+    root = _get_storage_root()
+    if not root.exists():
+        logger.warning("Directorio de plantillas no existe: %s", root)
+        return PlantillaListResponse(total=0, items=[])
+
+    items: list[PlantillaDocumentalOut] = []
+    for entry in sorted(root.iterdir()):
+        if not entry.is_file():
+            continue
+        if _safe_ext(entry) not in _EXT_TO_CATEGORIA:
+            continue
+        nombre_archivo = entry.name
+        if not _is_safe_filename(nombre_archivo):
+            logger.warning("Nombre de plantilla inseguro ignorado: %s", nombre_archivo)
+            continue
+        meta = _PLANTILLAS_META.get(nombre_archivo, {
+            "nombre_display": nombre_archivo.replace("_", " ").replace(".docx", "").title(),
+            "descripcion": "",
+            "version": "v1",
+        })
+        ext = _safe_ext(entry)
+        items.append(PlantillaDocumentalOut(
+            nombre_archivo=nombre_archivo,
+            nombre_display=meta["nombre_display"],
+            descripcion=meta.get("descripcion", ""),
+            categoria=_EXT_TO_CATEGORIA[ext],
+            tamano_bytes=entry.stat().st_size,
+            version=meta.get("version", "v1"),
+            url_descarga=f"/api/v1/plantillas-documentales/{nombre_archivo}/download",
+        ))
+
+    return PlantillaListResponse(total=len(items), items=items)
+
+
+@router.get("/{nombre_archivo}/download")
+async def download_plantilla(
+    nombre_archivo: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Descarga una plantilla. Auth required. Se audita en audit_log.
+
+    Validaciones:
+      - nombre_archivo: sin path traversal, sin caracteres raros
+      - extension: debe estar en la whitelist (.doc, .docx, .xls, .xlsx, .ppt, .pptx, .pdf)
+      - archivo debe existir en el directorio de plantillas
+    """
+    user = await require_authenticated(request, db)
+
+    if not _is_safe_filename(nombre_archivo):
+        raise HTTPException(400, f"Nombre de archivo invalido: {nombre_archivo}")
+
+    ext = _safe_ext(Path(nombre_archivo))
+    if ext not in _EXT_TO_CATEGORIA:
+        raise HTTPException(415, f"Extension no permitida: {ext}")
+
+    root = _get_storage_root()
+    file_path = root / nombre_archivo
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(404, f"Plantilla '{nombre_archivo}' no encontrada")
+
+    # Determinar media type segun extension
+    media_types = {
+        ".doc": "application/msword",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".xls": "application/vnd.ms-excel",
+        ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ".ppt": "application/vnd.ms-powerpoint",
+        ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        ".pdf": "application/pdf",
+    }
+    media_type = media_types.get(ext, "application/octet-stream")
+
+    # Auditar la descarga (en transaccion separada para no afectar el stream)
+    try:
+        await write_audit(
+            db, request, user,
+            accion="DOWNLOAD",
+            recurso="plantilla_documental",
+            recurso_id=None,
+            descripcion=f"Descarga plantilla '{nombre_archivo}'",
+            detalles={
+                "nombre_archivo": nombre_archivo,
+                "tamano_bytes": file_path.stat().st_size,
+                "categoria": _EXT_TO_CATEGORIA[ext],
+            },
+        )
+        await db.commit()
+    except Exception as exc:  # noqa: BLE001
+        # Si falla el audit, logueamos pero dejamos descargar (no bloqueamos
+        # el negocio por un fallo de auditoria).
+        logger.warning("No se pudo auditar descarga de plantilla %s: %s", nombre_archivo, exc)
+
+    logger.info("Descarga plantilla '%s' por user=%s", nombre_archivo, user.username)
+
+    return FileResponse(
+        path=str(file_path),
+        filename=nombre_archivo,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": f'attachment; filename="{nombre_archivo}"',
+            "X-Plantilla-Nombre": nombre_archivo,
+        },
+    )
