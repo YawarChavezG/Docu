@@ -216,7 +216,7 @@ class EnviarRequest(BaseModel):
     requiere_evaluacion: bool = False
     requiere_control_lectura: bool = False
     alcance_difusion_ids: list[int] = Field(default_factory=list)
-    reemplaza_documento_ids: Optional[list[int]] = None
+    reemplaza_documento_ids: Optional[list[str]] = None  # Sesion 25 / Issue 11.2: codigos, no IDs
     justificacion: Optional[str] = Field(None, max_length=1000)
 
 

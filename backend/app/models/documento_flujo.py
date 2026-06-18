@@ -120,8 +120,11 @@ class DocumentoFlujo(Base):
     aprobador_ids: Mapped[list[int]] = mapped_column(
         JSONType, nullable=False, default=list,
     )
-    # Solo si el usuario marco reemplaza='si'. Array de documento.id a dar de baja.
-    reemplaza_documento_ids: Mapped[Optional[list[int]]] = mapped_column(
+    # Solo si el usuario marco reemplaza='si'. Array de codigos de documento
+    # (ej: ['CC-3-005/00']) a dar de baja. Sesion 25 / Issue 11.2: el cliente
+    # ingresa CODIGOS (no IDs) en el wizard paso 3, asi que el modelo es
+    # list[str] (JSONB) en vez de list[int].
+    reemplaza_documento_ids: Mapped[Optional[list[str]]] = mapped_column(
         JSONType, nullable=True, default=None,
     )
 
