@@ -1,9 +1,9 @@
 # PRD — COFAR SGD (Sistema de Gestión Documental)
 
 > **Project Requirements Document** — Fuente única de verdad para que cualquier IA o developer humano sepa exactamente qué construir, cómo, y en qué orden.
-> **Última actualización:** 2026-06-14
+> **Última actualización:** 2026-06-18 (sesión 27)
 > **Stack confirmado:** FastAPI 0.137 + PostgreSQL 16 + Redis 7 + Celery 5.6 + Alpine.js 3.15 + Docker Compose
-> **Objetivo inmediato:** R1 (Seguridad + Parametrización) y R2 (Wizard de creación) **completas para el martes 17 de junio de 2026** (luego del finde).
+> **Objetivo inmediato:** R1 (Seguridad + Parametrización) y R2 (Wizard de creación) **completas y desplegadas**. QAS v1.0.0-qas operativo. Pendiente: bumpear a v1.1.0-qas con todas las mejoras de sesiones 20-27.
 
 ---
 
@@ -16,8 +16,9 @@
 | Usuarios objetivo | 750 (pico en exámenes) |
 | Ambientes | DES (este repo) · QAS (Debian VM) · PRD (TBD) |
 | Metodología | Iterativa por reuniones R1–R6 |
-| Fecha objetivo R1+R2 | **17 de junio 2026** (3 días desde hoy) |
-| Stack | FastAPI 0.137 / SQLAlchemy 2.0 / PostgreSQL 16 / Redis 7 / Celery 5.6 / Alpine.js / Docker |
+| Fecha objetivo R1+R2 | **✅ 17 de junio 2026 cumplido** |
+| Tag actual | `v1.0.0-qas` (sesión 19). Pendiente `v1.1.0-qas` con sesiones 20-27. |
+| Stack | FastAPI 0.137 / SQLAlchemy 2.0 / PostgreSQL 16 / Redis 7 / Celery 5.6 / Alpine.js 3.15 / Tiptap 3.26 / Docker |
 
 ---
 

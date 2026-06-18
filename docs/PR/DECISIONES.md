@@ -497,3 +497,99 @@ Adicionalmente, `start-stack-qas.sh` copia el CSV del container al host via `doc
 - (+) El frontend muestra "CC-3-005/01" en placeholders, autocompletes y bandejas.
 - (-) Código legacy que asumía 01 debe ser actualizado (no hay código legacy aún, ya que era una decisión temprana).
 - (-) Búsqueda por código completo requiere incluir la barra (mitigación: /buscar?q=CC-3-005/00 y /buscar?q=CC-3-005 ambos funcionan por el LIKE %q%).
+
+
+---
+
+## ADR-059: drop_table usuario_modulos (2026-06-18, sesion 26)
+
+**Contexto:** La tabla usuario_modulos (N:M usuarios-modulos) existia desde el schema inicial pero el frontend NUNCA la leyo para decidir acceso. El control real es por ROL via ACL hardcodeado en uth.js:canAccess(). El campo user.modulos del backend era codigo muerto que costaba queries extras en login.
+
+**Decision:** DROP TABLE usuario_modulos CASCADE + remocion de toda referencia en codigo backend (uth.py, usuario.py, scripts de seed). Nueva migracion Alembic drop_modulos_s26.
+
+**Consecuencia:**
+- (+) Login y /me mas rapidos (sin JOIN a usuario_modulos).
+- (+) 22 referencias en codigo eliminadas, sin riesgo de confusion sobre quien controla acceso.
+- (+) ACL queda en UN solo lugar (auth.js:canAccess), facil de auditar.
+- (-) Scripts seed_data.py, seed_local_test_users.py, seed_matriz_eto.py quedan ROTOS (importan usuario_modulos). Fix en sesion 28.
+- (-) Tabla usuario_modulos del backup/20260616_150015/ queda con schema viejo si se restaura.
+
+---
+
+## ADR-060: campo es_usuario_ad (bool) en usuarios (2026-06-18, sesion 23/26)
+
+**Contexto:** El login AD creaba usuarios con zure_oid=None y solo d_postal_code lleno. No se distinguia explicitamente entre usuarios de AD (sincronizados via sync-ad) y usuarios locales (stubs de DES). El ProfileModal queria mostrar el department del AD SOLO si el usuario era realmente de AD.
+
+**Decision:** Nueva columna es_usuario_ad: bool = False, indexed (migracion 8aa4cfa0f92f). Backfill: 754 usuarios con d_postal_code IS NOT NULL -> true. uth.py y usuarios.py setean es_usuario_ad=true al crear desde LDAP/sync.
+
+**Consecuencia:**
+- (+) ProfileModal discrimina AD vs local correctamente: AD users ven d_department (department del AD), local users ven gerencia/area del BD.
+- (+) Filtros en frontend pueden diferenciar fuente de usuario.
+- (+) Reportes pueden segmentar por fuente.
+- (-) Migracion backfill obligatoria en cualquier ambiente nuevo.
+
+---
+
+## ADR-061: /me DEBE incluir d_department (2026-06-18, sesion 27)
+
+**Contexto:** El endpoint /me (rama normal y rama impersonate) NO devolvia d_department ni d_physical_delivery_office aunque el schema Pydantic LoginUserOut ya los tenia definidos. /login SI los devolvia correctamente. Como consecuencia, el ProfileModal mostraba "Sin area (AD)" para usuarios AD sin rea_id mapeado, aunque su d_info (department) estuviera lleno en BD.
+
+**Decision:** Agregar d_department=user.ad_info y d_physical_delivery_office=None en los 2 response dicts de /me (rama normal y rama impersonate). Coherencia con /login que ya lo hacia.
+
+**Consecuencia:**
+- (+) ProfileModal muestra department del AD como fallback de area.
+- (+) ychavez (ad_info='Tecnologia') ahora ve 'Tecnologia' en lugar de 'Sin area (AD)'.
+- (+) 11 ADRs previas sobre discriminacion AD/local (060) se cumplen end-to-end.
+- (-) Si en el futuro se quiere mas detalle (physicalDeliveryOfficeName separado), requiere refactor.
+
+---
+
+## ADR-062: Modal personalizado en vez de confirm() nativo (2026-06-18, sesion 27)
+
+**Contexto:** La accion de impersonate usaba confirm() nativo del browser. Esto generaba un alert del SO que: (a) rompia la UI, (b) no mostraba contexto del usuario a impersonar, (c) impedia usar diseno consistente, (d) no ofrecia informacion del impacto (que la app se va a recargar, como volver).
+
+**Decision:** Componente ConfirmImpersonateModal.js (nuevo, 200 lineas) con API window.confirmImpersonate.abrir({ target, me, onConfirm }). Muestra: avatar con iniciales, nombre, @username, rol (label legible), cargo, area (gerencia/area del BD o fallback ad_info), estado. Banner informativo: 'la app se va a recargar y vas a ver la pantalla de inicio del usuario impersonado'. Boton dual Cancelar/Si, impersonar (estilo amber). Patron identico a AuthModal.js.
+
+**Consecuencia:**
+- (+) UX consistente con el resto de SGD.
+- (+) Usuario ve CONTEXTO antes de confirmar (no como el alert generico).
+- (+) z-index 8600 (encima de otros modales) + escape key handler.
+- (+) Accesibilidad: foco en boton primario, escape para cerrar.
+- (-) +200 lineas de codigo vs el confirm() nativo. Trade-off aceptable por UX.
+
+---
+
+## ADR-063: /me + reload + homeRoute al impersonar (2026-06-18, sesion 27)
+
+**Contexto:** Al hacer impersonate desde una pagina con permisos (ej: /parametrizacion), el banner sticky aparecia pero: (a) la sidebar seguia con los links del admin (HTML estatico construido una vez), (b) el header seguia con el cargo del admin, (c) la pagina actual seguia visible aunque el impersonado no tuviera permisos (terminaba en /403).
+
+**Decision:** Despues de efreshFromBackend() en impersonarUsuario() y stopImpersonate():
+1. window.location.hash = '#' + auth.homeRoute (navega a la home del nuevo rol)
+2. window.location.reload() (re-renderiza la sidebar con el nuevo rol)
+
+homeRoute ya existia: isualizador/eto/user -> /bandeja, dmin -> /parametrizacion.
+
+**Consecuencia:**
+- (+) Sidebar SIEMPRE coherente con el rol activo.
+- (+) Al impersonar un visualizador, la URL va a /bandeja (no /403).
+- (+) Al terminar impersonate, vuelve a /parametrizacion (admin).
+- (-) Reload completo es ~500ms vs ~200ms de actualizacion reactiva. Aceptable para una accion de 1-click.
+- (-) Pierde scroll state de la pagina anterior. Aceptable porque el contexto cambia radicalmente.
+
+---
+
+## ADR-064: /parametrizacion: backticks en comentario HTML cierran template string (2026-06-18, sesion 27)
+
+**Contexto:** El archivo rontend/src/pages/Parametrizacion.js (2667 lineas) tenia un comentario HTML en linea 1878 dentro del template string del export page.template:
+\\\
+<!-- Issue 7.1: dropdown delegado SOLO usuarios con rol ETO
+     (mismo array \nalistas\ que el dropdown de analista) -->
+\\\
+Las 2 backticks (\\) cerraban prematuramente la template string de JS, produciendo SyntaxError: Unexpected identifier 'analistas' al cargar /parametrizacion. Bug arrastrado desde sesion 25.
+
+**Decision:** Reemplazar las backticks del comentario por comillas simples: (mismo array 'analistas' que el dropdown de analista). Regla general: dentro de template strings JS, evitar backticks en comentarios HTML/strings embebidos.
+
+**Consecuencia:**
+- (+) /parametrizacion carga sin error.
+- (+) Patron de defensa aplicable: en template strings JS usar comillas simples para texto embebido.
+- (-) Hay 2667 lineas en Parametrizacion.js que pueden tener backticks similares. Busqueda exhaustiva confirma que no hay mas.

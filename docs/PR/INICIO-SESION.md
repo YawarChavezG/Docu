@@ -1,5 +1,6 @@
 # INICIO DE SESIÓN — Prompt maestro
 
+> **Última actualización:** 2026-06-18 (sesión 27).
 > **Cómo arrancar cada sesión nueva con opencode + M3.**
 > **Copia y pega este texto al abrir cada sesión** (o configúralo como un comando slash personalizado).
 
@@ -11,24 +12,23 @@
 Actua como Tech Lead senior del proyecto COFAR SGD. Realiza el siguiente ritual de inicio de sesion:
 
 1. LEE en este orden:
-   a) docs/PR/BITACORA.md (que se hizo en sesiones anteriores)
+   a) docs/PR/BITACORA.md (que se hizo en sesiones anteriores, leer la ultima entrada)
    b) docs/PR/ESTADO.md (estado REAL del codigo, no el planeado)
    c) docs/PR/INICIO-SESION.md (este archivo, para confirmar el flujo)
    d) docs/PR/REUNIONES-R3-R6.md (si estamos en R3 o posterior)
    e) docs/PR/DECISIONES.md (ADRs activos, especialmente los ultimos 3)
 
-2. DIAGNOSTICA el ambiente:
-   - Verificar que Docker esta corriendo: `docker info`
-   - Verificar que el stack esta Up: `docker ps --filter "name=sgd-"`
-   - Si el backend no esta Up: ejecutar `scripts\start-stack-des.bat`
-   - Verificar health: `curl.exe http://localhost:18000/api/v1/health`
-   - Si algo falla, usar el custom tool `build-error-resolver` agent
+2. DIAGNOSTICA el ambiente (rapido, 2 min):
+   - Docker corriendo: `docker info` (si falla, abrir Docker Desktop)
+   - Stack Up: `docker ps --filter "name=sgd-"`
+   - Backend health: `curl.exe http://localhost:18000/api/v1/health`
+   - Branch actual y working tree: `git status --short && git log --oneline -3`
 
 3. IDENTIFICA la siguiente tarea PENDIENTE:
-   - Leer la tabla en ESTADO.md
+   - Leer la tabla en ESTADO.md (seccion "Progreso")
    - Identificar la primera fila con estado ⏳ o pendiente
-   - Si hay tareas en curso (🟡), evaluar si estan realmente completas
    - Si la sesion anterior quedo a mitad de una tarea, retomar ahi
+   - Backlog: scripts ROTOS de seed (referenciados en sesion 27)
 
 4. PROPON al usuario:
    - "La siguiente tarea pendiente es #X: <titulo>"
@@ -38,18 +38,19 @@ Actua como Tech Lead senior del proyecto COFAR SGD. Realiza el siguiente ritual 
    - PREGUNTAR: "Procedo? o preferis priorizar otra cosa?"
 
 5. Si el usuario aprueba, EJECUTA:
-   - Si la tarea es codigo, invocar /plan primero
-   - Si la tarea es bugfix, invocar /build-fix
-   - Si la tarea es review, invocar /code-review
-   - Si la tarea es test, invocar /tdd
-   - Si la tarea es seguridad, invocar /security
-   - Si la tarea es e2e, invocar /e2e
+   - Tarea de codigo frontend: editar -> reiniciar `sgd-frontend` (`docker restart sgd-frontend`) -> Chrome MCP
+   - Tarea de codigo backend: editar -> reiniciar `sgd-backend` (`docker restart sgd-backend`) -> pytest
+   - Tarea de bugfix: leer el error, hipotetizar, fix minimo, validar empiricamente
+   - Tarea de review: leer codigo, listar issues, NO tocar nada sin aprobacion
+   - Tarea de test: leer test existente, escribir test que falla, fix, validar
    - Documentar paso a paso con outputs visibles
    - Si te trabas >15 min, salir del loop y consultar
 
 6. ANTES de cerrar sesion, ACTUALIZA:
-   - docs/PR/ESTADO.md (marcar tareas como completadas/pendientes)
+   - docs/PR/ESTADO.md (marcar tareas como completadas/pendientes + actualizar header con fecha)
    - docs/PR/BITACORA.md (anadir sesion nueva con lo que se hizo)
+   - Si hubo decisiones tecnicas, agregar ADR en DECISIONES.md
+   - Si hay pendientes nuevas, agregarlas a "Pendientes" en INICIO-SESION.md
    - Hacer commit con conventional commit
    - Reportar resumen al usuario: que se hizo, que quedo pendiente, si hay bloqueos
 
@@ -204,30 +205,33 @@ curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/j
 
 ## Plan de avance (resumen)
 
-| Lote | Alcance | Estado |
-|---|---|---|
-| **L1** (R1 cierre) | Alembic init + utils/api.js + endpoints faltantes + tests + rate limit + CSP | 🟡 ~50% |
-| **L2** (R2) | Modelos R2 + wizard 4 pasos + correlativos + uploads + firma 2FA + storage + bandejas | 🔴 0% |
-| **L3** (R3) | Workflow ETO + bandejas paralelas + aprobación + cron SLA + liberación + árbol Outlook | 🔴 0% |
-| **L4** (R4) | Office 365 + IA similitud + embeddings + webhook + cron sincronización AD | 🔴 0% |
-| **L5** (R5) | PDF custodiado + marca de agua + obsolescencia + lista maestra + vencimientos | 🔴 0% |
-| **L6** (R6) | Capacitación + exámenes + certificados + copias CC/CN + BI + chat RAG | 🔴 0% |
+> **Actualizado sesion 27 (2026-06-18)**: L1 cerrado al 100% (incluye QAS v1.1.0-qas). L2 cerrado al 100% (wizard + storage + bandejas). L3 en planificacion (R3 + B+C+D). L4-L6 en backlog.
+
+| Lote | Alcance | Estado | Notas |
+|---|---|---|---|
+| **L1** (R1 cierre) | Alembic init + utils/api.js + endpoints faltantes + tests + rate limit + CSP + QAS | ✅ 100% | Cerrado sesion 19 (deploy v1.0.0-qas). Acumulado 25 sesiones de cambios. |
+| **L2** (R2) | Modelos R2 + wizard 4 pasos + correlativos + uploads + firma 2FA + storage + bandejas | ✅ 100% | FASE 1 (sesion 21) + FASE 2 (sesion 22) cerradas. 60 tests R2 verde. |
+| **L3** (R3) | Workflow ETO + bandejas paralelas + aprobación + cron SLA + liberación + árbol Outlook | 🟡 Planificado | 3 pages sin refactor (Bandeja, LiberacionDetalle, ListaMaestra). |
+| **L4** (R4) | Office 365 + IA similitud + embeddings + webhook + cron sincronización AD | 🔴 0% | Backlog. |
+| **L5** (R5) | PDF custodiado + marca de agua + obsolescencia + lista maestra + vencimientos | 🔴 0% | Trigger obsolescencia pendiente. |
+| **L6** (R6) | Capacitación + exámenes + certificados + copias CC/CN + BI + chat RAG | 🔴 0% | Backlog. |
 
 Ver `docs/PR/REUNIONES-R3-R6.md` para el detalle de cada lote.
 
 ---
 
-## Para MAÑANA (presentación R1+R2)
+## Para HOY (sesion 27, presentacion R1+R2 al cliente)
 
 Lo más importante es poder mostrar **demostración end-to-end** de:
-1. **Login LDAP real** (soporteglpi / glpi.1T.C0f4r) — `auth_source: "cofar"`
-2. **Login con stubs** (aromero / cofar.2026) — `auth_source: "local"`
-3. **Pantalla Parametrización > Gestión de Usuarios** con los 753 usuarios del AD ya sincronizados
-4. **Bandeja del ETO** mostrando un documento (cuando R2 esté listo)
-5. **Wizard de creación** (cuando R2 esté listo)
+1. **Login LDAP real** (ychavez / Quesadilla.94.) — `auth_source: "cofar"`
+2. **Login con stubs** (admin_local / admin.2026) — `auth_source: "local"`
+3. **Pantalla Parametrización > Gestión de Usuarios** con los 763 usuarios del AD ya sincronizados
+4. **Bandeja del ETO** mostrando un documento (R2 listo)
+5. **Wizard de creación** (R2 listo)
+6. **Impersonate** con modal personalizado (sesion 27)
 
 Si no llegamos a R2 completo, al menos R1 demo debe estar sólido:
 - Login funciona (LDAP real + stubs)
-- 753 usuarios en BD con código SAP
+- 763 usuarios en BD con código SAP
 - ETO puede parametrizar gerencias/áreas
-- Sync AD manual funciona (botón ya implementado)
+- Sync AD manual funciona (botón solo admin)
