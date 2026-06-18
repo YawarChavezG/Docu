@@ -365,7 +365,7 @@ export const page = {
                 requiere_evaluacion: this.requiereEval === 'si',
                 requiere_control_lectura: this.requiereLectura === 'si',
                 alcance_difusion_ids: this.chipsDifusion.map(c => c.id),
-                reemplaza_documento_ids: this.chipsReemplazo.length ? [] : null,
+                reemplaza_documento_ids: this.chipsReemplazo.length ? this.chipsReemplazo : null,
                 justificacion: this.justificacion || null,
               })
               this.submitting = false
@@ -662,6 +662,31 @@ export const page = {
         </template>
       </div>
       <button @click="addAprobador()" class="btn btn-sm text-brand-600 border-brand-500 mt-1.5 text-[11px]">+ Agregar Aprobador</button>
+    </div>
+
+    <!-- Issue 11.2: UI para "Reemplazo o baja de documento" -->
+    <div class="mt-4">
+      <label class="form-label">Reemplazo o baja de documento</label>
+      <select class="form-input text-xs" x-model="reemplaza">
+        <option value="no">No</option>
+        <option value="si">Si</option>
+      </select>
+      <div x-show="reemplaza==='si'" class="mt-2">
+        <label class="form-label">Codigos de documentos a dar de baja</label>
+        <div class="flex gap-2">
+          <input type="text" x-model="inputReemplazo" @keydown.enter.prevent="addChipReemplazo()" class="form-input text-xs flex-1 font-mono" placeholder="CC-3-005/00">
+          <button @click="addChipReemplazo()" class="btn btn-sm">+ Agregar</button>
+        </div>
+        <div class="flex flex-wrap gap-1.5 mt-2">
+          <template x-for="chip in chipsReemplazo" :key="chip">
+            <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] bg-amber-50 text-amber-700 border border-amber-200">
+              <span x-text="chip"></span>
+              <button @click="removeChipReemplazo(chip)" class="text-amber-900 hover:text-amber-700">x</button>
+            </span>
+          </template>
+          <span x-show="chipsReemplazo.length===0" class="text-[11px] text-slate-400 italic self-center">Sin codigos agregados</span>
+        </div>
+      </div>
     </div>
 
     <div class="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3.5 flex items-center justify-between flex-wrap gap-2.5 mt-4">
