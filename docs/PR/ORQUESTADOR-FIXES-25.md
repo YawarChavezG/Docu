@@ -113,8 +113,8 @@ Reglas duras:
 | # | Issue | Sev | Estado |
 |---|---|---|---|
 | 1.1 | Ausencia motivo!=vacaciones NO marca ausente | 🟠 | ✅ RESUELTO |
-| 4.3 | ychavez sin Área en Mi Perfil | 🟠 | ⏳ siguiente |
-| 3.1 | Delegado obligatorio al asignar eto/revisor | 🟠 | pendiente |
+| 4.3 | ychavez sin Área en Mi Perfil | 🟠 | ✅ RESUELTO |
+| 3.1 | Delegado obligatorio al asignar eto/revisor | 🟠 | ⏳ siguiente |
 | 4.1 | Botón Sincronizar AD 403 para ETO | 🟠 | pendiente |
 | 10.1 | Política de Descargas hardcodeada | 🟠 | pendiente |
 | 11.1 | Quitar Analista ETO del wizard paso 1 | 🟠 | pendiente |
@@ -134,7 +134,7 @@ Reglas duras:
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | pendiente |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | pendiente |
 
-**Progreso**: 1/22 (4.5%).
+**Progreso**: 2/22 (9.1%).
 
 ---
 
@@ -144,3 +144,7 @@ Reglas duras:
 - **Bug colateral detectado y arreglado**: `restore_clean_state.bat` no reiniciaba nginx → 502 Bad Gateway en proxy_pass tras `docker stop/start` del backend. Fix: agregar `docker restart sgd-nginx` al script.
 - **Hallazgo técnico**: el state Alpine no se bindea con `dispatchEvent(new Event('input'))` para inputs date/checkbox. Workaround: setear `Alpine.$data(root).variable` directamente.
 - **Bug encontrado durante login**: aromero (id=1) NO está en la lista de 5 usuarios locales (es AD). Para login en BD Local usar `eto_test`, `solicitante`, `admin`, `admin_local`, `elaborador_revisor`, `elab._revisor_aprob.`, `visualizador_cl` con password `cofar.2026` (excepto admin_local: `admin.2026`).
+
+### Sesión 29 — Issue 4.3 (ychavez sin Área en Mi Perfil)
+- **Validación completa**: 3 escenarios visuales (ychavez/aromero/admin) + persistencia F5 + audit_log=0 + 20/21 tests pytest OK.
+- **Hallazgo**: el doc original (FIXES-SESION-25.md:116) decía que aromero debía mostrar "CAL / CC" (área mapeada en BD), pero el comportamiento actual (sesión 26) muestra el AD department "Excelencia y Transformación Organizacional" para usuarios `es_usuario_ad=true`. La rama AD tiene prioridad sobre el área mapeada por diseño. Doc actualizado para reflejar el comportamiento real.

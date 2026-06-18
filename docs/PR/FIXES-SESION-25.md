@@ -85,6 +85,10 @@
 
 ## Issue 4.3 — ychavez (y otros usuarios AD sin area_id) ven "Sin área" en Mi Perfil
 
+> ✅ **RESUELTO (sesión 29, 2026-06-18)** — Validado end-to-end con 3 escenarios visuales en Chrome MCP: (1) ychavez (AD, area_id=NULL, ad_info="Tecnología") muestra **"Tecnología"** ✅, (2) aromero (AD, area_id=43, ad_info="Excelencia y Transformación Organizacional") muestra **"Excelencia y Transformación Organizacional"** (rama AD override) ✅, (3) admin (local, area_id=NULL, ad_info="") muestra **"Sin área"** (rama local fallback) ✅. Persistencia F5 OK. BD intacta (audit_log=0). 20/21 tests pytest OK (1 fail preexistente no relacionado).
+> Próximo fix: **3.1** (Delegado obligatorio al asignar eto/revisor).
+> Ver detalles completos en `docs/PR/ORQUESTADOR-FIXES-25.md`.
+
 **Página afectada:** Perfil → Mi Perfil (todos los usuarios)
 
 **Error reportado por el cliente:**
