@@ -169,6 +169,8 @@ this.area = (u.gerencia_sigla && u.area_sigla)
 
 ## Issue 4.1 — Botón Sincronizar AD da error 403 para ETO (debería estar oculto)
 
+> ✅ **RESUELTO (sesión 30, 2026-06-18)** — Validado por el cliente directamente. Botón "Sincronizar AD" visible solo para ADMIN via `x-show="$store.auth.role === 'admin'"` en toolbar y estado vacío. ETO ya no ve el botón.
+
 **Página afectada:** Parametrización → Gestión de Usuarios (toolbar + estado vacío)
 
 **Error reportado por el cliente:**

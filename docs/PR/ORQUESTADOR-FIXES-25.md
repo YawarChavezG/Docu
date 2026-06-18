@@ -115,7 +115,7 @@ Reglas duras:
 | 1.1 | Ausencia motivo!=vacaciones NO marca ausente | 🟠 | ✅ RESUELTO |
 | 4.3 | ychavez sin Área en Mi Perfil | 🟠 | ✅ RESUELTO |
 | 3.1 | Delegado obligatorio al asignar eto/revisor | 🟠 | ✅ RESUELTO |
-| 4.1 | Botón Sincronizar AD 403 para ETO | 🟠 | pendiente |
+| 4.1 | Botón Sincronizar AD 403 para ETO | 🟠 | ✅ RESUELTO |
 | 10.1 | Política de Descargas hardcodeada | 🟠 | pendiente |
 | 11.1 | Quitar Analista ETO del wizard paso 1 | 🟠 | pendiente |
 | 11.2 | UI Reemplazo o baja + sub-bug | 🟠 | pendiente |
@@ -134,7 +134,7 @@ Reglas duras:
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | pendiente |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | pendiente |
 
-**Progreso**: 3/22 (13.6%).
+**Progreso**: 4/22 (18.2%).
 
 ---
 
