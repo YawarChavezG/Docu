@@ -24,6 +24,7 @@ from app.models.modulo import Modulo, CodigoModulo
 from app.models.gerencia import Gerencia
 from app.models.area import Area
 from app.services import ad_service
+from app.services.area_mapping import match_area_por_ad_info
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -240,6 +241,14 @@ async def login(
                 ad_info_parts.append(attrs["physicalDeliveryOfficeName"])
             ad_info_combined = " | ".join(ad_info_parts) if ad_info_parts else None
 
+            # Issue 4.4: mapear department del AD a area_id (automatico)
+            area_id_login = None
+            if ad_info_combined:
+                try:
+                    area_id_login = await match_area_por_ad_info(db, ad_info_combined)
+                except Exception as e_map:
+                    logger.warning(f"area_mapping fallo en login on-demand: {e_map}")
+
             user = Usuario(
                 username=username,
                 email=attrs.get("mail") or f"{username}@cofar.com",
@@ -250,6 +259,7 @@ async def login(
                 ad_info=ad_info_combined,
                 ad_postal_code=attrs.get("postalCode") or None,
                 ad_last_synced_at=datetime.utcnow(),
+                area_id=area_id_login,  # Issue 4.4
                 estado=EstadoUsuario.ACTIVO,
                 es_usuario_ad=True,  # Sesion 23 / Bloque C2
             )
@@ -270,6 +280,22 @@ async def login(
                     user.cargo = attrs["title"]; updated = True
                 if attrs.get("postalCode") and attrs["postalCode"] != user.ad_postal_code:
                     user.ad_postal_code = attrs["postalCode"]; updated = True
+                # Issue 4.4: si llego department nuevo, reintentar area_id mapping
+                if attrs.get("department") and attrs["department"] != (user.ad_info or "").split("|")[0].strip():
+                    # Actualizar ad_info con department + office
+                    office = attrs.get("physicalDeliveryOfficeName") or ""
+                    user.ad_info = " | ".join(filter(None, [attrs["department"], office])) or None
+                    updated = True
+                    try:
+                        nueva_area = await match_area_por_ad_info(db, user.ad_info)
+                        if nueva_area and nueva_area != user.area_id:
+                            user.area_id = nueva_area
+                            logger.info(
+                                f"area_id actualizado por cambio de department (login on-demand): "
+                                f"{username} {user.area_id} -> {nueva_area}"
+                            )
+                    except Exception as e_map:
+                        logger.warning(f"area_mapping fallo en login: {e_map}")
                 if updated:
                     user.ad_last_synced_at = datetime.utcnow()
                     await db.commit()

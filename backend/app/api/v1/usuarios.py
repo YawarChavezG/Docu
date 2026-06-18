@@ -40,6 +40,7 @@ from app.models.usuario import Usuario, EstadoUsuario, EstadoDelegacion
 from app.models.rol import Rol, CodigoRol
 from app.models.area import Area
 from app.services import ad_service
+from app.services.area_mapping import match_area_por_ad_info
 
 logger = logging.getLogger(__name__)
 # Prefix = "/usuarios" para que las rutas declaradas ("", "/sync-ad", etc.)
@@ -429,6 +430,14 @@ async def sync_ad(
             sam_trunc = _truncar(sam, LIMITS["username"])
 
             if existing is None:
+                # Issue 4.4: si el AD trae department, intentar mapear a area_id
+                area_id_mapeado = None
+                if ad_info:
+                    try:
+                        area_id_mapeado = await match_area_por_ad_info(db, ad_info)
+                    except Exception as e_map:
+                        logger.warning(f"area_mapping fallo para {sam}: {e_map}")
+
                 user = Usuario(
                     username=sam_trunc,
                     email=email,
@@ -439,6 +448,7 @@ async def sync_ad(
                     ad_info=ad_info,
                     ad_postal_code=postal,
                     ad_last_synced_at=datetime.utcnow(),
+                    area_id=area_id_mapeado,  # Issue 4.4: mapping automatico
                     estado=EstadoUsuario.ACTIVO,
                     estado_delegacion=EstadoDelegacion.NA,
                     es_usuario_ad=True,  # Sesion 23 / Bloque C2
@@ -463,6 +473,19 @@ async def sync_ad(
                     existing.ad_postal_code = postal; changed = True
                 if ad_info and existing.ad_info != ad_info:
                     existing.ad_info = ad_info; changed = True
+                    # Issue 4.4: si el department del AD cambio,
+                    # reintentar el mapping a area_id.
+                    try:
+                        nueva_area = await match_area_por_ad_info(db, ad_info)
+                        if nueva_area and nueva_area != existing.area_id:
+                            existing.area_id = nueva_area
+                            changed = True
+                            logger.info(
+                                f"area_id actualizado por cambio de department: "
+                                f"{sam} {existing.area_id} -> {nueva_area}"
+                            )
+                    except Exception as e_map:
+                        logger.warning(f"area_mapping fallo para {sam}: {e_map}")
                 if changed:
                     existing.ad_last_synced_at = datetime.utcnow()
                     actualizados += 1
