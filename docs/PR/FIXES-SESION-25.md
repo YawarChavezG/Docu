@@ -334,6 +334,9 @@ this.area = (u.gerencia_sigla && u.area_sigla)
 
 ## Issue 11.3 — Wizard no persiste datos en tabla `documento_flujo` [NO-BUG]
 
+> ✅ **RESUELTO (sesión 32, 2026-06-18)** — Validado end-to-end con Chrome MCP: wizard completo 3 pasos + firma 2FA. BD verifica: revisor_ids[19], aprobador_ids[935], reemplaza_documento_ids=["CC-3-005/00"] (string array correcto), justificacion, firma_usuario_id=18 OK. Persistencia F5 OK. Audit: CREATE + ENVIAR_LIBERACION. Sub-bug `list[int]`→`list[str]` verificado en BD. 2/2 tests pytest OK. Commit: `3cd5c2d`.
+> Próximo fix: **4.2** (soporteglpi sin SAP en login on-demand).
+
 **Página afectada:** Wizard de creación de documento (todos los pasos + firmar)
 
 **Error reportado por el cliente:**

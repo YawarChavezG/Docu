@@ -119,7 +119,7 @@ Reglas duras:
 | 10.1 | Política de Descargas hardcodeada | 🟠 | ✅ RESUELTO |
 | 11.1 | Quitar Analista ETO del wizard paso 1 | 🟠 | ✅ RESUELTO |
 | 11.2 | UI Reemplazo o baja + sub-bug | 🟠 | ✅ RESUELTO |
-| 11.3 | Wizard no persiste en `documento_flujo` (NO-BUG) | 🟠 | pendiente |
+| 11.3 | Wizard no persiste en `documento_flujo` (NO-BUG) | 🟠 | ✅ RESUELTO |
 | 4.2 | `soporteglpi` sin SAP se loguea | 🟡 | pendiente |
 | 4.4 | Sync AD mapping `ad_info`→`area_id` | 🟡 | pendiente |
 | 8.1 | Filtros activos/inactivos/ausentes | 🟡 | pendiente |
@@ -134,7 +134,7 @@ Reglas duras:
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | pendiente |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | pendiente |
 
-**Progreso**: 7/22 (31.8%).
+**Progreso**: 8/22 (36.4%).
 
 ---
 
