@@ -161,6 +161,34 @@
 | B3 | Login contra BD local (no solo LDAP) — para DES sin AD | ✅ | `auth.py` líneas 80+ con `auth_source: "local"\|"cofar"\|None` |
 | B4 | `LoginUserOut` con módulos + roles + impersonación | ✅ | |
 
+### Sesion 25 — Fixes 22 issues del testing del 17-jun (1 commit atómico por fix)
+
+| # | Issue | Sev | Tipo | Commit | Resultado |
+|---|---|---|---|---|---|
+| 1.1 | Ausencia motivo!=vacaciones no setea ausente | 🟠 | CRIT (NO-BUG) | `2706455` | Backend funciona OK. 7 tests nuevos como cobertura de regresión. |
+| 4.3 | ychavez sin Área en Mi Perfil | 🟠 | CRIT (fix) | `f9c3629` | Fallback a u.ad_department en ProfileModal.js |
+| 3.1 | Delegado obligatorio al asignar eto/revisor | 🟠 | CRIT (fix) | `a63b453` | Validación bloqueante reemplazada por confirm() no bloqueante. Label "sugiere delegado". |
+| 4.1 | Botón Sincronizar AD 403 para ETO | 🟠 | CRIT (fix) | `dcfb46b` | x-show=role==admin en ambos botones. Cubre también Issue 8.2. |
+| 10.1 | Política de Descargas hardcodeada | 🟠 | CRIT (fix) | `235ad86` | VersionEditable.js carga desde BD (config DESCARGAS). Default 1, el cliente cambia a 1 en BD. |
+| 11.1 | Quitar Analista ETO del wizard paso 1 | 🟠 | CRIT (fix) | `1371aec` | Estado, validación, UI y F1 fetch removidos. analistasEtoList se mantiene para paso 3. |
+| 11.2 | UI Reemplazo o baja + sub-bug chipsReemplazo | 🟠 | CRIT (fix) | `5a23846` | UI select+chips agregado. Fix: chipsReemplazo se enviaba como `[]` (vacio) en vez del array de códigos. |
+| 11.3 | Wizard no persiste en documento_flujo | 🟠 | CRIT (NO-BUG) | `3cd5c2d` | Test e2e con curl + 2 tests pytest: flujo SÍ persiste. Sub-bug: modelo `reemplaza_documento_ids` era `list[int]`, ahora `list[str]` (códigos). |
+| 4.2 | soporteglpi sin SAP en login on-demand | 🟡 | IMP (fix) | `19e2b36` | ldap_get_user_by_samaccountname retorna None si sin postalCode (alineado con sync_ad). |
+| 4.4 | Sync AD: mapping ad_info→area_id automático | 🟡 | IMP (feat) | `b9cf37a` | Nuevo módulo `area_mapping.py` con match por palabra completa. Aplicado en sync_ad masivo y login on-demand. 15 tests. |
+| 8.1 | Filtros activos/inactivos + ausentes en Gestión Usuarios | 🟡 | IMP (feat) | `dc2efe0` | Backend: nuevo param `ausente: bool`. Frontend: 2 selects. |
+| 8.4 | REPORTES en Excel para elaboradores | 🟡 | IMP (feat) | `7aa64c0` | Script `add_reportes_module.py` idempotente: 154 usuarios asignados, 0 errores. |
+| 5.1 | Selector Estados con 4 opciones (PROCESO/TAREA/ACCION/AMBOS) | 🟡 | IMP (fix) | `0bcb499` | Selector ampliado a 4 valores UPPERCASE que matchean enum backend. Badge con 4 colores. |
+| 1.2 | Lista delegados corta (solo hasta D) | 🟡 | IMP (fix) | `5331d34` | Reemplazado con `listPorCualquierRol([3 roles relevantes])`. page_size 200→500. |
+| 7.1 | Matriz ETO: dropdown delegado solo ETO | 🟡 | IMP (fix) | `9554ad7` | Dropdown delegado ahora itera sobre `analistas` (ya filtrado a ETO). |
+| 2.1 | Performance login - Promise.all en ProfileModal | 🟡 | IMP (perf) | `bb3a06d` | 3 requests en paralelo (antes 5 en serie). 2.4x más rápido. |
+| 8.3 | Header 'Área' (no 'Gerencia / Área') | 🟢 | MENOR (fix) | `4335665` | Header tabla y XLSX cambiados a "Area". Contenido se mantiene. |
+| 8.5 | KPI inactivos + desvinculados | 🟢 | MENOR (feat) | `e92a369` | Backend: 2 nuevos kpis. Frontend: 2 nuevos cards (grid 3→5 cols). |
+| 9.1 | /plantillas vista tienda responsive | 🟢 | MENOR (fix) | `c4f501c` | Grid: 1/2/3/4 cols según breakpoint (mobile/tablet/desktop/large). |
+| 9.2 | Quitar bloque 'IA — Recomendación' | 🟢 | MENOR (fix) | `c4f501c` | Removido del template. |
+| 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | MENOR (fix) | `f112a68` | Header: Tipo | Cód. Doc | Acciones. Slug sigue en form (hidden) y en modelo. |
+
+**Resumen:** 22 issues cerrados, 21 commits atómicos, 217/228 tests PASS (+15 nuevos). 2 issues marcados como NO-BUG (1.1 y 11.3) con cobertura de tests para evitar regresión.
+
 ---
 
 ## Progreso R1

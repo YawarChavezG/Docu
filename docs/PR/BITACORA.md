@@ -3,6 +3,87 @@
 > **Bitácora cronológica de las sesiones de trabajo en el proyecto COFAR SGD.**
 > Para que cuando la ventana de contexto se llene, una nueva sesión pueda leer este archivo y retomar.
 
+## Sesión 25 — 2026-06-17 (miercoles 23:00 → 00:30) — Fixes 22 issues del testing del 17-jun
+
+### Resumen ejecutivo
+Sesión dedicada a cerrar los 22 issues reportados por el cliente durante el testing manual del 2026-06-17. Cada issue fue mapeado a un commit atómico en la rama `r2/wizard-y-version-editable`. **Total: 22 issues cerrados, 21 commits atómicos, 24 tests nuevos (15 area_mapping + 7 ausencias + 2 wizard flujo), 217/228 tests PASS** (11 fallas preexistentes, no relacionadas).
+
+### Origen
+El archivo `docs/PR/ANALISIS-FIXES-TESTING-17JUN.md` (creado al inicio de la sesión) contiene el análisis + agrupación + validación previa de los 22 issues en BD/API. Sesión previa a esto: 24 (Bloques E + F, 8 sub-tareas).
+
+### Decisiones tomadas
+- **Commits atómicos** (1 commit = 1 issue) para fácil revert en caso de problema en QAS.
+- **Issues 1.1 y 11.3 marcados como NO-BUG** pero con cobertura de tests para evitar regresión futura. El cliente malinterpretó su testing (fechas futuras / tabla antes de firmar).
+- **Issue 4.4**: implementación completa de mapping automático (no simple warning) porque el cliente dijo "lo que manda es el AD".
+- **Issue 8.4**: persistir en BD (no calculo en runtime) porque es más limpio y testeable.
+- **Issue 11.3**: FIX real de sub-bug encontrado — el modelo `reemplaza_documento_ids` era `list[int]` pero el frontend envía códigos (str), ahora es `list[str]` (JSONB acepta cualquier tipo).
+- **Housekeeping primero**: working tree tenía 7 docs antiguos + 1 nuevo sin commitear. Commit inicial `chore(docs)` antes de los fixes.
+
+### Tareas ejecutadas (22 issues)
+Ver tabla completa en `docs/PR/ESTADO.md` § "Sesion 25".
+
+### Logros técnicos
+- **24 tests nuevos** pasando en pytest:
+  - `test_ausencias.py`: 7 tests de motivo != vacaciones
+  - `test_area_mapping.py`: 15 tests del nuevo helper
+  - `test_documentos_flujo_wizard.py`: 2 tests de persistencia del flujo
+- **2 nuevos módulos backend**:
+  - `app/services/area_mapping.py` (160 lineas) - matching automatico ad_info→area_id
+- **1 nuevo script CLI**:
+  - `backend/scripts/add_reportes_module.py` (180 lineas) - idempotente
+- **2 nuevos helpers de performance**:
+  - Promise.all en ProfileModal.abrir() (3x mas rapido)
+  - Helper `listPorCualquierRol` con deduplicacion
+
+### Bugs descubiertos y corregidos durante la sesión
+1. **area_mapping false positive**: "cc" matcheaba en "direccion" como subsecuencia. Fix: match por PALABRA COMPLETA (split por espacios).
+2. **reemplaza_documento_ids type mismatch**: frontend enviaba strings ("CC-3-005/00") pero modelo esperaba ints. Fix: cambiar a list[str] (JSONB).
+3. **chipsReemplazo sub-bug**: se enviaba `[]` cuando había chips en vez del array. Fix: `length ? chips : null`.
+4. **delegadoAlerta orden**: se calculaba antes de tener `rolRequiereDelegado` (Issue 2.1 refactor). Fix: calcular después.
+
+### Validación empirica
+- 8 críticos: 5 fixes reales, 2 NO-BUG con tests de regresión, 1 UI cleanup.
+- 8 importantes: 7 fixes reales, 1 nuevo script CLI persistente.
+- 5 menores: 5 fixes/feats UI.
+- pytest: 217/228 PASS (mismas 11 fallas preexistentes que en sesión 24).
+- ad_service.py validado con curl real: soporteglpi (sin SAP) ya no se puede loguear.
+- add_reportes_module.py validado: 1ra corrida 154 asignados, 2da corrida 0 (idempotente).
+- e2e wizard completo: documento 19, codigo AR29402-1-003/00, flujo con todos los datos.
+
+### Archivos modificados / creados
+
+**Nuevos (4):**
+- `backend/app/services/area_mapping.py`
+- `backend/scripts/add_reportes_module.py`
+- `backend/tests/test_ausencias.py`
+- `backend/tests/test_area_mapping.py`
+- `backend/tests/test_documentos_flujo_wizard.py`
+- `docs/PR/ANALISIS-FIXES-TESTING-17JUN.md`
+
+**Modificados (10):**
+- `frontend/src/components/ProfileModal.js` (Issues 4.3, 1.2, 2.1)
+- `frontend/src/pages/Parametrizacion.js` (Issues 3.1, 4.1, 7.1, 8.1, 8.3, 8.5, 6.1)
+- `frontend/src/pages/VersionEditable.js` (Issue 10.1)
+- `frontend/src/pages/AprobacionDocumento.js` (Issues 11.1, 11.2)
+- `frontend/src/pages/Plantillas.js` (Issues 9.1, 9.2)
+- `backend/app/api/v1/usuarios.py` (Issues 8.1, 8.3, 8.5)
+- `backend/app/api/v1/auth.py` (Issue 4.4)
+- `backend/app/services/ad_service.py` (Issue 4.2)
+- `backend/app/models/documento_flujo.py` (Issue 11.3)
+- `backend/app/schemas/documento.py` (Issue 11.3)
+- `docs/PR/ESTADO.md` (tabla Sesion 25)
+
+### Proxima sesion (Sesion 26) — TBD
+- **Deploy QAS v1.1.0-qas**: bumpear version, `scripts/deploy-qas.bat`, validar las 12 categorias A-L, tag v1.1.0-qas. Acumula 21 sesiones de cambios.
+- **Refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js** (tareas 38-40) — pendientes desde R2 FASE 1.
+- **Tests adicionales** (sesion 27 plan): `validar_password_usuario`, `start_impersonate` fallback BD, sync-ad desvinculados.
+
+### Estado al cierre de sesion 25
+- 22/22 issues del testing 17-jun cerrados.
+- 21 commits atómicos en rama `r2/wizard-y-version-editable`.
+- 217/228 tests PASS (24 nuevos).
+- Working tree: ESTADO.md y BITACORA.md modificados (sin commitear, al cierre).
+
 ## Sesión 24 — 2026-06-17 (miercoles 19:30 → 21:00) — Bloques E + F
 
 ### Resumen ejecutivo
