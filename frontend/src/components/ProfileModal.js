@@ -54,7 +54,11 @@ export function initProfileModal() {
       this.inputDelegado = ''
       this.mostrarListaDelegado = false
       try {
-        // 1) Traer info del usuario actual
+        // Issue 2.1: las 5 requests se hacen en PARALELO con Promise.all
+        // (antes eran en serie, ~5 round-trips). El orden de procesamiento
+        // es independiente: el state se setea a partir de cada response.
+        // Solo /me debe completarse ANTES de las otras para tener username
+        // (necesario para filtrar usuariosActivos por username).
         const resMe = await apiGet('/me')
         if (resMe.ok && resMe.data.authenticated && resMe.data.user) {
           const u = resMe.data.user
@@ -69,41 +73,47 @@ export function initProfileModal() {
           this.ausente = !!u.ausente
           this.rolPrincipal = (u.roles && u.roles[0]) || ''
           this.estadoDelegacion = ''
-          // El campo `delegado_nombre` no viene en /me (es solo /usuarios/{id}).
-          // Lo cargamos abajo.
         }
-        // 2) Traer info completa del usuario (incluye delegado)
+
+        // 4 requests en paralelo: usuarios (mi info), roles, delegados, ausencias
+        // (ausencias requiere miId, lo resolvemos al final con la primera response)
+        const username = this.username
+        const requests = [
+          // 1) mi info completa (incluye delegado)
+          username ? apiGet(`/usuarios?q=${encodeURIComponent(username)}&page_size=5`) : Promise.resolve({ ok: false }),
+          // 2) roles (saber si requiere delegado)
+          apiGet('/roles'),
+          // 3) lista de usuarios elegibles como delegado
+          usuarios.listPorCualquierRol(
+            ['ELABORADOR - REVISOR', 'ELABORADOR - REVISOR - APROBADOR', 'ETO'],
+            '',
+          ).catch(() => ({ ok: false, data: { items: [] } })),
+        ]
+
+        const [resList, resRoles, resDelegados] = await Promise.all(requests)
+
+        // Procesar response 1: mi info
         let miId = null
-        if (this.username) {
-          const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
-          if (resList.ok && resList.data.items) {
-            const me = resList.data.items.find(x => x.username === this.username)
-            if (me) {
-              miId = me.id
-              this.delegadoId = me.delegado_id || null
-              this.delegadoNombre = me.delegado_nombre || ''
-              this.delegadoUsername = me.delegado_username || ''
-              this.estadoDelegacion = me.estado_delegacion || ''
-              // Alerta si requiere delegado y NO tiene
-              this.delegadoAlerta = (this.rolRequiereDelegado && !this.delegadoId)
-            }
+        if (resList.ok && resList.data.items) {
+          const me = resList.data.items.find(x => x.username === this.username)
+          if (me) {
+            miId = me.id
+            this.delegadoId = me.delegado_id || null
+            this.delegadoNombre = me.delegado_nombre || ''
+            this.delegadoUsername = me.delegado_username || ''
+            this.estadoDelegacion = me.estado_delegacion || ''
           }
         }
-        // 3) Traer roles para saber si el rol del usuario requiere delegado
-        const resRoles = await apiGet('/roles')
+
+        // Procesar response 2: roles
         if (resRoles.ok) {
           const rol = (resRoles.data.items || []).find(r => r.codigo === this.rolPrincipal)
           this.rolRequiereDelegado = rol ? !!rol.requiere_delegado : false
-          this.delegadoAlerta = (this.rolRequiereDelegado && !this.delegadoId)
         }
-        // 4) Traer lista de usuarios ELEGIBLES como delegado (revisor/revisor-aprobador/ETO).
-        // Issue 1.2: antes traia TODOS los activos (200 max, ordenado por nombre,
-        // solo llegaba hasta "D"). Ahora filtramos por roles relevantes y subimos
-        // el page_size a 500 para tener la lista COMPLETA.
-        const resDelegados = await usuarios.listPorCualquierRol(
-          ['ELABORADOR - REVISOR', 'ELABORADOR - REVISOR - APROBADOR', 'ETO'],
-          '',
-        )
+        // delegated alerta depende de rolRequiereDelegado (calculado arriba) y delegadoId
+        this.delegadoAlerta = (this.rolRequiereDelegado && !this.delegadoId)
+
+        // Procesar response 3: usuarios elegibles delegado
         if (resDelegados.ok) {
           this.usuariosActivos = (resDelegados.data.items || []).filter(u => u.username !== this.username)
         } else {
@@ -113,7 +123,9 @@ export function initProfileModal() {
             this.usuariosActivos = (resActivos.data.items || []).filter(u => u.username !== this.username)
           }
         }
-        // 5) Sesion 23 / Bloque B1: cargar ausencias (vigente + historial)
+
+        // 4) Sesion 23 / Bloque B1: cargar ausencias (necesita miId, asi que
+        // espera a la primera response)
         if (miId) {
           await this._cargarAusencias(miId)
         }
