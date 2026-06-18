@@ -1876,7 +1876,9 @@ export const page = {
                   <select x-show="!m.disponible" class="form-input text-xs" x-model="m.delegado_id"
                           :data-matriz-id="m.id" data-matriz-select="delegado">
                     <option value="">— Seleccionar —</option>
-                    <template x-for="u in usuariosActivos" :key="'da'+u.id"><option :value="String(u.id)" x-text="(u.nombre || u.username)"></option></template>
+                    <!-- Issue 7.1: dropdown delegado SOLO usuarios con rol ETO
+                         (mismo array `analistas` que el dropdown de analista) -->
+                    <template x-for="u in analistas" :key="'de'+u.id"><option :value="String(u.id)" x-text="(u.nombre || u.username)"></option></template>
                   </select>
                   <span x-show="m.disponible" class="text-[11px] text-slate-400">—</span>
                 </td>
