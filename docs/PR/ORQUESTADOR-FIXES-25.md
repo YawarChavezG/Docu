@@ -121,9 +121,9 @@ Reglas duras:
 | 11.2 | UI Reemplazo o baja + sub-bug | 🟠 | ✅ RESUELTO |
 | 11.3 | Wizard no persiste en `documento_flujo` (NO-BUG) | 🟠 | ✅ RESUELTO |
 | 4.2 | `soporteglpi` sin SAP se loguea | 🟡 | ✅ RESUELTO |
-| 4.4 | Sync AD mapping `ad_info`→`area_id` | 🟡 | pendiente |
-| 8.1 | Filtros activos/inactivos/ausentes | 🟡 | pendiente |
-| 8.4 | REPORTES en Excel para elaboradores | 🟡 | pendiente |
+| 4.4 | Sync AD mapping `ad_info`→`area_id` | 🟡 | ✅ RESUELTO |
+| 8.1 | Filtros activos/inactivos/ausentes | 🟡 | ✅ RESUELTO |
+| 8.4 | REPORTES en Excel para elaboradores | 🟡 | ⛔ DEPRECADO |
 | 5.1 | Selector Estados con 4 opciones | 🟡 | pendiente |
 | 1.2 | Lista delegados corta | 🟡 | pendiente |
 | 7.1 | Matriz ETO dropdown delegado solo ETO | 🟡 | pendiente |
@@ -134,7 +134,7 @@ Reglas duras:
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | pendiente |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | pendiente |
 
-**Progreso**: 9/22 (40.9%).
+**Progreso**: 11/22 (50.0%).
 
 ---
 

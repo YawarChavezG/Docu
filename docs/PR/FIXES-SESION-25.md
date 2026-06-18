@@ -420,6 +420,8 @@ if not user["tiene_codigo_sap"]:
 
 ## Issue 4.4 — Sync AD no actualiza `area_id` aunque el department del AD cambie
 
+> ✅ **RESUELTO (sesión 33, 2026-06-18)** — Validado por el cliente. Sync AD (masivo + on-demand) actualiza `area_id` automáticamente vía `area_mapping.py` con match por nombre/sigla/palabra completa. 15/15 tests pytest PASS.
+
 **Página afectada:** Sync AD (masivo + on-demand)
 
 **Error reportado por el cliente:**
@@ -458,6 +460,8 @@ Aplicado en:
 
 ## Issue 8.1 — Faltan filtros por estado y ausente en Gestión de Usuarios
 
+> ✅ **RESUELTO (sesión 33, 2026-06-18)** — Validado por el cliente. Toolbar de Gestión de Usuarios ahora incluye filtros Estado (Activos/Inactivos) y Ausente (Sí/No). Backend: nuevo param `ausente: Optional[bool]`. Frontend: 2 nuevos selects + botón Limpiar extendido. Commit: `dc2efe0`.
+
 **Página afectada:** Parametrización → Gestión de Usuarios (toolbar)
 
 **Error reportado por el cliente:**
@@ -489,40 +493,18 @@ Aplicado en:
 
 ## Issue 8.4 — Módulo REPORTES no aparece en Excel para usuarios con rol Elaborador
 
-**Página afectada:** Export Excel de Gestión de Usuarios (botón "📊 Exportar a Excel")
+> ⛔ **DEPRECADO (sesión 33, 2026-06-18)** — El sistema de módulos por usuario fue reemplazado por permisos basados en rol. Ya no se asignan módulos individuales a usuarios; los módulos se determinan por el rol del usuario. El script `add_reportes_module.py` y la columna "Módulos" en el Excel quedan obsoletos. Mantener solo como referencia histórica.
+
+**Página afectada:** Export Excel de Gestión de Usuarios (botón "📊 Exportar a Excel") — **OBSOLETO**
 
 **Error reportado por el cliente:**
 > "En la información de cada usuario cuando se descarga el excel se puede ver una columna de modulos, a ese listado de modulos falta añadirle el módulo 'REPORTES' añadir eso a todos los roles excepto a los de rol VISUALIZADOR y a ADMIN. a ETO no le añadas porque ETO ya tiene 'TODOS' que involucraria REPORTES mas."
 
-**Root cause:** El módulo REPORTES existe en BD pero no se había asignado a usuarios con rol ELABORADOR. El cliente lo quería persistido (no calculado en runtime).
+**Root cause (histórica):** El módulo REPORTES existía en BD pero no se había asignado a usuarios con rol ELABORADOR. El cliente lo quería persistido (no calculado en runtime). **Esto ya no aplica** — los módulos se calculan por rol.
 
-**Fix aplicado:** Nuevo script `backend/scripts/add_reportes_module.py`:
-- Recorre usuarios activos
-- Asigna REPORTES si:
-  - Rol ∈ {ELABORADOR-REVISOR, ELABORADOR-REVISOR-APROBADOR}
-  - Rol ∉ {VISUALIZADOR, ADMIN}
-  - No tiene módulo TODOS
-  - No tiene ya REPORTES
-- Idempotente: ejecutar N veces no duplica
-- `--dry-run` para simular
+**Fix aplicado (histórico):** Script `backend/scripts/add_reportes_module.py` que asignaba REPORTES a 154 usuarios elaboradores.
 
-**Ejecución en sesión 25:**
-- 1ra corrida: 154 usuarios asignados
-- 2da corrida: 0 (idempotente)
-- Total en BD: 154 usuarios con módulo REPORTES
-
-**Cómo se ve ahora:**
-- Export Excel → columna "Modulos" muestra: "BANDEJA_TAREAS, MI_BANDEJA, REPORTES" (para elaboradores)
-- Para VISUALIZADOR: solo los básicos
-- Para ETO: "TODOS" (que ya incluye REPORTES via bypass)
-
-**Cómo probarlo con Chrome MCP:**
-1. Parametrización → tab Usuarios → Exportar Excel
-2. Abrir el .xlsx → buscar un usuario con rol ELABORADOR-REVISOR
-3. Verificar columna "Modulos" incluye "REPORTES"
-4. Verificar que usuarios VISUALIZADOR NO tienen REPORTES
-
-**Re-ejecutable:** `docker exec sgd-backend python -m scripts.add_reportes_module --dry-run --verbose`
+**Estado actual:** El control de acceso es por rol vía `auth.js:canAccess()`. No se requiere este script ni la columna "Módulos" en Excel.
 
 **Commit:** `7aa64c0 feat(backend): script add_reportes_module.py - asigna REPORTES a elaboradores (8.4)`
 
