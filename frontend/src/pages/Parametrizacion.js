@@ -2145,6 +2145,7 @@ export const page = {
         </select>
         <button @click="uqSearch='';uqRol='';uqFuente='';uqOnFilterChange()" class="btn btn-sm text-[11px]">Limpiar</button>
         <button @click="sincronizarDirectorio()" :disabled="loadingUsuarios"
+                x-show="$store.auth.role === 'admin'"
                 class="btn btn-sm text-[11px] btn-primary" x-text="loadingUsuarios ? 'Sincronizando...' : 'Sincronizar AD'"></button>
         <button @click="exportarUsuarios('xlsx')" class="btn btn-sm text-[11px]">📊 Exportar a Excel</button>
       </div>
@@ -2236,7 +2237,7 @@ export const page = {
             <tr x-show="!loadingUsuarios && usuarios.length === 0">
               <td colspan="8" class="text-center text-slate-400 py-8">
                 <div class="text-[12px] mb-2">No hay usuarios cargados.</div>
-                <button @click="sincronizarDirectorio()" class="btn btn-sm btn-primary text-[11px]">Sincronizar AD ahora</button>
+                <button @click="sincronizarDirectorio()" x-show="$store.auth.role === 'admin'" class="btn btn-sm btn-primary text-[11px]">Sincronizar AD ahora</button>
               </td>
             </tr>
             <tr x-show="loadingUsuarios">
