@@ -38,7 +38,9 @@ export const page = {
       tipoSolicitud: '',
       titulo: '',
       justificacion: '',
-      analistaEtoAsignado: '',  // id del ETO que recibira el documento (F1)
+      // Issue 11.1: el cliente decidio quitar el campo "Analista ETO asignado"
+      // del wizard paso 1. analistasEtoList se mantiene porque el paso 3
+      // incluye ETOs como posibles revisores/aprobadores.
 
       // ─── Limites de archivos (cargados de configuracion_global en init()) ───
       _limitesArchivos: { maxTamanoArchivoMb: 20, maxArchivosPorSolicitud: 20 },
@@ -94,6 +96,8 @@ export const page = {
             }))
           }
           // Cargar SOLO usuarios con rol ETO (Sesion 24 / F1)
+          // Se mantiene porque el paso 3 los usa como posibles
+          // revisores/aprobadores. Issue 11.1 removio el dropdown del paso 1.
           const etosRes = await usuariosApi.listPorRol('ETO')
           if (etosRes.ok) {
             this.analistasEtoList = (etosRes.data?.items || []).map(u => ({
@@ -102,11 +106,6 @@ export const page = {
               nombre_completo: u.nombre_completo,
               ausente: u.ausente,
             }))
-            // Pre-seleccionar el ETO del usuario actual si tiene rol ETO
-            const yo = (this.empleadosList || []).find(e => e.username === (window.Alpine?.store('auth')?.user?.username || ''))
-            if (yo && this.analistasEtoList.some(a => a.id === yo.id)) {
-              this.analistaEtoAsignado = yo.id
-            }
           }
           // F2: cargar usuarios con capacidad de revisar y aprobar
           // (revisor = ELABORADOR - REVISOR + ELABORADOR - REVISOR - APROBADOR + ETO)
@@ -179,10 +178,8 @@ export const page = {
         return this.tiposList.find(t => String(t.id) === String(this.tipodoc))
       },
 
-      get analistaEtoSeleccionadoAusente() {
-        const a = this.analistasEtoList.find(x => String(x.id) === String(this.analistaEtoAsignado))
-        return a ? !!a.ausente : false
-      },
+      // Issue 11.1: analistaEtoSeleccionadoAusente removido (ya no hay
+      // campo Analista ETO en paso 1).
 
       // Cuando cambian tipodoc + area + tipoSolicitud, recalcular codigo
       async _recalcularCodigo() {
@@ -291,11 +288,7 @@ export const page = {
             window.toast?.('Complete todos los campos obligatorios del paso 1', 'warn')
             return
           }
-          // F1: validar que haya un analista ETO asignado
-          if (!this.analistaEtoAsignado) {
-            window.toast?.('Seleccione un Analista ETO', 'warn')
-            return
-          }
+          // Issue 11.1: validacion de Analista ETO removida (campo ya no existe).
           // Validar tamano y cantidad de archivos contra configuracion_global (A3)
           if (this._limitesArchivos) {
             const maxMB = this._limitesArchivos.maxTamanoArchivoMb || 20
@@ -502,20 +495,8 @@ export const page = {
         <label class="form-label">Justificacion / motivo de la solicitud</label>
         <textarea class="form-input text-xs resize-y" rows="3" x-model="justificacion" placeholder="Describa el motivo de creacion o actualizacion del documento..."></textarea>
       </div>
-      <!-- Sesion 24 / F1: Analista ETO asignado (solo usuarios con rol ETO) -->
-      <div class="sm:col-span-2">
-        <label class="form-label">Analista ETO asignado *</label>
-        <select class="form-input text-xs" x-model="analistaEtoAsignado" :disabled="analistasEtoList.length===0">
-          <option value="">Seleccionar ETO...</option>
-          <template x-for="a in analistasEtoList" :key="a.id">
-            <option :value="a.id" x-text="a.nombre_completo + ' (@' + a.username + ')' + (a.ausente ? ' - En vacaciones' : '')"></option>
-          </template>
-        </select>
-        <div class="form-hint" x-show="analistasEtoList.length===0">Cargando ETOs...</div>
-        <div class="form-hint" x-show="analistaEtoSeleccionadoAusente && analistasEtoList.length>0" style="color:#d97706">
-          ⚠ El ETO seleccionado esta de vacaciones/licencia. Las tareas se reenrutaran a su delegado.
-        </div>
-      </div>
+      <!-- Issue 11.1: campo "Analista ETO asignado" removido del paso 1.
+           El cliente decidio que el solicitante no deberia ver esto. -->
     </div>
 
     <div class="pt-4 border-t border-slate-100">
