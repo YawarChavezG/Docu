@@ -587,7 +587,15 @@ def ldap_get_user_by_samaccountname(sam: str) -> Optional[dict]:
         _poblar_cn_desde_dn(attrs)
         user = _normalizar_usuario_ad(attrs)
         if not user["tiene_codigo_sap"]:
-            user["warning"] = "âš ï¸ Sin cÃ³digo SAP (postalCode vacÃ­o en AD)"
+            # Sesion 25 / Issue 4.2: usuario sin codigo SAP no se retorna.
+            # El sync_ad ya filtra por postalCode no vacio (linea 495-497).
+            # El login on-demand antes NO filtraba, lo que permitia crear
+            # usuarios en BD sin SAP. Ahora se alinea con sync_ad: retorna
+            # None para que el caller rechace con 401/403.
+            logger.warning(
+                f"ldap_get_user_by_samaccountname('{sam}'): sin postalCode, rechazado"
+            )
+            return None
         return user
     except LDAPException:
         logger.exception(f"LDAP get_user_by_samaccountname fallÃ³ para {sam}")
