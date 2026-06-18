@@ -1732,24 +1732,22 @@ export const page = {
         </div>
         <div class="overflow-x-auto -mx-3 px-3">
         <table class="data-table min-w-full">
-          <thead><tr><th>Tipo</th><th>Slug</th><th class="w-20">Cód. Doc</th><th class="w-20 text-right">Acciones</th></tr></thead>
+          <thead><tr><th>Tipo</th><th class="w-20">Cód. Doc</th><th class="w-20 text-right">Acciones</th></tr></thead>
           <tbody>
             <template x-for="t in tiposDocs" :key="t.id">
               <tr>
                 <template x-if="tipoEditing === t">
-                  <td colspan="3" class="py-1.5">
+                  <td colspan="2" class="py-1.5">
                     <div class="flex gap-1.5 flex-wrap">
                       <input type="text" x-model="t.tipo" class="form-input text-[11px] py-1 flex-1 min-w-[120px]" placeholder="Nombre del tipo">
-                      <input type="text" x-model="t.cod" class="form-input text-[11px] py-1 w-24 uppercase font-mono" placeholder="SLUG" maxlength="10">
+                      <!-- Issue 6.1: slug oculto en tabla pero sigue en el form de edicion -->
+                      <input type="hidden" x-model="t.cod">
                       <input type="number" x-model.number="t.codigo_int" min="1" max="99" class="form-input text-[11px] py-1 w-16" placeholder="#">
                     </div>
                   </td>
                 </template>
                 <template x-if="tipoEditing !== t">
                   <td class="font-medium" x-text="t.tipo"></td>
-                </template>
-                <template x-if="tipoEditing !== t">
-                  <td class="font-mono text-brand-600 font-bold" x-text="t.cod"></td>
                 </template>
                 <template x-if="tipoEditing !== t">
                   <td class="font-mono text-slate-500" x-text="t.codigo_int"></td>
