@@ -237,6 +237,7 @@ async def listar_usuarios(
     q: Optional[str] = Query(None),
     rol: Optional[str] = Query(None),
     estado: Optional[str] = Query(None),
+    ausente: Optional[bool] = Query(None, description="Filtrar por flag ausente (true=solo ausentes, false=solo presentes)"),
     fuente: Optional[str] = Query(None, description="'ad' o 'local'"),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=500),
@@ -268,6 +269,9 @@ async def listar_usuarios(
             base = base.where(Usuario.estado == estado_enum)
         except ValueError:
             pass
+    if ausente is not None:
+        # Issue 8.1: filtro por flag ausente (true/false)
+        base = base.where(Usuario.ausente == ausente)
     if fuente == "ad":
         base = base.where(Usuario.azure_oid.isnot(None))
     elif fuente == "local":
@@ -599,6 +603,7 @@ async def export_usuarios(
     q: Optional[str] = Query(None, description="Busca en username/nombre/email"),
     rol: Optional[str] = Query(None, description="Filtra por codigo de rol (ETO, ADMIN, etc.)"),
     estado: Optional[str] = Query(None, description="activo / inactivo / desvinculado / ausente"),
+    ausente: Optional[bool] = Query(None, description="Filtrar por flag ausente (true=solo ausentes, false=solo presentes)"),
     area_id: Optional[int] = Query(None, ge=1),
     gerencia_id: Optional[int] = Query(None, ge=1),
     db: AsyncSession = Depends(get_db),
@@ -633,6 +638,8 @@ async def export_usuarios(
             base = base.where(Usuario.estado == estado_enum)
         except ValueError:
             pass
+    if ausente is not None:
+        base = base.where(Usuario.ausente == ausente)
     if area_id is not None:
         base = base.where(Usuario.area_id == area_id)
     if gerencia_id is not None:

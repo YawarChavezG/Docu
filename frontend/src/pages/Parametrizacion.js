@@ -928,6 +928,7 @@ export const page = {
       uqSearch: '',
       uqRol: '',
       uqEst: '',
+      uqAusente: '',  // Issue 8.1: '', 'true', 'false'
       uqFuente: '',
       loadingUsuarios: false,
       lastSyncText: 'nunca',
@@ -993,6 +994,7 @@ export const page = {
             q: this.uqSearch,
             rol: this.uqRol,
             estado: this.uqEst,
+            ausente: this.uqAusente === '' ? undefined : (this.uqAusente === 'true'),
             fuente: this.uqFuente,
             page: this.uqPage,
             page_size: this.uqPageSize,
@@ -2143,7 +2145,18 @@ export const page = {
           <option value="ad">Del AD</option>
           <option value="local">Locales (test)</option>
         </select>
-        <button @click="uqSearch='';uqRol='';uqFuente='';uqOnFilterChange()" class="btn btn-sm text-[11px]">Limpiar</button>
+        <select class="form-input text-xs w-auto" x-model="uqEst" @change="uqOnFilterChange()">
+          <option value="">Todos los estados</option>
+          <option value="activo">Activos</option>
+          <option value="inactivo">Inactivos</option>
+          <option value="desvinculado">Desvinculados</option>
+        </select>
+        <select class="form-input text-xs w-auto" x-model="uqAusente" @change="uqOnFilterChange()">
+          <option value="">Todos (ausencia)</option>
+          <option value="true">Solo ausentes</option>
+          <option value="false">Solo presentes</option>
+        </select>
+        <button @click="uqSearch='';uqRol='';uqFuente='';uqEst='';uqAusente='';uqOnFilterChange()" class="btn btn-sm text-[11px]">Limpiar</button>
         <button @click="sincronizarDirectorio()" :disabled="loadingUsuarios"
                 x-show="$store.auth.role === 'admin'"
                 class="btn btn-sm text-[11px] btn-primary" x-text="loadingUsuarios ? 'Sincronizando...' : 'Sincronizar AD'"></button>
