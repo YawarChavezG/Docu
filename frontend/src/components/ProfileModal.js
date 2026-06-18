@@ -63,7 +63,7 @@ export function initProfileModal() {
           this.cargo = u.cargo || 'Sin cargo'
           this.area = (u.gerencia_sigla && u.area_sigla)
             ? `${u.gerencia_sigla} / ${u.area_sigla}`
-            : (u.gerencia_sigla || u.area_sigla || 'Sin área')
+            : (u.gerencia_sigla || u.area_sigla || u.ad_department || u.ad_info || 'Sin área')
           this.estado = u.estado || ''
           this.ausente = !!u.ausente
           this.rolPrincipal = (u.roles && u.roles[0]) || ''
