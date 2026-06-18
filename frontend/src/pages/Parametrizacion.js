@@ -1799,12 +1799,19 @@ export const page = {
                 <td class="py-1.5">
                   <template x-if="estadoEditing === e">
                     <select x-model="e.ctx" class="form-input text-[11px] py-1 w-auto">
-                      <option value="Tarea">Tarea</option>
-                      <option value="Proceso">Proceso</option>
+                      <option value="PROCESO">Proceso</option>
+                      <option value="TAREA">Tarea</option>
+                      <option value="ACCION">Accion</option>
+                      <option value="AMBOS">Ambos</option>
                     </select>
                   </template>
                   <template x-if="estadoEditing !== e">
-                    <span :class="e.ctx==='Tarea' ? 'badge badge-blue' : 'badge badge-green'" x-text="e.ctx"></span>
+                    <span :class="{
+                        'badge badge-blue': e.ctx==='TAREA',
+                        'badge badge-green': e.ctx==='PROCESO',
+                        'badge badge-purple': e.ctx==='ACCION',
+                        'badge badge-gray': e.ctx==='AMBOS'
+                      }" x-text="e.ctx"></span>
                   </template>
                 </td>
                 <td class="text-right">
