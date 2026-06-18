@@ -2181,7 +2181,7 @@ export const page = {
             <tr>
               <th>Colaborador</th>
               <th class="w-32">Rol</th>
-              <th>Área / Gerencia</th>
+              <th>Área</th>
               <th class="w-36">Delegado</th>
               <th class="w-28">Cód. SAP</th>
               <th class="w-20">Estado</th>

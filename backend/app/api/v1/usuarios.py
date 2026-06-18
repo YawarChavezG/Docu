@@ -708,7 +708,7 @@ async def export_usuarios(
 
     headers = [
         "ID", "Username", "Nombre Completo", "Inic.", "Email", "Cargo",
-        "Gerencia / Area",  # unificado: formato "GNS / AREA"
+        "Area",  # Issue 8.3: cliente pidio 'Area' (no 'Gerencia / Area')
         "Estado", "Ausente",
         "Delegacion", "Delegado", "Roles", "Modulos", "Cód. SAP", "Ultimo Sync AD",
     ]
