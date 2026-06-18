@@ -90,20 +90,14 @@ export const page = {
     </div>
   </div>
 
-  <!-- IA -->
-  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:12px 14px;margin-bottom:20px">
-    <div style="font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px">✦ IA — Recomendación</div>
-    <div style="font-size:11.5px;color:#1e3a8a;line-height:1.5">Para documentos de tipo <strong>Procedimiento (SOP)</strong>, utilice la plantilla v3 actualizada con la estructura BPM-2024. Recuerde activar el <em>Control de Cambios</em> en Word antes de editar.</div>
-  </div>
-
   <!-- Loading -->
   <div x-show="loading" style="text-align:center;padding:60px;color:#94a3b8">
     <div style="width:24px;height:24px;border:3px solid #cbd5e1;border-top-color:#1a5fb4;border-radius:50%;margin:0 auto 8px;animation:spin 0.8s linear infinite"></div>
     <div style="font-size:11.5px">Cargando plantillas...</div>
   </div>
 
-  <!-- Cards de plantillas -->
-  <div x-show="!loading" style="display:grid;grid-template-columns:repeat(2,1fr);gap:14px" class="lg:grid-cols-3">
+  <!-- Cards de plantillas - Issue 9.1: vista tienda responsive (1/2/3/4 cols segun screen) -->
+  <div x-show="!loading" style="display:grid;grid-template-columns:1fr;gap:14px" class="sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
     <template x-for="p in filtered" :key="p.nombre_archivo">
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all 200ms"
            @mouseenter="$el.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';$el.style.transform='translateY(-2px)'"
