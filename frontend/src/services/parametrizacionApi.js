@@ -140,7 +140,7 @@ export const usuarios = {
     return apiDownload(`/usuarios/export?${params.toString()}`)
   },
   // Listar usuarios activos para el picker de delegado (modal editar)
-  listActivos: (q = '') => apiGet(`/usuarios?estado=activo&page_size=200&q=${encodeURIComponent(q)}`),
+  listActivos: (q = '') => apiGet(`/usuarios?estado=activo&page_size=500&q=${encodeURIComponent(q)}`),
   // Listar usuarios activos que tienen un rol especifico (Sesion 24 / F1)
   // Usado por dropdowns que requieren solo usuarios de un rol (ej: analistas ETO).
   // Ej: listPorRol('ETO') -> todos los usuarios con rol ETO
@@ -182,6 +182,7 @@ export const usuarios = {
         }
       }
     }
+    items.sort((a, b) => (a.nombre_completo || '').localeCompare(b.nombre_completo || '', 'es'))
     return { ok: true, data: { items, total: items.length } }
   },
 }

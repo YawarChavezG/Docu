@@ -248,8 +248,7 @@ export function initProfileModal() {
 
     get usuariosFiltrados() {
       const q = (this.inputDelegado || '').toLowerCase().trim()
-      const maxInicial = 100
-      if (!q) return this.usuariosActivos.slice(0, maxInicial)
+      if (!q) return this.usuariosActivos
       const tokens = q.split(/\s+/).filter(Boolean)
       return this.usuariosActivos.filter(u => {
         const haystack = [
@@ -260,7 +259,7 @@ export function initProfileModal() {
           u.cargo || '',
         ].join(' ').toLowerCase()
         return tokens.every(t => haystack.includes(t))
-      }).slice(0, maxInicial)
+      })
     },
 
     seleccionarDelegado(u) {
@@ -455,19 +454,18 @@ export const ProfileModalTemplate = /* html */`
             </div>
 
             <!-- Buscador -->
-            <div class="relative mb-3">
+            <div class="relative mb-3" @click.outside="mostrarListaDelegado=false">
               <input type="text"
                      class="form-input text-xs"
                      placeholder="Buscar delegado por nombre, usuario o SAP..."
                      x-model="inputDelegado"
                      @input="mostrarListaDelegado=true"
-                     @focus="mostrarListaDelegado=true"
-                     @click.outside="mostrarListaDelegado=false">
+                     @focus="mostrarListaDelegado=true">
               <div x-show="mostrarListaDelegado && usuariosFiltrados.length > 0"
                    x-transition:enter="transition ease-out duration-100"
                    x-transition:enter-start="opacity-0 -translate-y-1"
                    x-transition:enter-end="opacity-100 translate-y-0"
-                   class="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[200px] overflow-y-auto"
+                   class="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[320px] overflow-y-auto"
                    style="display:none"
                    :style="(mostrarListaDelegado && usuariosFiltrados.length > 0) ? 'display:block' : 'display:none'">
                 <template x-for="u in usuariosFiltrados" :key="u.id">

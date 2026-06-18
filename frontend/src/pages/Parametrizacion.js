@@ -1346,9 +1346,12 @@ export const page = {
         // Guardar el rol original para setearlo despues de cargar las options
         const rolOriginal = (u.roles && u.roles.length > 0) ? u.roles[0] : ''
         try {
-          const [resRoles, resActivos] = await Promise.all([
+          const [resRoles, resDelegables] = await Promise.all([
             roles.list(),
-            usuarios.listActivos(),
+            usuarios.listPorCualquierRol(
+              ['ELABORADOR - REVISOR', 'ELABORADOR - REVISOR - APROBADOR', 'ETO'],
+              '',
+            ).catch(() => usuarios.listActivos()),
           ])
           if (resRoles.ok) {
             this.editModalRoles = resRoles.data.items || []
@@ -1363,9 +1366,9 @@ export const page = {
             window.toast('Error cargando roles', 'error')
             this.editModalRoles = []
           }
-          if (resActivos.ok) {
-            // Excluir al propio usuario del listado de posibles delegados
-            this.editModalUsuariosActivos = (resActivos.data.items || []).filter(x => x.id !== u.id)
+          if (resDelegables.ok && resDelegables.data?.items) {
+            // Solos usuarios con roles delegables (ETO, Revisor, Aprobador)
+            this.editModalUsuariosActivos = (resDelegables.data.items || []).filter(x => x.id !== u.id)
           } else {
             window.toast('Error cargando usuarios activos', 'error')
             this.editModalUsuariosActivos = []
@@ -1397,7 +1400,7 @@ export const page = {
       get editModalDelegadosFiltrados() {
         // Filtro fuzzy sobre usuarios activos: nombre, username, codigo SAP, email
         const q = (this.editModalDelegadoSearch || '').toLowerCase().trim()
-        if (!q) return this.editModalUsuariosActivos.slice(0, 50)
+        if (!q) return this.editModalUsuariosActivos
         const tokens = q.split(/\s+/).filter(Boolean)
         return this.editModalUsuariosActivos.filter(u => {
           const haystack = [
@@ -1408,7 +1411,7 @@ export const page = {
             u.cargo || '',
           ].join(' ').toLowerCase()
           return tokens.every(t => haystack.includes(t))
-        }).slice(0, 50)
+        })
       },
 
       seleccionarDelegado(u) {
@@ -2484,14 +2487,13 @@ export const page = {
 
             <!-- Buscador de delegado -->
             <div x-show="!editForm.delegado_nombre || editModalShowDelegadoList"
-                 class="relative">
+                 class="relative" @click.outside="editModalShowDelegadoList=false">
               <input type="text"
                      class="form-input text-xs"
                      placeholder="Buscar por nombre, usuario, código SAP, email..."
                      x-model="editModalDelegadoSearch"
                      @input="editModalShowDelegadoList=true"
-                     @focus="editModalShowDelegadoList=true"
-                     @click.outside="editModalShowDelegadoList=false">
+                     @focus="editModalShowDelegadoList=true">
               <div class="form-hint">
                 <span x-text="editModalUsuariosActivos.length"></span> usuarios activos disponibles.
               </div>
@@ -2501,7 +2503,7 @@ export const page = {
                    x-transition:enter="transition ease-out duration-100"
                    x-transition:enter-start="opacity-0 -translate-y-1"
                    x-transition:enter-end="opacity-100 translate-y-0"
-                   class="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[240px] overflow-y-auto"
+                   class="absolute z-10 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[320px] overflow-y-auto"
                    style="display:none"
                    :style="(editModalShowDelegadoList && editModalDelegadosFiltrados.length > 0) ? 'display:block' : 'display:none'">
                 <template x-for="u in editModalDelegadosFiltrados" :key="u.id">
