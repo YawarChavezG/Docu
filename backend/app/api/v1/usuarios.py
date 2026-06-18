@@ -296,12 +296,20 @@ async def listar_usuarios(
     activos_all = (await db.execute(
         select(func.count()).where(Usuario.estado == EstadoUsuario.ACTIVO)
     )).scalar_one()
+    inactivos_all = (await db.execute(
+        select(func.count()).where(Usuario.estado == EstadoUsuario.INACTIVO)
+    )).scalar_one()
+    desvinculados_all = (await db.execute(
+        select(func.count()).where(Usuario.estado == EstadoUsuario.DESVINCULADO)
+    )).scalar_one()
     ausentes_all = (await db.execute(
         select(func.count()).where(Usuario.ausente == True)
     )).scalar_one()
     kpis = {
         "total": total_all,
         "activos": activos_all,
+        "inactivos": inactivos_all,        # Issue 8.5
+        "desvinculados": desvinculados_all,  # Issue 8.5
         "ausentes": ausentes_all,
     }
 

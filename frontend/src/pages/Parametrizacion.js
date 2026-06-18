@@ -932,7 +932,7 @@ export const page = {
       uqFuente: '',
       loadingUsuarios: false,
       lastSyncText: 'nunca',
-      kpisUsuarios: { total: 0, activos: 0, ausentes: 0 },
+      kpisUsuarios: { total: 0, activos: 0, inactivos: 0, desvinculados: 0, ausentes: 0 },
 
       // ─── Modal Editar Usuario (Sesion 9) ───
       editModalOpen: false,
@@ -2113,8 +2113,8 @@ export const page = {
        TAB: GESTIÓN DE USUARIOS
   ═══════════════════════════════════════════════════════════ -->
   <div x-show="tab==='usuarios'" x-cloak x-init="watchTabUsuarios('usuarios')">
-    <!-- KPIs -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-3.5">
+    <!-- KPIs (Issue 8.5: anadidos inactivos + desvinculados) -->
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mb-3.5">
       <div class="metric-card text-center">
         <div class="metric-value text-slate-800" x-text="kpisUsuarios.total || 0"></div>
         <div class="metric-label">Usuarios Totales</div>
@@ -2122,6 +2122,14 @@ export const page = {
       <div class="metric-card border-emerald-200 text-center">
         <div class="metric-value text-emerald-600" x-text="kpisUsuarios.activos || 0"></div>
         <div class="metric-label text-emerald-600">Activos</div>
+      </div>
+      <div class="metric-card border-slate-300 text-center">
+        <div class="metric-value text-slate-500" x-text="kpisUsuarios.inactivos || 0"></div>
+        <div class="metric-label text-slate-500">Inactivos</div>
+      </div>
+      <div class="metric-card border-red-200 text-center">
+        <div class="metric-value text-red-600" x-text="kpisUsuarios.desvinculados || 0"></div>
+        <div class="metric-label text-red-600">Desvinculados</div>
       </div>
       <div class="metric-card border-amber-200 text-center">
         <div class="metric-value text-amber-600" x-text="kpisUsuarios.ausentes || 0"></div>
