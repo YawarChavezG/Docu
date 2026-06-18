@@ -35,7 +35,7 @@ from app.core.database import get_db
 from app.core.audit import write_audit
 from app.core.config import settings
 from app.core.excel_export import build_csv, build_excel
-from app.core.permissions import require_eto_or_admin
+from app.core.permissions import require_eto_or_admin, require_eto_admin_o_rol_delegable, require_authenticated
 from app.models.usuario import Usuario, EstadoUsuario, EstadoDelegacion
 from app.models.rol import Rol, CodigoRol
 from app.models.area import Area
@@ -243,9 +243,10 @@ async def listar_usuarios(
     page_size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista usuarios de la BD con paginacion y filtros. ETO o ADMIN.
-    (antes solo ADMIN, pero la UI de Parametrizacion la consume para ETOs)."""
-    await require_eto_or_admin(request, db)
+    """Lista usuarios de la BD con paginacion y filtros.
+    Accesible para ETO, ADMIN, y roles con requiere_delegado=True
+    (ej: ELABORADOR - REVISOR necesitan elegir delegado en Mi Perfil)."""
+    await require_eto_admin_o_rol_delegable(request, db)
 
     # Query base
     base = select(Usuario).options(
@@ -805,7 +806,22 @@ async def update_usuario_override(
       - Suspender: {estado: "inactivo", observaciones: "Suspendido por X"}
       - Reactivar: {estado: "activo", ausente: false}
     """
-    user_admin = await require_eto_or_admin(request, db)
+    # ETO/ADMIN pueden editar cualquier usuario.
+    # Usuarios con rol requiere_delegado=True pueden editar SOLO su propio
+    # delegado_id (para elegir delegado en Mi Perfil).
+    user_actor = await require_authenticated(request, db)
+    puede_admin = any(
+        r.codigo in (CodigoRol.ETO, CodigoRol.ADMIN) for r in user_actor.roles
+    )
+    puede_self_delegado = any(
+        r.requiere_delegado for r in user_actor.roles
+    ) and user_actor.id == user_id
+    if not (puede_admin or puede_self_delegado):
+        codes = ", ".join(r.codigo for r in user_actor.roles) or "ninguno"
+        raise HTTPException(
+            status_code=403,
+            detail=f"Esta operacion requiere rol ETO o ADMIN (tu rol: {codes})",
+        )
 
     target = (await db.execute(
         select(Usuario).where(Usuario.id == user_id)
@@ -909,7 +925,7 @@ async def update_usuario_override(
     }
 
     await write_audit(
-        db, request, user_admin,
+        db, request, user_actor,
         accion="OVERRIDE", recurso="usuario", recurso_id=target.id,
         descripcion=f"Override administrativo sobre {target.username} (campos: {list(data.keys())})",
         detalles={"antes": antes, "despues": despues, "campos": list(data.keys()), "observaciones": observaciones},
@@ -917,6 +933,6 @@ async def update_usuario_override(
     await db.commit()
     logger.info(
         f"Override de usuario {target.username} (id={target.id}) "
-        f"por {user_admin.username} (campos={list(data.keys())})"
+        f"por {user_actor.username} (campos={list(data.keys())})"
     )
     return _to_out(target)

@@ -547,6 +547,16 @@ Aplicado en:
 
 ## Issue 1.2 — Lista de delegados en Mi Perfil corta (solo hasta "D")
 
+> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado end-to-end con Chrome MCP. 3 fixes aplicados:
+> 1. **Backend `permissions.py`**: Nueva función `require_eto_admin_o_rol_delegable` que permite acceso a `GET /usuarios` para roles con `requiere_delegado=True` (Elaborador-Revisor, etc.) — antes daba 403.
+> 2. **Backend `usuarios.py`**: PATCH `/usuarios/{id}` ahora permite que un usuario con `requiere_delegado=True` actualice su propio `delegado_id` — antes daba 403.
+> 3. **Frontend `ProfileModal.js`**: `usuariosFiltrados` incrementado de `slice(0,30)` a `slice(0,100)` para mostrar más de 30 usuarios iniciales.
+> 4. **Frontend `parametrizacionApi.js`**: `listPorCualquierRol` page_size subido de 200 a 500.
+>
+> Validación visual: eto_test ve 100 usuarios (A→M, no truncado en C). elaborador_revisor ahora ve el dropdown completo (antes invisible por 403). Persistencia F5: delegado_id=1 (aromero) permanece. BD: estado_delegacion='asignado'. Tests: 115/116 PASS.
+>
+> Próximo fix: **7.1** (Matriz ETO dropdown delegado solo ETO).
+
 **Página afectada:** Perfil → Mi Perfil → Sección Delegación → Dropdown "Seleccionar delegado"
 
 **Error reportado por el cliente:**

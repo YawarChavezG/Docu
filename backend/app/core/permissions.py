@@ -121,3 +121,25 @@ async def require_admin(request: Request, db: AsyncSession) -> Usuario:
             detail=f"Esta operacion requiere rol ADMIN (tu rol: {codes})",
         )
     return user
+
+
+async def require_eto_admin_o_rol_delegable(request: Request, db: AsyncSession) -> Usuario:
+    """
+    Similar a require_eto_or_admin, pero tambien permite usuarios cuyo rol
+    tenga requiere_delegado=True (ej: ELABORADOR - REVISOR).
+    Necesario para que Elaboradores/Revisores puedan elegir delegado en Mi Perfil.
+    """
+    user = await require_authenticated(request, db)
+    if _user_has_any_role(user, [CodigoRol.ETO, CodigoRol.ADMIN]):
+        return user
+    for r in user.roles:
+        if r.requiere_delegado:
+            return user
+    codes = ", ".join(r.codigo for r in user.roles) or "ninguno"
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail=(
+            f"Esta operacion requiere rol ETO, ADMIN o un rol que requiera delegado "
+            f"(tu rol: {codes})"
+        ),
+    )

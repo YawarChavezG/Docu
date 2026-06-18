@@ -248,7 +248,8 @@ export function initProfileModal() {
 
     get usuariosFiltrados() {
       const q = (this.inputDelegado || '').toLowerCase().trim()
-      if (!q) return this.usuariosActivos.slice(0, 30)
+      const maxInicial = 100
+      if (!q) return this.usuariosActivos.slice(0, maxInicial)
       const tokens = q.split(/\s+/).filter(Boolean)
       return this.usuariosActivos.filter(u => {
         const haystack = [
@@ -259,7 +260,7 @@ export function initProfileModal() {
           u.cargo || '',
         ].join(' ').toLowerCase()
         return tokens.every(t => haystack.includes(t))
-      }).slice(0, 30)
+      }).slice(0, maxInicial)
     },
 
     seleccionarDelegado(u) {
