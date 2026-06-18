@@ -593,3 +593,38 @@ Las 2 backticks (\\) cerraban prematuramente la template string de JS, producien
 - (+) /parametrizacion carga sin error.
 - (+) Patron de defensa aplicable: en template strings JS usar comillas simples para texto embebido.
 - (-) Hay 2667 lineas en Parametrizacion.js que pueden tener backticks similares. Busqueda exhaustiva confirma que no hay mas.
+
+---
+
+## ADR-065: pg_dump -Fc + pg_restore --clean como mecanismo de "clean state" (2026-06-18, sesion 28)
+
+**Contexto:** El usuario necesitaba un mecanismo para volver la BD a un estado conocido ("limpio") tras hacer pruebas destructivas de CRUDs. Las opciones evaluadas:
+- (a) `TRUNCATE` de las tablas mutables — pero el usuario quiere preservar tablas como `documentos`, `documento_flujo`, etc. que son "datos BIEN" y solo limpia `audit_log`.
+- (b) Función PL/pgSQL que deshaga cambios — imposible sin un log de operaciones a invertir.
+- (c) **Backup físico + restore** — el más simple y robusto.
+
+**Decision:** Usar `pg_dump -Fc` (formato custom comprimido) para snapshotear el estado limpio, y `pg_restore --clean --if-exists --single-transaction` para restaurar.
+
+**Mecanismo:**
+1. `TRUNCATE audit_log RESTART IDENTITY` → estado limpio.
+2. `pg_dump -U sgd -d sgd -Fc --no-owner --no-acl -f /tmp/clean.dump` desde el container `sgd-postgres`.
+3. `docker cp` al host → `backups/clean_state_20260618/clean_state.dump` (134 KB).
+4. Script `scripts/restore_clean_state.bat` que:
+   - Lee credenciales del `.env` (POSTGRES_USER, POSTGRES_PASSWORD, HOST_PORT_POSTGRES, POSTGRES_DB).
+   - `docker stop` de `sgd-backend`, `sgd-celery-worker`, `sgd-celery-beat` (libera conexiones a la BD).
+   - `docker cp` del dump al container.
+   - `pg_restore --clean --if-exists --single-transaction --no-owner --no-acl`.
+   - `docker start` de los 3 servicios detenidos.
+   - Imprime verificacion con `verify_clean_state()`.
+5. Funcion SQL `verify_clean_state()` que retorna conteo de filas por tabla (15 tablas).
+6. Script `backups/clean_state_20260618/tests_ensuciar.sql` (NO se commitea al dump; solo de test).
+
+**Consecuencia:**
+- (+) Restore atomico: `--single-transaction` garantiza que o se restaura TODO o NADA.
+- (+) Velocidad: ~30 segundos para restaurar 134 KB de dump.
+- (+) Idempotencia: el dump contiene el schema completo + datos, se puede aplicar N veces.
+- (+) Verificacion: `verify_clean_state()` permite saber si la BD esta sucia o limpia sin restaurar.
+- (+) Test end-to-end validado en sesion 28: ensuciar → restore → verificar rollback (audit_log 0→2→0, gerencia "CONTAMINADA"→"CALIDAD").
+- (-) Downtime obligatorio: hay que detener el backend mientras se restaura (porque tiene conexiones activas a la BD).
+- (-) El dump es puntual: si la BD se desvía del snapshot (por cambios intencionales del usuario), hay que regenerarlo.
+- (-) Solo funciona en el mismo PostgreSQL major version (16) y misma plataforma.

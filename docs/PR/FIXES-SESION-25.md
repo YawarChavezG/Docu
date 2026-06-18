@@ -40,6 +40,10 @@
 
 ## Issue 1.1 — Ausencia con motivo distinto a "vacaciones" NO marca `usuario.ausente=true` [NO-BUG]
 
+> ✅ **RESUELTO (sesión 28, 2026-06-18)** — Validado end-to-end con 5 escenarios (crear/actualizar/refresh/cancelar/refresh post-cancelar) sobre `eto_test` (id=18), motivo `capacitacion`. BD, audit_log, persistencia y 7/7 tests pytest OK. **No requiere fix de código** (comportamiento correcto, el cliente probó con fechas futuras).
+> Próximo fix: **4.3** (ychavez sin Área en Mi Perfil).
+> Ver detalles completos en `docs/PR/ORQUESTADOR-FIXES-25.md`.
+
 **Página afectada:** Perfil → Ausencias (cualquiera que tenga rol que requiera gestión de ausencias)
 
 **Error reportado por el cliente:**

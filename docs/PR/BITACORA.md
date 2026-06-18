@@ -1,35 +1,35 @@
-# BITÁCORA — Sesión de trabajo SGD
+# BITACORA â€” Sesion de trabajo SGD
 
-> **Bitácora cronológica de las sesiones de trabajo en el proyecto COFAR SGD.**
-> **Última actualización:** 2026-06-18 (sesión 27).
-> Para que cuando la ventana de contexto se llene, una nueva sesión pueda leer este archivo y retomar.
+> **Bitacora cronologica de las sesiones de trabajo en el proyecto COFAR SGD.**
+> **Ultima actualizacion:** 2026-06-18 (sesion 28).
+> Para que cuando la ventana de contexto se llene, una nueva sesion pueda leer este archivo y retomar.
 
 ---
 
 ## Resumen ejecutivo (sesiones 1-22)
 
-> **Síntesis de las 22 sesiones iniciales. Para el detalle, ver `SESION-HISTORIAL-R1.md` (2925 lineas, archivado) o las entradas individuales de sesiones 23-27 que siguen a continuación.**
+> **Sï¿½ntesis de las 22 sesiones iniciales. Para el detalle, ver `SESION-HISTORIAL-R1.md` (2925 lineas, archivado) o las entradas individuales de sesiones 23-27 que siguen a continuaciï¿½n.**
 
-### Fases del proyecto (cronológicas)
+### Fases del proyecto (cronolï¿½gicas)
 
 | Fase | Sesiones | Alcance |
 |---|---|---|
 | **Bootstrap** | 1-4 (2026-06-14) | Validar entorno, crear monorepo, Docker stack, backend inicial, models, scripts seed, descubrir discrepancias en ESTADO.md. |
-| **R1 + EPICA 9 backend** | 5 (2026-06-15) | 10 tareas backend: apiFetch frontend, seeds organización, CRUDs (gerencias, areas, configuracion-global, feriados, email-templates, matriz-eto, tipos-doc, estados). Alembic inicial 10 migraciones. |
-| **R1 UI + tests + bulk** | 6-8 (2026-06-16) | Refactor Parametrizacion.js con apiFetch, audit log, ops jerárquicas areas, override vacaciones, export XLSX/CSV, import matriz abril 716 usuarios. 123 tests pytest. |
+| **R1 + EPICA 9 backend** | 5 (2026-06-15) | 10 tareas backend: apiFetch frontend, seeds organizaciï¿½n, CRUDs (gerencias, areas, configuracion-global, feriados, email-templates, matriz-eto, tipos-doc, estados). Alembic inicial 10 migraciones. |
+| **R1 UI + tests + bulk** | 6-8 (2026-06-16) | Refactor Parametrizacion.js con apiFetch, audit log, ops jerï¿½rquicas areas, override vacaciones, export XLSX/CSV, import matriz abril 716 usuarios. 123 tests pytest. |
 | **Editar Usuario + Mi Perfil** | 9 (2026-06-16) | PATCH /usuarios con rol/delgado, modal Editar Usuario centrado, Mi Perfil desde BD, export AREA poblada. |
 | **QAS deploy** | 10-11 (2026-06-16) | Stack backup paralelo (puertos 8081), deploy QAS en `sgdqas.cofar.com.bo` con cert autofirmado, automation 1-click `start-stack-qas.sh`. |
 | **CRUD Parametrizacion** | 12-16 (2026-06-17) | Restaurar CRUD Parametrizacion (mock duplicado), Tiptap editor para plantillas, refresh bug #15, refresh fix, Matriz ETO + Previsualizar + Impersonate. |
 | **R2 FASE 1** | 21 (2026-06-17) | Modelos SQLAlchemy de documentos, correlativo con `pg_try_advisory_xact_lock`, 4 endpoints lectura, seed 10 docs, 33 tests. |
-| **R2 FASE 2** | 22 (2026-06-17) | Storage service (LocalStorage + SharePointStorage stub), POST/PATCH /documentos, firma 2FA atómica, 4 endpoints /bandeja, refactor AprobacionDocumento.js + VersionEditable.js, 31 tests. **R2 al 100%**. |
+| **R2 FASE 2** | 22 (2026-06-17) | Storage service (LocalStorage + SharePointStorage stub), POST/PATCH /documentos, firma 2FA atï¿½mica, 4 endpoints /bandeja, refactor AprobacionDocumento.js + VersionEditable.js, 31 tests. **R2 al 100%**. |
 
-### Decisiones arquitectónicas clave (ADRs principales)
+### Decisiones arquitectï¿½nicas clave (ADRs principales)
 
 - **Stack**: FastAPI 0.137 + PostgreSQL 16 + Alpine.js 3.15 + Docker Compose (ADR-001, 003)
 - **Auth**: stub local en DES, LDAP real en QAS (ADR-004)
-- **ACceso frontend**: roles hardcodeados en `auth.js:canAccess()` (sesión 26 eliminó `usuario_modulos` que era código muerto, ADR-059)
-- **BD**: 22 tablas, 22 migraciones Alembic aplicadas, FKs bien diseñadas, 763 usuarios sincronizados
-- **Wizard R2**: 3 pasos, firma 2FA atómica (no persiste si pass incorrecta), correlativo monotono via `SELECT FOR UPDATE` + advisory lock
+- **ACceso frontend**: roles hardcodeados en `auth.js:canAccess()` (sesiï¿½n 26 eliminï¿½ `usuario_modulos` que era cï¿½digo muerto, ADR-059)
+- **BD**: 22 tablas, 22 migraciones Alembic aplicadas, FKs bien diseï¿½adas, 763 usuarios sincronizados
+- **Wizard R2**: 3 pasos, firma 2FA atï¿½mica (no persiste si pass incorrecta), correlativo monotono via `SELECT FOR UPDATE` + advisory lock
 - **QAS**: stack completo en Docker, cert autofirmado, 1-click deploy, `v1.0.0-qas` tag
 
 ### Hallazgos persistentes (debt)
@@ -37,9 +37,9 @@
 - #13 Deuda delegado: 139 usuarios sin delegado (B9)
 - #14 Cargos a areas: seed POSICION ? area_id (B10)
 - 3 pages R2 sin refactor: Bandeja.js, LiberacionDetalle.js, ListaMaestra.js
-- 3 scripts de seed ROTOS: importan `usuario_modulos` eliminado sesión 26 (B7, P0)
+- 3 scripts de seed ROTOS: importan `usuario_modulos` eliminado sesiï¿½n 26 (B7, P0)
 
-### Métricas al cierre de sesión 22
+### Mï¿½tricas al cierre de sesiï¿½n 22
 
 - **R1 + EPICA9 + QAS + R2**: 100% cerrados
 - **R3-R6**: 0% (backlog)
@@ -47,6 +47,50 @@
 - **Migraciones**: 14 aplicadas
 - **Endpoints**: 58+
 - **Comandos utiles**: `scripts\start-stack-des.bat`, `scripts\deploy-qas.bat`, `bash /opt/sgd/scripts/start-stack-qas.sh`
+
+---
+
+## SesiÃ³n 28 â€” 2026-06-18 (jueves PM) â€” Clean state backup + restore end-to-end
+
+### Resumen ejecutivo
+Sesion dedicada a crear el mecanismo de "clean state" para que el usuario pueda hacer pruebas destructivas de CRUDs y volver a un estado conocido y validado. **Total: 1 backup fisico (134 KB), 1 funcion PL/pgSQL, 1 script .bat, 1 README, 1 ADR (065), 1 ciclo de validacion end-to-end ejecutado con exito**.
+
+### Tareas ejecutadas (en orden)
+
+| # | Tarea | Archivo | Resultado |
+|---|---|---|---|
+| 1 | Truncar `audit_log` para tener estado limpio | docker exec psql | `TRUNCATE TABLE audit_log RESTART IDENTITY` â†’ 0 filas |
+| 2 | `pg_dump -Fc` del estado limpio | `backups/clean_state_20260618/clean_state.dump` | 134 KB, formato custom comprimido |
+| 3 | Funcion SQL `verify_clean_state()` | `backups/clean_state_20260618/verify_clean_state.sql` | PL/pgSQL, retorna conteo por 15 tablas |
+| 4 | Script Windows `restore_clean_state.bat` | `scripts/restore_clean_state.bat` | Lee .env, stop backend, pg_restore --clean, start backend |
+| 5 | Script de suciedad para validar | `backups/clean_state_20260618/tests_ensuciar.sql` | UPDATE gerencia + INSERT 2 audit_log |
+| 6 | Validacion end-to-end | ejecucion real | audit_log 0â†’2â†’0, gerencia "CONTAMINADA"â†’"CALIDAD" âœ… |
+| 7 | README con instrucciones | `backups/clean_state_20260618/README.md` | Como restaurar, como verificar, flujo de uso |
+| 8 | ADR-065 | `docs/PR/DECISIONES.md` | Documenta decision: pg_dump -Fc + pg_restore --clean |
+
+### Logros tecnicos
+1. **Restore atomico en ~30 segundos** (incluye stop/start de 3 servicios).
+2. **Verificacion sin restaurar**: `verify_clean_state()` retorna el conteo actual de las 15 tablas mutables.
+3. **Mecanismo reutilizable**: el mismo script sirve para volver al estado limpio en cualquier momento.
+4. **Validado end-to-end**: ensuciar â†’ restore â†’ verificar rollback (ciclo completo).
+
+### Decisiones tecnicas
+- **ADR-065**: `pg_dump -Fc` + `pg_restore --clean --if-exists --single-transaction` como mecanismo de "clean state". Rationale: (a) no requiere log de operaciones a invertir, (b) atomicidad con `--single-transaction`, (c) velocidad ~30s para 134 KB.
+- **Restore requiere downtime**: el backend debe detenerse porque tiene conexiones activas a la BD. Aceptable para DES (no PRD).
+- **Verificacion post-restore automatica**: el script imprime los conteos de las 4 tablas mas criticas (audit_log, gerencias, usuarios, documentos) al terminar.
+
+### Estado al cierre de sesion 28
+- BD en estado limpio (audit_log=0, conteos coinciden con snapshot).
+- 4 archivos en `backups/clean_state_20260618/`: dump + 2 sql + README.
+- 1 script en `scripts/`: `restore_clean_state.bat`.
+- 1 ADR nuevo (065).
+- Sin commits aun (todo en working tree, pendiente de commit del usuario).
+
+### Pendientes para sesion 29
+- **Commit atomico** de los 5 archivos nuevos (script + backup + 2 sql + README + cambios en ESTADO/BITACORA/DECISIONES).
+- **B7 P0**: 3 scripts de seed ROTOS (sigue pendiente).
+- **Deploy QAS v1.1.0-qas**: bumpear tag con acumulado de sesiones 20-27 (sigue pendiente).
+- **CSRF middleware** (B2): sigue pendiente.
 
 ---
 ## SesiÃ³n 25 â€” 2026-06-17 (miercoles 23:00 â†’ 00:30) â€” Fixes 22 issues del testing del 17-jun
@@ -2873,7 +2917,7 @@ ew Date().toLocaleDateString('es-BO'). |
 
 ---
 
-## Sesion 27 — 2026-06-18 (jueves 10:00 ? 13:00) — 3 fixes críticos + modal impersonate + reload a homeRoute
+## Sesion 27 ï¿½ 2026-06-18 (jueves 10:00 ? 13:00) ï¿½ 3 fixes crï¿½ticos + modal impersonate + reload a homeRoute
 
 > Sesion dedicada a cerrar 3 bugs latentes + mejorar UX de impersonate. Todo con Chrome MCP, sin deploy a QAS (cambios locales).
 
@@ -2884,14 +2928,14 @@ ew Date().toLocaleDateString('es-BO'). |
 - 22 tablas en BD, alembic head = `drop_modulos_s26`
 - 217/228 pytest PASS (11 fallas preexistentes, no relacionadas)
 - 763 usuarios, 754 AD + 9 locales
-- Sesion 26 dejó scripts de seed ROTOS (importan `usuario_modulos` eliminado)
+- Sesion 26 dejï¿½ scripts de seed ROTOS (importan `usuario_modulos` eliminado)
 
 ### Tareas ejecutadas (orden)
 
 | # | Tarea | Commit | Resultado |
 |---|---|---|---|
-| 27.1 | Fix #1: /me ahora devuelve ad_department (rama normal + impersonate) | `18e57d6` | `auth.py` agrega `ad_department=user.ad_info` y `ad_physical_delivery_office=None` en los 2 response dicts de /me. Issue 4.3 de sesion 25 estaba medio cerrado (login sí lo traía, me no). |
-| 27.2 | Fix #2: Parametrizacion.js:1878 — backticks en comentario HTML | (mismo `18e57d6`) | Reemplazado `(mismo array \`analistas\` ...)` por comillas simples. Las 2 backticks cerraban la template string de JS, produciendo `SyntaxError: Unexpected identifier 'analistas'`. /parametrizacion no cargaba. |
+| 27.1 | Fix #1: /me ahora devuelve ad_department (rama normal + impersonate) | `18e57d6` | `auth.py` agrega `ad_department=user.ad_info` y `ad_physical_delivery_office=None` en los 2 response dicts de /me. Issue 4.3 de sesion 25 estaba medio cerrado (login sï¿½ lo traï¿½a, me no). |
+| 27.2 | Fix #2: Parametrizacion.js:1878 ï¿½ backticks en comentario HTML | (mismo `18e57d6`) | Reemplazado `(mismo array \`analistas\` ...)` por comillas simples. Las 2 backticks cerraban la template string de JS, produciendo `SyntaxError: Unexpected identifier 'analistas'`. /parametrizacion no cargaba. |
 | 27.3 | Fix #3: impersonate/stopImpersonate navega a homeRoute + reload | `9af84e5` | Antes: refreshFromBackend actualizaba el store pero la sidebar (HTML estatico) seguia con links del admin. Despues: `window.location.hash = "#" + auth.homeRoute; window.location.reload()`. Sidebar SIEMPRE coherente con el rol activo. |
 | 27.4 | Feature: ConfirmImpersonateModal.js (reemplaza confirm() nativo) | `c0ea1fc` | 200 lineas. Modal con icono amber, card del usuario (avatar, nombre, rol legible, cargo, area, estado), banner de impacto ("la app se va a recargar"), botones Cancelar/Si, impersonar. API `window.confirmImpersonate.abrir({ target, me, onConfirm })`. |
 
@@ -2908,7 +2952,7 @@ ew Date().toLocaleDateString('es-BO'). |
 | pytest | 217/228 PASS (mismas 11 fallas preexistentes) |
 | Login admin_local / admin.2026 | 200 OK |
 | Impersonar a amayorga (visualizador) desde admin_local | confirm() nativo reemplazado por modal personalizado |
-| Modal muestra info: AA + Adriana Alejandra Mayorga Yañez + @amayorga + Visualizador + VISITADOR MEDICO + La Paz + activo | OK |
+| Modal muestra info: AA + Adriana Alejandra Mayorga Yaï¿½ez + @amayorga + Visualizador + VISITADOR MEDICO + La Paz + activo | OK |
 | Click "Si, impersonar" | audit_log: IMPERSONATE_START (verificado) |
 | Sidebar recarga con permisos del visualizador | OK (Mi Bandeja, Lista Maestra, etc.) |
 | /parametrizacion como visualizador | redirige a /403 (correcto, no tiene acceso) |
@@ -2925,8 +2969,8 @@ ew Date().toLocaleDateString('es-BO'). |
 
 ### Decisiones tecnicas (ADRs nuevos)
 
-- **ADR-059**: DROP TABLE usuario_modulos (código muerto) — sesión 26, documentado aquí
-- **ADR-060**: Campo `es_usuario_ad` (bool) en usuarios — sesión 23
+- **ADR-059**: DROP TABLE usuario_modulos (cï¿½digo muerto) ï¿½ sesiï¿½n 26, documentado aquï¿½
+- **ADR-060**: Campo `es_usuario_ad` (bool) en usuarios ï¿½ sesiï¿½n 23
 - **ADR-061**: /me DEBE incluir `ad_department` (rama normal + impersonate)
 - **ADR-062**: Modal personalizado en vez de confirm() nativo (UX consistente)
 - **ADR-063**: /me + reload + homeRoute al impersonar (sidebar coherente)
@@ -2935,7 +2979,7 @@ ew Date().toLocaleDateString('es-BO'). |
 ### Archivos modificados / creados (sesion 27)
 
 **Nuevos (2):**
-- `backend/alembic/versions/2026_06_18_0930-drop_modulos_s26_drop_table_usuario_modulos.py` (sesión 26)
+- `backend/alembic/versions/2026_06_18_0930-drop_modulos_s26_drop_table_usuario_modulos.py` (sesiï¿½n 26)
 - `frontend/src/components/ConfirmImpersonateModal.js` (200 lineas)
 
 **Modificados (4):**
@@ -2953,19 +2997,19 @@ ew Date().toLocaleDateString('es-BO'). |
 
 ### Pendientes (no abordados en sesion 27)
 
-- **3 scripts de seed ROTOS** (`seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py`): importan `usuario_modulos` eliminado en sesion 26. En DES no afecta (start-stack-des.bat no los corre). En QAS SÍ afecta (`start-stack-qas.sh` los llama) — el `| tail -3` enmascara el error. **B7 en ESTADO, P0**. Fix: 5-10 min, 1 commit.
+- **3 scripts de seed ROTOS** (`seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py`): importan `usuario_modulos` eliminado en sesion 26. En DES no afecta (start-stack-des.bat no los corre). En QAS Sï¿½ afecta (`start-stack-qas.sh` los llama) ï¿½ el `| tail -3` enmascara el error. **B7 en ESTADO, P0**. Fix: 5-10 min, 1 commit.
 - **3 pages R2 sin refactor** (Bandeja.js, LiberacionDetalle.js, ListaMaestra.js)
 - **#13 Deuda delegado** (B9), **#14 Cargos a areas** (B10)
 - **B2 CSRF middleware** (seguridad pre-QAS-public)
-- **B3 vite.config.js manualChunks** (cuando se haga build de producción)
+- **B3 vite.config.js manualChunks** (cuando se haga build de producciï¿½n)
 - **Deploy QAS v1.1.0-qas** con todos los cambios de sesiones 20-27
 
-### Proxima sesion (sesion 28) — recomendaciones
+### Proxima sesion (sesion 28) ï¿½ recomendaciones
 
 1. **Fix P0**: scripts de seed ROTOS (eliminar bloques `usuario_modulos`). 5-10 min. CRITICO para QAS fresh-install.
 2. **Deploy QAS v1.1.0-qas**: bumpear tag, `scripts/deploy-qas.bat`, validar las 12 categorias A-L. Acumula 7 sesiones de cambios (21-27).
 3. **Tests adicionales** (sesion 27 plan): `validar_password_usuario`, `start_impersonate` fallback BD, sync-ad desvinculados.
-4. **Refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js** (tareas 38-40) — pendientes desde R2 FASE 1.
+4. **Refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js** (tareas 38-40) ï¿½ pendientes desde R2 FASE 1.
 5. **#13 Deuda delegado** (fuzzy + threshold 0.85): ~30 min.
 
 ### Estado al cierre de sesion 27

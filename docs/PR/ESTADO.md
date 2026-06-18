@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-18 (sesión 27 — **3 fixes críticos + modal impersonate + reload a homeRoute**)
+> **Última actualización:** 2026-06-18 (sesión 28 — **Clean state backup + restore end-to-end**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
@@ -35,6 +35,8 @@
 - 3 commits atómicos: `18e57d6` (fixes #1-2), `9af84e5` (fix #3), `c0ea1fc` (modal).
 - 5 ADRs nuevos (059-064).
 - ADRs-063-064-065-066 (siguiente sesión, planificados).
+
+**Sesión 28 (2026-06-18)**: Clean state backup + restore end-to-end. 1 backup físico (134 KB) + 1 función PL/pgSQL `verify_clean_state()` + 1 script `restore_clean_state.bat` + 1 ADR-065. Validado: ensuciar (audit_log 0→2, gerencia "CONTAMINADA") → restore (audit_log 2→0, gerencia "CALIDAD"). 5 archivos nuevos en working tree, pendiente commit del usuario.
 
 ## Objetivo inmediato
 **R1 cerrado al 100% + R2 desbloqueado** (1 día restante del plazo original)
