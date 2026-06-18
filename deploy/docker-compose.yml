@@ -75,6 +75,8 @@ services:
     ports:
       - "1025:1025"  # SMTP
       - "8025:8025"  # Web UI
+    environment:
+      TZ: ${TZ}
     networks:
       - sgd-net
 
@@ -202,6 +204,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
+      TZ: ${TZ}
     volumes:
       - ../backend:/app
     depends_on:
@@ -211,6 +214,15 @@ services:
         condition: service_healthy
     networks:
       - sgd-net
+    # Healthcheck especifico para celery (el del Dockerfile apunta a :8000
+    # que no existe en el worker). Sesion 25: ping al worker para confirmar
+    # que esta respondiendo a mensajes del broker.
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.workers.celery_app inspect ping --timeout=5 || exit 1"]
+      interval: 30s
+      timeout: 15s
+      start_period: 30s
+      retries: 3
 
   # ────────────────────────────────────────────────────────────
   # Celery Beat (cron jobs: SLA, vencimientos, sync AD)
@@ -230,6 +242,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      TZ: ${TZ}
     volumes:
       - ../backend:/app
       - backend_storage:/app/storage
@@ -240,6 +253,15 @@ services:
         condition: service_healthy
     networks:
       - sgd-net
+    # Healthcheck especifico para celery-beat (no responde a inspect,
+    # asi que verificamos que el proceso este vivo). Sesion 25: usar
+    # /proc/1/cmdline + xargs -0 porque Alpine no tiene pgrep/ps.
+    healthcheck:
+      test: ["CMD-SHELL", "xargs -0 echo < /proc/1/cmdline | grep -q 'celery_app beat' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 
   # ────────────────────────────────────────────────────────────
   # Frontend (Vite dev server con HMR)
@@ -258,6 +280,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:${HOST_PORT_BACKEND}/api/v1
       VITE_ENV: ${ENVIRONMENT}
+      TZ: ${TZ}
     networks:
       - sgd-net
 
@@ -276,6 +299,8 @@ services:
       # Sesion 13: SSL volume para que sgd-qas.conf (en conf.d/ por bug
       # preexistente) pueda cargar sus certs dummy en DES.
       - ./nginx/ssl:/etc/nginx/ssl:ro
+    environment:
+      TZ: ${TZ}
     depends_on:
       - backend
       - frontend
