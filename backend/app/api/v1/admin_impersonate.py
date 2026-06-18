@@ -83,7 +83,7 @@ class ImpersonateUserOut(BaseModel):
     ad_postal_code: str = ""
     ad_tiene_codigo_sap: bool = False
     ad_warning: str = ""
-    modulos: list[str] = []
+    # Sesion 26: modulos eliminado
     roles: list[str] = []
 
 
@@ -107,7 +107,7 @@ async def _get_current_user_from_cookie(request: Request, db: AsyncSession) -> U
     result = await db.execute(
         select(Usuario)
         .where(Usuario.id == uid)
-        .options(selectinload(Usuario.roles), selectinload(Usuario.modulos))
+        .options(selectinload(Usuario.roles), )
     )
     return result.scalar_one_or_none()
 

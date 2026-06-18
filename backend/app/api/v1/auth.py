@@ -5,7 +5,6 @@ Refactorizado (sesión 3) para usar:
 - Tabla `usuarios` real (no más dict hardcoded de 4 usuarios)
 - LDAP bind real contra Active Directory (cuando LDAP_ENABLED=true)
 - Password de DES: `cofar.2026` (validada contra la BD)
-- Módulo `TODOS` del usuario para bypass de RBAC
 """
 import logging
 from datetime import datetime
@@ -20,7 +19,8 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.models.usuario import Usuario, EstadoUsuario
 from app.models.rol import Rol, CodigoRol
-from app.models.modulo import Modulo, CodigoModulo
+# Sesion 26: Modulo/CodigoModulo ya no se usan en auth.py. La tabla
+# usuario_modulos y la relacion fueron eliminadas.
 from app.models.gerencia import Gerencia
 from app.models.area import Area
 from app.services import ad_service
@@ -66,7 +66,10 @@ class LoginUserOut(BaseModel):
     estado: str
     ausente: bool
     es_impersonado: bool = False
-    modulos: list[str] = []  # códigos de módulo
+    es_usuario_ad: bool = False  # Sesion 26: para ProfileModal (AD vs local)
+    # Sesion 26: modulos eliminado (era codigo muerto, el ACL del frontend
+    # usa solo el rol). Si en el futuro se necesita, se puede volver a
+    # agregar via un JOIN con tabla rol_modulos o similar.
     roles: list[str] = []  # códigos de rol
 
 
@@ -81,14 +84,13 @@ class LoginResponse(BaseModel):
 
 async def _cargar_usuario_por_id(db: AsyncSession, usuario_id: int) -> Usuario | None:
     """
-    Carga el usuario por ID + roles + modulos + area (con gerencia) en una sola query.
+    Carga el usuario por ID + roles + area (con gerencia) en una sola query.
     """
     result = await db.execute(
         select(Usuario)
         .where(Usuario.id == usuario_id)
         .options(
             selectinload(Usuario.roles),
-            selectinload(Usuario.modulos),
             selectinload(Usuario.area).selectinload(Area.gerencia),
         )
     )
@@ -97,29 +99,18 @@ async def _cargar_usuario_por_id(db: AsyncSession, usuario_id: int) -> Usuario |
 
 async def _cargar_usuario_completo(db: AsyncSession, username: str) -> Usuario | None:
     """
-    Carga el usuario por username + roles + modulos + area (con gerencia) en una sola query.
+    Carga el usuario por username + roles + area (con gerencia) en una sola query.
     """
     result = await db.execute(
         select(Usuario)
         .where(Usuario.username == username)
         .options(
             selectinload(Usuario.roles),
-            selectinload(Usuario.modulos),
             selectinload(Usuario.area).selectinload(Area.gerencia),
         )
     )
     return result.scalar_one_or_none()
 
-
-def _tiene_modulo_todos(usuario: Usuario) -> bool:
-    """True si el usuario tiene el módulo TODOS (bypass de RBAC)."""
-    for m in usuario.modulos:
-        if m.codigo == CodigoModulo.TODOS:
-            return True
-    return False
-
-
-# ─── Endpoints ───
 
 def _calcular_iniciales(given_name: str, surname: str) -> str:
     """
@@ -317,8 +308,7 @@ async def login(
     response.set_cookie(key="session", value=f"dev-session-{user.id}", httponly=True, samesite="lax", secure=False, path="/")
     response.set_cookie(key="user_id", value=str(user.id), httponly=True, samesite="lax", secure=False, path="/")
 
-    # ─── Devolver usuario con sus modulos y roles ───
-    modulos_codigos = [m.codigo for m in user.modulos] if user.modulos else []
+    # ─── Devolver usuario con sus roles (Sesion 26: modulos eliminado, era codigo muerto) ───
     roles_codigos = [r.codigo for r in user.roles] if user.roles else []
 
     return LoginResponse(
@@ -338,7 +328,7 @@ async def login(
             estado=user.estado.value if hasattr(user.estado, "value") else str(user.estado),
             ausente=user.ausente,
             es_impersonado=False,
-            modulos=modulos_codigos,
+            es_usuario_ad=user.es_usuario_ad,  # Sesion 26
             roles=roles_codigos,
         ),
         csrf_token=csrf_token,
@@ -406,7 +396,7 @@ async def me(
                 estado=imp.estado.value if hasattr(imp.estado, "value") else str(imp.estado),
                 ausente=imp.ausente,
                 es_impersonado=True,
-                modulos=[m.codigo for m in imp.modulos] if imp.modulos else [],
+                es_usuario_ad=imp.es_usuario_ad,  # Sesion 26
                 roles=[r.codigo for r in imp.roles] if imp.roles else [],
             ),
         }
@@ -430,7 +420,7 @@ async def me(
             estado=user.estado.value if hasattr(user.estado, "value") else str(user.estado),
             ausente=user.ausente,
             es_impersonado=False,
-            modulos=[m.codigo for m in user.modulos] if user.modulos else [],
+            es_usuario_ad=user.es_usuario_ad,  # Sesion 26
             roles=[r.codigo for r in user.roles] if user.roles else [],
         ),
     }

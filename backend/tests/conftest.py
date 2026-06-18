@@ -34,7 +34,7 @@ os.environ["ENVIRONMENT"] = "test"
 # Pero NO importamos `app.core.database` (que crea el engine contra la URL
 # de settings); lo importamos después de monkeypatch.
 from app.models.rol import CodigoRol, Rol  # noqa: E402
-from app.models.modulo import CodigoModulo, Modulo  # noqa: E402
+from app.models.modulo import Modulo  # noqa: E402  (Sesion 26: CodigoModulo eliminado)
 from app.models.usuario import EstadoUsuario, EstadoDelegacion, Usuario  # noqa: E402
 from app.models.gerencia import Gerencia  # noqa: E402
 from app.models.area import Area  # noqa: E402
@@ -198,26 +198,9 @@ async def seed_catalogos(db_session: AsyncSession):
         roles[codigo] = rol
     await db_session.flush()
 
-    # Modulos
-    modulos_data = [
-        (CodigoModulo.TODOS, "Todos", "Bypass RBAC"),
-        ("BANDEJA_TAREAS", "Bandeja de Tareas", "Bandeja centralizada"),
-        ("LISTA_MAESTRA", "Lista Maestra", "Lista maestra de documentos"),
-        ("MIS_EVAL", "Mis Evaluaciones", "Evaluaciones y controles de lectura"),
-        ("ASISTENTE_IA", "Asistente IA", "Chat con IA"),
-        ("NUEVA_SOLICITUD", "Nueva Solicitud", "Wizard de creacion"),
-        ("CONSULTAR_DOC", "Consultar Documentos", "Consulta de docs"),
-        ("PLANTILLAS_DOC", "Plantillas Documentales", "Plantillas"),
-        ("MI_BANDEJA", "Mi Bandeja", "Bandeja personal"),
-        ("PARAMETRIZACION", "Parametrizacion General", "Solo ETO/ADMIN"),
-        ("BANDEJA_PARAMETROS", "Parametros Bandeja", "Semaforizacion"),
-    ]
-    modulos = {}
-    for codigo, nombre, desc in modulos_data:
-        mod = Modulo(codigo=codigo, nombre=nombre, descripcion=desc)
-        db_session.add(mod)
-        modulos[codigo] = mod
-    await db_session.flush()
+    # Sesion 26: modulos eliminados del modelo y seed.
+    # La tabla modulos sigue existiendo pero ya no se asigna a usuarios
+    # (control de acceso es por ROL via ACL del frontend).
 
     # 1 gerencia + 1 area
     ger = Gerencia(sigla="CAL", nombre="CALIDAD", orden=1, activo=True)
@@ -257,7 +240,7 @@ async def seed_catalogos(db_session: AsyncSession):
         ad_postal_code="00000001",
     )
     admin.roles.append(roles[CodigoRol.ADMIN])
-    admin.modulos.append(modulos[CodigoModulo.TODOS])
+    # Sesion 26: modulos eliminado. El rol ADMIN ya tiene bypass completo.
     db_session.add(admin)
 
     eto = Usuario(
@@ -272,7 +255,7 @@ async def seed_catalogos(db_session: AsyncSession):
         ad_postal_code="10000001",
     )
     eto.roles.append(roles[CodigoRol.ETO])
-    eto.modulos.append(modulos[CodigoModulo.TODOS])
+    # Sesion 26: modulos eliminado.
     db_session.add(eto)
 
     # usuario sin rol
@@ -296,7 +279,6 @@ async def seed_catalogos(db_session: AsyncSession):
 
     return {
         "roles": roles,
-        "modulos": modulos,
         "gerencia": ger,
         "area": area,
         "estados": estados_catalogo,

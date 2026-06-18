@@ -36,8 +36,8 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Modulo, Rol, Usuario
-from app.models.usuario import EstadoDelegacion, usuario_modulos, usuario_roles
+from app.models import Rol, Usuario
+from app.models.usuario import EstadoDelegacion, usuario_roles
 
 logger = logging.getLogger(__name__)
 
@@ -291,12 +291,9 @@ async def aplicar_asignaciones(
     if not matched:
         return result
 
-    # ─── Cache de catalogos (2 queries, una sola vez) ───
+    # ─── Cache de catalogos (1 query, una sola vez) ───
     r = await db.execute(select(Rol))
     roles_by_codigo: Dict[str, int] = {rol.codigo: rol.id for rol in r.scalars().all()}
-
-    r = await db.execute(select(Modulo))
-    modulos_by_codigo: Dict[str, int] = {m.codigo: m.id for m in r.scalars().all()}
 
     # ─── Validar catalogos antes de tocar la BD ───
     for row, _ in matched:
@@ -304,11 +301,6 @@ async def aplicar_asignaciones(
             result.errores.append(
                 f"COFAR {row.cofar} ({row.nombre}): rol '{row.rol}' no esta en el catalogo"
             )
-        for m in row.modulos:
-            if m not in modulos_by_codigo:
-                result.errores.append(
-                    f"COFAR {row.cofar} ({row.nombre}): modulo '{m}' no esta en el catalogo"
-                )
     if result.errores:
         return result
 
@@ -351,16 +343,9 @@ async def aplicar_asignaciones(
             await db.execute(insert(usuario_roles).values(usuario_id=user_id, rol_id=rol_id))
             result.roles_asignados += 1
 
-            # 2) Actualizar modulos (N:M): delete + ON CONFLICT DO NOTHING
-            modulos_ids = [modulos_by_codigo[m] for m in row.modulos]
-            await db.execute(
-                delete(usuario_modulos).where(usuario_modulos.c.usuario_id == user_id)
-            )
-            for mid in modulos_ids:
-                stmt = pg_insert(usuario_modulos).values(usuario_id=user_id, modulo_id=mid)
-                stmt = stmt.on_conflict_do_nothing(index_elements=["usuario_id", "modulo_id"])
-                await db.execute(stmt)
-            result.modulos_asignados += len(modulos_ids)
+            # Sesion 26: la asignacion de modulos se elimino. El control de
+            # acceso es por ROL (via ACL del frontend), no por modulos del
+            # usuario. La columna modulos del Excel se ignora.
 
             # 3) Actualizar flags (bool + estado_delegacion)
             estado_deleg = (

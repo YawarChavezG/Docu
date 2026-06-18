@@ -66,9 +66,19 @@ export function initProfileModal() {
           this.nombre = u.nombre_completo || 'Usuario'
           this.iniciales = u.iniciales || '??'
           this.cargo = u.cargo || 'Sin cargo'
-          this.area = (u.gerencia_sigla && u.area_sigla)
-            ? `${u.gerencia_sigla} / ${u.area_sigla}`
-            : (u.gerencia_sigla || u.area_sigla || u.ad_department || u.ad_info || 'Sin área')
+          // Sesion 26: la logica ahora discrimina entre usuarios AD y locales.
+          // - AD users (es_usuario_ad=true): SI O SI mostrar el department del AD
+          //   (ad_department o fallback a ad_info), porque siempre nos loguearemos
+          //   con nuestros usuarios del AD. Los usuarios locales que creamos son
+          //   solo para hacer pruebas.
+          // - Usuarios NO AD: mostrar gerencia/area (con fallback a ad_info si estan vacios).
+          if (u.es_usuario_ad) {
+            this.area = (u.ad_department || u.ad_info || 'Sin área (AD)').split('|')[0].trim()
+          } else {
+            this.area = (u.gerencia_sigla && u.area_sigla)
+              ? `${u.gerencia_sigla} / ${u.area_sigla}`
+              : (u.gerencia_sigla || u.area_sigla || u.ad_info || 'Sin área')
+          }
           this.estado = u.estado || ''
           this.ausente = !!u.ausente
           this.rolPrincipal = (u.roles && u.roles[0]) || ''

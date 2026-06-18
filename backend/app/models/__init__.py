@@ -16,7 +16,6 @@ from app.models.modulo import Modulo, CodigoModulo  # noqa: F401
 from app.models.usuario import (  # noqa: F401
     Usuario,
     usuario_roles,
-    usuario_modulos,
     EstadoUsuario,
     EstadoDelegacion,
 )
@@ -73,7 +72,6 @@ __all__ = [
     "CodigoModulo",
     "Usuario",
     "usuario_roles",
-    "usuario_modulos",
     "EstadoUsuario",
     "EstadoDelegacion",
     "Delegacion",

@@ -24,7 +24,7 @@ from app.core.database import Base  # noqa: E402
 from app.models.rol import Rol  # noqa: E402,F401
 from app.models.gerencia import Gerencia  # noqa: E402,F401
 from app.models.area import Area  # noqa: E402,F401
-from app.models.usuario import Usuario, usuario_roles, usuario_modulos  # noqa: E402,F401
+from app.models.usuario import Usuario, usuario_roles  # noqa: E402,F401  (Sesion 26: usuario_modulos eliminado)
 from app.models.modulo import Modulo  # noqa: E402,F401
 from app.models.delegacion import Delegacion  # noqa: E402,F401
 from app.models.ausencia import Ausencia  # noqa: E402,F401

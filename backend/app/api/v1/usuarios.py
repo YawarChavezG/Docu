@@ -75,7 +75,7 @@ class UsuarioOut(BaseModel):
     delegado_username: Optional[str] = None
     delegado_nombre: Optional[str] = None
     roles: list[str] = []
-    modulos: list[str] = []
+    # Sesion 26: modulos eliminado
     ad_warning: Optional[str] = None
 
 
@@ -154,7 +154,7 @@ async def _get_current_user(request: Request, db: AsyncSession) -> Optional[Usua
         return None
     return (await db.execute(
         select(Usuario).where(Usuario.id == uid)
-        .options(selectinload(Usuario.roles), selectinload(Usuario.modulos))
+        .options(selectinload(Usuario.roles), )
     )).scalar_one_or_none()
 
 
@@ -213,7 +213,7 @@ def _to_out(user: Usuario) -> UsuarioOut:
         delegado_username=user.delegado.username if user.delegado else None,
         delegado_nombre=user.delegado.nombre_completo if user.delegado else None,
         roles=[r.codigo for r in user.roles],
-        modulos=[m.codigo for m in user.modulos],
+        # Sesion 26: modulos eliminado (codigo muerto)
         ad_warning=ad_warning,
     )
 
@@ -250,7 +250,7 @@ async def listar_usuarios(
     # Query base
     base = select(Usuario).options(
         selectinload(Usuario.roles),
-        selectinload(Usuario.modulos),
+        
         selectinload(Usuario.area).selectinload(Area.gerencia),
         selectinload(Usuario.delegado),
     )
@@ -629,7 +629,7 @@ async def export_usuarios(
     # Query base (mismos filtros que listar_usuarios)
     base = select(Usuario).options(
         selectinload(Usuario.roles),
-        selectinload(Usuario.modulos),
+        
         selectinload(Usuario.area).selectinload(Area.gerencia),
         selectinload(Usuario.delegado),
     )
@@ -697,7 +697,6 @@ async def export_usuarios(
             (u.estado_delegacion.value if hasattr(u.estado_delegacion, "value") else str(u.estado_delegacion)),
             delegado_nombre,
             ", ".join(r.codigo for r in u.roles) or "(sin rol)",
-            ", ".join(m.codigo for m in u.modulos) or "-",
             u.ad_postal_code or "",
             u.ad_last_synced_at.strftime("%Y-%m-%d %H:%M") if u.ad_last_synced_at else "",
         ])
@@ -718,7 +717,7 @@ async def export_usuarios(
         "ID", "Username", "Nombre Completo", "Inic.", "Email", "Cargo",
         "Area",  # Issue 8.3: cliente pidio 'Area' (no 'Gerencia / Area')
         "Estado", "Ausente",
-        "Delegacion", "Delegado", "Roles", "Modulos", "Cód. SAP", "Ultimo Sync AD",
+        "Delegacion", "Delegado", "Roles", "Cód. SAP", "Ultimo Sync AD",
     ]
 
     # Alinear: ID y fechas centrados/right, resto izquierda
@@ -778,7 +777,7 @@ async def get_usuario(
         select(Usuario).where(Usuario.id == user_id)
         .options(
             selectinload(Usuario.roles),
-            selectinload(Usuario.modulos),
+            
             selectinload(Usuario.area).selectinload(Area.gerencia),
             selectinload(Usuario.delegado),
         )
@@ -812,7 +811,7 @@ async def update_usuario_override(
         select(Usuario).where(Usuario.id == user_id)
         .options(
             selectinload(Usuario.roles),
-            selectinload(Usuario.modulos),
+            
             selectinload(Usuario.area).selectinload(Area.gerencia),
             selectinload(Usuario.delegado),
         )
@@ -895,7 +894,7 @@ async def update_usuario_override(
         select(Usuario).where(Usuario.id == user_id)
         .options(
             selectinload(Usuario.roles),
-            selectinload(Usuario.modulos),
+            
             selectinload(Usuario.area).selectinload(Area.gerencia),
             selectinload(Usuario.delegado),
         )

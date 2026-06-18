@@ -184,8 +184,9 @@ export const authStore = {
    * Convierte el user del backend al shape legacy del frontend.
    * El backend devuelve:
    *   { username, nombre_completo, iniciales, email, cargo, area_id,
-   *     gerencia_sigla, area_sigla, estado, ausente, es_impersonado,
-   *     modulos, roles }
+   *     gerencia_sigla, area_sigla, ad_department, estado, ausente,
+   *     es_impersonado, es_usuario_ad, roles }
+   * (Sesion 26: modulos eliminado, es_usuario_ad agregado para ProfileModal)
    * El frontend (mock original) espera:
    *   { username, name, roleLabel, initials, area, hasDelegadoAlert }
    */
@@ -244,7 +245,7 @@ export const authStore = {
       estado: bu.estado,
       ausente: bu.ausente,
       es_impersonado: bu.es_impersonado || !!impersonatedBy,
-      modulos: bu.modulos || [],
+      es_usuario_ad: bu.es_usuario_ad || false,  // Sesion 26
       roles: roles,
       impersonated_by: impersonatedBy || null,
       // aliases legacy (mock compat)

@@ -20,7 +20,6 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.rol import Rol
-    from app.models.modulo import Modulo
     from app.models.area import Area
     from app.models.delegacion import Delegacion
     from app.models.ausencia import Ausencia
@@ -49,14 +48,6 @@ usuario_roles = Table(
     Base.metadata,
     Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True),
     Column("rol_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-    Column("created_at", DateTime(timezone=True), server_default=func.now()),
-)
-
-usuario_modulos = Table(
-    "usuario_modulos",
-    Base.metadata,
-    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True),
-    Column("modulo_id", Integer, ForeignKey("modulos.id", ondelete="CASCADE"), primary_key=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now()),
 )
 
@@ -150,9 +141,9 @@ class Usuario(Base):
     roles: Mapped[List["Rol"]] = relationship(
         "Rol", secondary=usuario_roles, backref="usuarios"
     )
-    modulos: Mapped[List["Modulo"]] = relationship(
-        "Modulo", secondary=usuario_modulos, backref="usuarios"
-    )
+    # Sesion 26: la relacion modulos se elimino. El control de acceso es por
+    # ROL via ACL hardcodeado en el frontend (auth.js:canAccess). El campo
+    # user.modulos del backend era codigo muerto.
     delegaciones_como_principal: Mapped[List["Delegacion"]] = relationship(
         "Delegacion", foreign_keys="Delegacion.usuario_principal_id", back_populates="usuario_principal"
     )
