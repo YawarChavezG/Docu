@@ -124,7 +124,7 @@ Reglas duras:
 | 4.4 | Sync AD mapping `ad_info`→`area_id` | 🟡 | ✅ RESUELTO |
 | 8.1 | Filtros activos/inactivos/ausentes | 🟡 | ✅ RESUELTO |
 | 8.4 | REPORTES en Excel para elaboradores | 🟡 | ⛔ DEPRECADO |
-| 5.1 | Selector Estados con 4 opciones | 🟡 | pendiente |
+| 5.1 | Selector Estados con 4 opciones | 🟡 | ✅ RESUELTO |
 | 1.2 | Lista delegados corta | 🟡 | pendiente |
 | 7.1 | Matriz ETO dropdown delegado solo ETO | 🟡 | pendiente |
 | 2.1 | Performance login (Promise.all) | 🟡 | pendiente |
@@ -134,7 +134,7 @@ Reglas duras:
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | pendiente |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | pendiente |
 
-**Progreso**: 11/22 (50.0%).
+**Progreso**: 12/22 (54.5%).
 
 ---
 

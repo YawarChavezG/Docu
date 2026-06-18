@@ -512,6 +512,10 @@ Aplicado en:
 
 ## Issue 5.1 — Selector de contexto en Estados solo tiene 2 opciones (debería tener 4)
 
+> ✅ **RESUELTO (sesión 34, 2026-06-18)** — Validado end-to-end con Chrome MCP. Dropdown muestra 4 opciones (PROCESO, TAREA, ACCION, AMBOS). Badge con 4 colores (green, blue, purple, gray). Creados 3 estados nuevos (Validacion Tecnica→PROCESO, Auditoria Interna→TAREA→ACCION, Accion Preventiva→ACCION). Update TAREA→ACCION verificado. BD OK. Persistencia F5 OK. 7/7 tests pytest PASS, 0 regresiones. Consola Chrome sin errores.
+> Próximo fix: **1.2** (Lista delegados corta).
+> Ver detalles completos en `docs/PR/ORQUESTADOR-FIXES-25.md`.
+
 **Página afectada:** Parametrización → Estados (al editar un estado)
 
 **Error reportado por el cliente:**
