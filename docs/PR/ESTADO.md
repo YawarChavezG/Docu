@@ -6,7 +6,16 @@
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
 
-**Sesión 23 (2026-06-17)**: Bloque A cerrado al 100% (6 sub-tareas, commit `fb1e45e`). Ramas sin cambios.
+**Sesión 24 (2026-06-17)**: Bloques E+F cerrados al 100% (8 sub-tareas, commits `7e8d548` y `6c20826`).
+- E1: 8 .docx copiados a `backend/storage/plantillas/` con nombres ASCII-safe
+- E2: backend `/api/v1/plantillas-documentales` (lista + download + audit_log)
+- E3: frontend `plantillasApi.js` + refactor `Plantillas.js` (sin mock legacy)
+- F1: helper `usuarios.listPorRol('ETO')` + dropdown "Analista ETO asignado" en wizard paso 1
+- F2: helper `usuarios.listPorCualquierRol([roles])` + filtros en wizard paso 3 (158 revisores, 14 aprobadores)
+- F3: `insertarEtiqueta` detecta `activeElement` (asunto vs cuerpo)
+- F4: oculta sección delegado en `ProfileModal.js` para visualizadores/admin
+- F5: env var `DOCUMENTOS_STORAGE_PATH` configurable (compatible con `STORAGE_ROOT` legacy)
+- 11 tests nuevos en `test_plantillas_documentales.py` (100% PASS)
 
 **Sesión 21 (2026-06-17)**: R2 arranca oficialmente con la rama `r2/wizard-y-version-editable`. Se cierra FASE 1 (modelos + endpoints + seed + tests). Tag no bumpeado todavía (Fase 2 + deploy QAS pendiente).
 
@@ -53,7 +62,7 @@
 | 19 | Sanear 4 x-html con DOMPurify | ❌ | — | (no verificado — buscar `x-html` en `frontend/src/pages/*.js`) |
 | 20 | Agregar CSP meta tag | ❌ | — | (no verificado) |
 | 21 | Rate limit con slowapi | ❌ | — | (no implementado) |
-| 22 | **TESTING R1** | ✅ | 16-jun | `backend/tests/` poblado. **123/123 tests passing en 11.38s** (commit `e13761c`, sesión 7). Cobertura routers auth + usuarios + parametrización. |
+| 22 | **TESTING R1** | ✅ | 16-jun | `backend/tests/` poblado. **193/204 tests passing en ~20s** (sesión 24). 11 tests nuevos para plantillas_documentales (100% PASS). 11 fallas preexistentes NO relacionadas con E+F (refs a enum/field antiguos). |
 | **Tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** |  |  |  |  |
 | N8 | Backend `GET /api/v1/roles` (catalogo) | ✅ | 16-jun | `backend/app/api/v1/roles.py` + `schemas/rol.py`. 5 roles con flag `requiere_delegado`. |
 | N9 | Backend `PATCH /usuarios/{id}` con `rol_codigo` y `delegado_id` | ✅ | 16-jun | Extiende `UsuarioUpdate`. Reemplaza roles via `delete + insert` en `usuario_roles`. Asigna/quita delegado. Setea `estado_delegacion=asignado` automaticamente. `db.expire()` para refrescar relaciones. |
@@ -137,7 +146,7 @@
 | 38 | Frontend: refactorizar `src/pages/Bandeja.js` para usar API | ❌ | — | (última edición 6/5/2026, no tocado para R2) |
 | 39 | Frontend: refactorizar `src/pages/LiberacionDetalle.js` | ❌ | — | (última edición 6/5/2026) |
 | 40 | Frontend: refactorizar `src/pages/ListaMaestra.js` | ❌ | — | (última edición 6/5/2026) |
-| 41 | **TESTING R2** | ✅ | 17-jun | Sesión 22: 60/60 tests R2 passing (storage + documentos + create + archivos + enviar + bandeja) |
+| 41 | **TESTING R2** | ✅ | 17-jun | Sesión 22: 60/60 tests R2 passing (storage + documentos + create + archivos + enviar + bandeja). Sesión 24: +11 tests plantillas_documentales (total 71/71 R2 verde). |
 | 42 | Documentación: `docs/RUNBOOK.md` | ❌ | — | |
 | 43 | Documentación: `docs/ARQUITECTURA.md` y `ARQUITECTURA-DB.md` | 🟡 | 14-jun | Están en `docs/Diagramas_Matrices/`, falta unificar |
 

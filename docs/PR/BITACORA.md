@@ -3,6 +3,104 @@
 > **BitÃ¡cora cronolÃ³gica de las sesiones de trabajo en el proyecto COFAR SGD.**
 > Para que cuando la ventana de contexto se llene, una nueva sesiÃ³n pueda leer este archivo y retomar.
 
+## SesiÃ³n 24 â€” 2026-06-17 (miercoles 19:30 â†’ 21:00) â€” Bloques E + F
+
+### Resumen ejecutivo
+En esta sesion se cerraron los **Bloques E y F** del plan propuesto tras la reunion con el cliente (8 sub-tareas, 2 commits atomicos, 11 tests nuevos). Todo el trabajo fue en rama `r2/wizard-y-version-editable`.
+
+### Tareas ejecutadas
+
+| # | Tarea | Commit | Resultado |
+|---|---|---|---|
+| E1 | Copiar 8 .docx a `backend/storage/plantillas/` con nombres ASCII-safe | `7e8d548` + `6c20826` | 8 archivos copiados (~2 MB). `.gitignore` excluye los `.docx` pero conserva `.gitkeep`. `scripts/start-stack-des.bat` ejecuta `docker cp` tras up |
+| E2 | Backend `GET /api/v1/plantillas-documentales` + download con audit | `7e8d548` | `backend/app/api/v1/plantillas_documentales.py` (nuevo, 200 lineas) + `schemas/plantilla_documental.py`. Path traversal bloqueado, extension whitelist (.doc/.docx/.xls/.xlsx/.ppt/.pptx/.pdf), audit_log con accion=DOWNLOAD. 11 tests PASS |
+| E3 | Frontend `plantillasApi.js` + refactor `Plantillas.js` | `7e8d548` | Sin mock legacy. Loading state, formato tamano (B/KB/MB), boton Refrescar, audit log implicit en descarga |
+| F1 | Helper `usuarios.listPorRol('ETO')` + dropdown Analista ETO en wizard | `6c20826` | `parametrizacionApi.js` helper + nuevo dropdown en `AprobacionDocumento.js:444-455`. Pre-selecciona ETO actual, warning si esta de vacaciones. 4 ETOs detectados en BD |
+| F2 | Helper `usuarios.listPorCualquierRol([roles])` + filtros en wizard paso 3 | `6c20826` | Wizard dropdowns filtrados a 158 revisores (ELABORADOR-REVISOR + ELABORADOR-REVISOR-APROBADOR + ETO) y 14 aprobadores (ELABORADOR-REVISOR-APROBADOR + ETO) |
+| F3 | `insertarEtiqueta` detecta `activeElement` | `6c20826` | Si cursor en input asunto: `setRangeText` + dispatchEvent. Si en Tiptap: `editor.chain().focus().insertContent()`. Valido en Chrome: chip inserta en el campo correcto segun focus |
+| F4 | Ocultar seccion Delegado en ProfileModal para visualizadores/admin | `6c20826` | `x-show="rolRequiereDelegado"` con `display:none` por defecto. Valido en Chrome: visualizador_cl â†’ oculto, aromero (ETO) â†’ visible |
+| F5 | env var `DOCUMENTOS_STORAGE_PATH` configurable | `6c20826` | `storage.py` acepta DOCUMENTOS_STORAGE_PATH (preferido) o STORAGE_ROOT (legacy). `.env.example` documenta ambos. Default sin cambio: `/app/storage/uploads` |
+
+### Logros tecnicos
+
+1. **8 plantillas documentales** servidas desde backend (no mas mock legacy en frontend)
+2. **2 commits atomicos** con 11 archivos modificados + 5 archivos nuevos
+3. **11 tests pytest** nuevos (100% PASS) para `plantillas_documentales`
+4. **Suites completas**: 193/204 verde. 11 fallas pre-existentes (refs a enum/field antiguos) NO relacionadas a E+F
+5. **5 dropdowns mejorados**: 1 wizard paso 1 (ETOs), 2 wizard paso 3 (revisores/aprobadores), 1 matriz ETO (via helper), 1 plantillas asunto/cuerpo
+6. **0 cambios al backend de R2** (storage.py solo acepta el nuevo env var, no cambia logica)
+
+### Validacion visual Chrome (todos los items OK)
+
+| Verificacion | Resultado |
+|---|---|
+| Login aromero, ir a /plantillas, ver 8 cards con tamano real | OK |
+| Click "Descargar editable" de procedimiento.docx â†’ descarga OK | OK |
+| BD: 1 entrada en audit_log con accion=DOWNLOAD, recurso=plantilla_documental | OK |
+| Login aromero, ir a wizard paso 1, dropdown Analista ETO solo muestra 4 ETOs | OK |
+| Pre-selecciona aromero, muestra warning "En vacaciones" | OK |
+| Wizard paso 3: dropdown Revisores solo muestra usuarios con rol revisor (158) | OK |
+| Wizard paso 3: dropdown Aprobadores solo muestra usuarios con rol aprobador (14) | OK |
+| Parametrizacion > Plantillas Notif: click chip con focus en asunto â†’ inserta en input | OK |
+| Parametrizacion > Plantillas Notif: click chip con focus en editor â†’ inserta en Tiptap | OK |
+| Login visualizador_cl, Mi Perfil â†’ seccion Delegado oculta (display:none) | OK |
+| Login aromero, Mi Perfil â†’ seccion Delegado visible (display:block) | OK |
+
+### Hallazgos y trampas
+
+1. **Volumen Docker vs bind mount**: `backend/storage/plantillas/` en host NO se ve en el container porque `/app/storage` es un volumen. Solucion: `docker cp` en `start-stack-des.bat` tras `up`. El .gitkeep mantiene el directorio en git.
+2. **`this` binding en helper multi-rol**: `usuarios.listPorCualquierRol([roles])` uso `this.listPorRol` que en algunos contextos de HMR/Vite quedaba undefined. Solucion: importar `apiGet` directamente en vez de llamar a otro helper.
+3. **Tests pre-existentes fallando**: 11 tests fallan por refs a `estado REVISION` (renombrado a REVISION con contexto TAREA), `CodigoPlantilla.NUEVA_TAREA` (enum antiguo), `codigo_doc` (campo removido en sesion 14). NO son regresiones de E+F.
+4. **F4 con doble control**: use `x-show` + `style="display:none"` + `:style="rolRequiereDelegado ? '' : 'display:none'"` para cubrir el caso de Alpine pre-init (cuando todavia no se cargo `rolRequiereDelegado`).
+
+### Decisiones tecnicas (ADRs candidatos)
+
+- **ADR-056 (candidato)**: Plantillas documentales son archivos estaticos servidos desde `/app/storage/plantillas/`, NO en BD. El listado se genera escaneando el directorio. Metadata hardcoded en backend (`_PLANTILLAS_META`) para display legible. En R3 (cuando se persistan en BD con versionado) se migra.
+- **ADR-057 (candidato)**: `DOCUMENTOS_STORAGE_PATH` es el nombre canonico del env var. `STORAGE_ROOT` se mantiene como fallback legacy para no romper deployments anteriores.
+- **ADR-058 (candidato)**: `usuarios.listPorCualquierRol([roles])` hace N requests en paralelo y deduplica por id. Se prefiere sobre un endpoint dedicado `?roles=rol1,rol2` porque no requiere cambios al backend.
+
+### Archivos modificados / creados
+
+**Nuevos (5):**
+- `backend/app/api/v1/plantillas_documentales.py`
+- `backend/app/schemas/plantilla_documental.py`
+- `backend/storage/plantillas/.gitkeep`
+- `backend/tests/test_plantillas_documentales.py`
+- `frontend/src/services/plantillasApi.js`
+
+**Modificados (11):**
+- `.env.example` (DOCUMENTOS_STORAGE_PATH + PLANTILLAS_STORAGE_PATH documentados)
+- `.gitignore` (excluir backend/storage/plantillas/*)
+- `backend/.gitignore` (mantener .gitkeep)
+- `backend/app/main.py` (registrar router plantillas_documentales)
+- `backend/app/services/storage.py` (acepta DOCUMENTOS_STORAGE_PATH)
+- `frontend/src/components/ProfileModal.js` (F4: x-show delegado)
+- `frontend/src/pages/AprobacionDocumento.js` (F1 + F2: dropdowns ETO/revisores/aprobadores)
+- `frontend/src/pages/Parametrizacion.js` (F3: insertarEtiqueta)
+- `frontend/src/pages/Plantillas.js` (E3: consumir API)
+- `frontend/src/services/parametrizacionApi.js` (F1 + F2: listPorRol + listPorCualquierRol)
+- `scripts/start-stack-des.bat` (E1: docker cp plantillas)
+
+### Proxima sesion (Sesion 25) â€” TBD
+
+Opciones:
+1. **Refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js** (tareas 38-40) â€” pendientes desde R2 FASE 1
+2. **Tests adicionales** (sesion 27 plan): `validar_password_usuario` (replicar logica dual), `start_impersonate` (fallback BD), sync-ad desvinculados
+3. **Deploy QAS v1.1.0-qas**: bump version, `scripts/deploy-qas.bat`, validar las 12 categorias A-L, tag v1.1.0-qas
+4. **Bloque G** (nuevo): si surge del cliente
+
+Recomendacion: hacer deploy a QAS primero (validacion final con todos los cambios de sesion 23 + 24 acumulados), y luego los tests pendientes.
+
+### Estado al cierre de sesion 24
+
+- **8 contenedores DES Up** (backend, frontend, postgres, redis, mailhog, celery-W, celery-B, nginx)
+- **BD**: 15 documentos, 22 tablas, alembic head `8aa4cfa0f92f`
+- **Tests**: 193/204 verde (11 fallas pre-existentes)
+- **Working tree**: clean
+- **Commits**: `7e8d548` + `6c20826` (codigo), pendiente commit de docs
+
+
+
 ## SesiÃ³n 1 â€” 2026-06-14 (sÃ¡bado 19:35 â†’ 20:05)
 
 ### Tareas ejecutadas
@@ -2375,18 +2473,18 @@ Se creo `docs/PR/SESION-22-HANDOFF.md` con:
 
 ---
 
-## Sesion 23 — 2026-06-17 (miercoles 15:30 ? 17:00) — Bloque A: 6 sub-tareas reunion con cliente
+## Sesion 23 ï¿½ 2026-06-17 (miercoles 15:30 ? 17:00) ï¿½ Bloque A: 6 sub-tareas reunion con cliente
 
 > Sesion dedicada a cerrar el Bloque A del plan propuesto al usuario tras
 > la reunion de revision. 6 sub-tareas de bugs pequenos + 1 nuevo
-> (firma 2FA del wizard). Commit atómico b1e45e con 5 archivos.
+> (firma 2FA del wizard). Commit atï¿½mico b1e45e con 5 archivos.
 
 ### Pendientes del usuario (reunion)
 
 1. **Impersonate**: banner se ve pero no se aplica la funcionalidad
 2. **Plantillas - asunto**: variables se insertan en cuerpo en vez de asunto
-3. **Plantillas - variable VERSION**: agregar {{VERSION}} y validar dónde se guardan
-4. **Perfil - visualizador/admin**: no deberían ver seccion delegado
+3. **Plantillas - variable VERSION**: agregar {{VERSION}} y validar dï¿½nde se guardan
+4. **Perfil - visualizador/admin**: no deberï¿½an ver seccion delegado
 5. **Perfil - vacaciones con fechas (desde/hasta)**: deben guardarse en BD
 6. **Delegado**: validar que persiste al agregar
 7. **Sync AD - desvinculados**: marcar como desvinculado sin eliminar
@@ -2418,7 +2516,7 @@ ew Date().toLocaleDateString('es-BO'). |
 ### Logros tecnicos
 
 1. **6/6 sub-tareas del Bloque A cerradas** en ~1.5h.
-2. **1 commit atómico** con 5 archivos (172 inserciones, 80 deletions).
+2. **1 commit atï¿½mico** con 5 archivos (172 inserciones, 80 deletions).
 3. **1 migracion Alembic limpia** (sin cambios colaterales autogenerados).
 4. **Delegado persistencia validada** end-to-end con cookies reales.
 5. **Variables en BD confirmadas**: email_templates.variables_json (JSONB en PostgreSQL via SQLAlchemy JSON().with_variant(JSONB())).
@@ -2457,11 +2555,11 @@ ew Date().toLocaleDateString('es-BO'). |
 
 ---
 
-## Sesion 23 (continuacion) — 2026-06-17 (miercoles 17:00 ? 18:30) — Bloque B: 5 sub-tareas (datos + firma 2FA + estados)
+## Sesion 23 (continuacion) ï¿½ 2026-06-17 (miercoles 17:00 ? 18:30) ï¿½ Bloque B: 5 sub-tareas (datos + firma 2FA + estados)
 
 > Sesion dedicada a cerrar el Bloque B del plan propuesto al usuario.
 > 5 sub-tareas criticas: B1 vacaciones con fechas, B2 cron 00:05, B3 estados
-> nuevos, B4 firma 2FA en BD, B5 fix doble toast. Commit atómico 95e1b5b
+> nuevos, B4 firma 2FA en BD, B5 fix doble toast. Commit atï¿½mico 95e1b5b
 > con 12 archivos (10 backend + 2 frontend).
 
 ### Problemas reportados
@@ -2484,7 +2582,7 @@ ew Date().toLocaleDateString('es-BO'). |
 | B5 | Fix validar_password_usuario: acepta 'cofar.2026'/'admin.2026' primero, luego LDAP | 95e1b5b | Bug preexistente (sesion 22) que impedia firmar 2FA a usuarios locales en DES con LDAP_ENABLED=true |
 | B5 | Fix envio_service.py: REVISION_PARALELA ? REVISION | (B3) | (Se hizo definitivo con B3) |
 | B5 | Fix AuthModal.js: removido window.toast('Firma digital registrada') | 95e1b5b | Causa del doble toast. Ahora solo el callback onSuccess muestra el resultado. |
-| B4 | envio_service.py: crea FirmaDigital en el commit atómico | 95e1b5b | Fila inmutable con usuario_id, accion='enviar_liberacion', recurso_tipo='documento', recurso_id, ip, user_agent, resultado_exito. Tambien crea fila con resultado_exito=false si la password es invalida (auditoria forense). |
+| B4 | envio_service.py: crea FirmaDigital en el commit atï¿½mico | 95e1b5b | Fila inmutable con usuario_id, accion='enviar_liberacion', recurso_tipo='documento', recurso_id, ip, user_agent, resultado_exito. Tambien crea fila con resultado_exito=false si la password es invalida (auditoria forense). |
 | B1 | backend/app/schemas/ausencia.py (Pydantic v2) | 95e1b5b | AusenciaBase + Create + Update + Out + ListResponse. Validacion fecha_hasta >= fecha_desde via field_validator. |
 | B1 | backend/app/api/v1/ausencias.py (6 endpoints) | 95e1b5b | GET / (con filtros usuario_id, solo_vigentes) + GET /usuarios/{id}/vigente + GET /{id} + POST /usuarios/{id} + PATCH /{id} + DELETE /{id}. Permisos: ETO/ADMIN puede gestionar cualquier usuario, usuario normal solo el suyo. Helper _vigente_set_usuario_ausente() mantiene usuarios.ausente sincronizado con ausencias vigentes. |
 | B1 | frontend/src/components/ProfileModal.js | 95e1b5b | Carga ausencias del usuario. Form con motivo (vacaciones/licencia/capacitacion/otro). Historial visible. Botones registrar/actualizar/cancelar. Observaciones se guardan en el campo notas. |
@@ -2567,17 +2665,17 @@ ew Date().toLocaleDateString('es-BO'). |
 ### Commits de la sesion 23
 
 - b1e45e fix(wizard+seeds+semaforos): Bloque A (6 sub-tareas)
-- 715cee2 docs(pr): sesion 23 — Bloque A cerrado
-- e795c8f fix(wizard): actualizar hint del botón Siguiente
+- 715cee2 docs(pr): sesion 23 ï¿½ Bloque A cerrado
+- e795c8f fix(wizard): actualizar hint del botï¿½n Siguiente
 - 95e1b5b feat(ausencias+firmas+estados): Bloque B (5 sub-tareas)
 
 ---
 
-## Sesion 23 (continuacion 2) — 2026-06-17 (miercoles 18:30 ? 19:00) — Bloque C: 2 sub-tareas (sync AD mejorado)
+## Sesion 23 (continuacion 2) ï¿½ 2026-06-17 (miercoles 18:30 ? 19:00) ï¿½ Bloque C: 2 sub-tareas (sync AD mejorado)
 
 > Sesion dedicada a cerrar el Bloque C del plan propuesto al usuario.
 > 2 sub-tareas criticas: C1 marcar desvinculados, C2 flag es_usuario_ad.
-> Commit atómico 8f5ef3a con 4 archivos (3 backend + 1 migracion).
+> Commit atï¿½mico 8f5ef3a con 4 archivos (3 backend + 1 migracion).
 
 ### Problemas reportados
 
@@ -2634,8 +2732,8 @@ ew Date().toLocaleDateString('es-BO'). |
 ### Commits acumulados sesion 23
 
 - b1e45e fix(wizard+seeds+semaforos): Bloque A (6 sub-tareas)
-- 715cee2 docs(pr): sesion 23 — Bloque A cerrado
-- e795c8f fix(wizard): actualizar hint del botón Siguiente
+- 715cee2 docs(pr): sesion 23 ï¿½ Bloque A cerrado
+- e795c8f fix(wizard): actualizar hint del botï¿½n Siguiente
 - 95e1b5b feat(ausencias+firmas+estados): Bloque B (5 sub-tareas)
-- 7d3fbd7 docs(pr): sesion 23 — Bloques A+B cerrados
+- 7d3fbd7 docs(pr): sesion 23 ï¿½ Bloques A+B cerrados
 - 8f5ef3a feat(sync-ad): Bloque C (2 sub-tareas)
