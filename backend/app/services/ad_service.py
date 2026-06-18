@@ -330,7 +330,7 @@ def _normalizar_usuario_ad(attrs: dict) -> dict:
         # que el caller (sync_ad) pueda filtrar por ellos.
         "objectClass": attrs.get("objectClass"),
         "sAMAccountType": attrs.get("sAMAccountType"),
-        "tiene_codigo_sap": bool(postal),  # warning si False
+        "tiene_codigo_sap": bool(postal) and postal.startswith("1000"),  # Solo codigos COFAR
     }
 
 
@@ -490,9 +490,9 @@ def ldap_search_users(
                 excl_contadores["sam_excluido"] += 1
                 continue
 
-            # Filtro 4: codigo SAP (postalCode) no vacio
+            # Filtro 4: codigo SAP (postalCode) debe ser codigo COFAR (empieza con 1000)
             postal = _primero(attrs.get("postalCode"))
-            if not postal:
+            if not postal or not postal.startswith("1000"):
                 excl_contadores["sin_postal"] += 1
                 continue
 

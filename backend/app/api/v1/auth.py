@@ -215,7 +215,13 @@ async def login(
         if user is None:
             logger.info(f"Usuario {username} existe en AD pero no en SGD, creando...")
             # Traer atributos del AD (cargo, mail, etc.) usando el service account
-            attrs = ad_service.obtener_atributos_usuario_ad(username) or {}
+            attrs = ad_service.obtener_atributos_usuario_ad(username)
+            if attrs is None:
+                # El lookup falló (usuario sin SAP válido o error de red)
+                raise HTTPException(
+                    status_code=401,
+                    detail="Credenciales inválidas"
+                )
             logger.info(
                 f"Atributos AD de {username}: "
                 f"displayName={attrs.get('nombre_completo')!r} "

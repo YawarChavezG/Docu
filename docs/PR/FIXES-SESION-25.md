@@ -377,6 +377,9 @@ this.area = (u.gerencia_sigla && u.area_sigla)
 
 ## Issue 4.2 — Usuario `soporteglpi` (sin código SAP) se loguea y crea fila en BD
 
+> ✅ **RESUELTO (sesión 33, 2026-06-18)** — Validado end-to-end. Filtro de SAP reforzado: ahora solo acepta códigos que empiecen con "1000" (códigos COFAR). Se detectó y eliminó `ajaimes` con código `20000001` del dump clean state. `max_results` subido de 750→2000 para evitar falsos desvinculados. Login `soporteglpi` vía AD retorna 401 en ambos modos (cofar y auto). BD limpia reconstruida sin soporteglpi/ajaimes.
+> Próximo fix: **4.4** (Sync AD: mapping ad_info→area_id automático).
+
 **Página afectada:** Login (cualquier flujo de autenticación LDAP)
 
 **Error reportado por el cliente:**

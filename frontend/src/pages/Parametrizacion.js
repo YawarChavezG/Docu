@@ -1113,7 +1113,7 @@ export const page = {
           this.loadingUsuarios = true
           window.toast('⏳ Sincronizando con Active Directory... (puede tardar 30-60s)', 'info')
           try {
-            const res = await usuarios.syncAd(750)
+            const res = await usuarios.syncAd(2000)
             if (!res.ok) {
               window.toast(`Error en sync: ${res.data?.detail || res.status}`, 'error')
               return

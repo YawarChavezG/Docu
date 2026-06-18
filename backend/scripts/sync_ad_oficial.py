@@ -192,8 +192,8 @@ print()
 print("=" * 70)
 print("PASO 3: Filtro postalCode (codigo SAP)")
 print("=" * 70)
-items_con_sap = [u for u in items if u["postalCode"]]
-items_sin_sap = [u for u in items if not u["postalCode"]]
+items_con_sap = [u for u in items if u["postalCode"] and u["postalCode"].startswith("1000")]
+items_sin_sap = [u for u in items if not u["postalCode"] or not u["postalCode"].startswith("1000")]
 print(f"   Con codigo SAP:    {len(items_con_sap)}")
 print(f"   Sin codigo SAP:    {len(items_sin_sap)}")
 print()
