@@ -6,6 +6,7 @@
  * en vez del mock legacy `data/users.js`.
  */
 import { apiGet, apiPatch, apiPost, apiDelete } from '../utils/api.js'
+import { usuarios } from '../services/parametrizacionApi.js'
 
 export function initProfileModal() {
   window.Alpine?.data('profileModalData', () => ({
@@ -95,10 +96,22 @@ export function initProfileModal() {
           this.rolRequiereDelegado = rol ? !!rol.requiere_delegado : false
           this.delegadoAlerta = (this.rolRequiereDelegado && !this.delegadoId)
         }
-        // 4) Traer lista de usuarios activos para el picker
-        const resActivos = await apiGet('/usuarios?estado=activo&page_size=200')
-        if (resActivos.ok) {
-          this.usuariosActivos = (resActivos.data.items || []).filter(u => u.username !== this.username)
+        // 4) Traer lista de usuarios ELEGIBLES como delegado (revisor/revisor-aprobador/ETO).
+        // Issue 1.2: antes traia TODOS los activos (200 max, ordenado por nombre,
+        // solo llegaba hasta "D"). Ahora filtramos por roles relevantes y subimos
+        // el page_size a 500 para tener la lista COMPLETA.
+        const resDelegados = await usuarios.listPorCualquierRol(
+          ['ELABORADOR - REVISOR', 'ELABORADOR - REVISOR - APROBADOR', 'ETO'],
+          '',
+        )
+        if (resDelegados.ok) {
+          this.usuariosActivos = (resDelegados.data.items || []).filter(u => u.username !== this.username)
+        } else {
+          // Fallback al metodo anterior si el helper falla
+          const resActivos = await apiGet('/usuarios?estado=activo&page_size=500')
+          if (resActivos.ok) {
+            this.usuariosActivos = (resActivos.data.items || []).filter(u => u.username !== this.username)
+          }
         }
         // 5) Sesion 23 / Bloque B1: cargar ausencias (vigente + historial)
         if (miId) {
@@ -143,12 +156,13 @@ export function initProfileModal() {
         window.toast('⚠️ La fecha de inicio no puede ser mayor al fin.', 'warn')
         return
       }
-      // Necesito el id del usuario actual
+      // Necesito el id del usuario actual. Issue 1.2: ya no filtramos por
+      // username (confundia con delegacion). Buscamos por username exacto.
       const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
       if (!resList.ok) return
       const me = (resList.data.items || []).find(x => x.username === this.username)
       if (!me) return
-      const resActivos = await apiGet('/usuarios?estado=activo&page_size=200')
+      const resActivos = await apiGet('/usuarios?estado=activo&page_size=500')
       const myId = me.id
       let res
       if (this.ausenciaVigenteId) {
@@ -191,9 +205,10 @@ export function initProfileModal() {
       const res = await apiDelete(`/ausencias/${this.ausenciaVigenteId}`)
       if (res.ok) {
         window.toast('✅ Vacaciones canceladas.', 'success')
-        const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
-        const me = (resList.data.items || []).find(x => x.username === this.username)
-        if (me) await this._cargarAusencias(me.id)
+      const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
+      const me = (resList.data.items || []).find(x => x.username === this.username)
+      if (me) await this._cargarAusencias(me.id)
+      // (Issue 1.2: page_size no afecta esta query porque ya busca por username)
         const auth = window.Alpine?.store('auth')
         if (auth && auth.refreshFromBackend) await auth.refreshFromBackend()
         this.ausente = false
