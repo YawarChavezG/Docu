@@ -37,6 +37,7 @@ import { initConfirmCancelModal, ConfirmCancelModalTemplate } from './components
 import { initConfirmDeleteModal } from './components/ConfirmDeleteModal.js'
 import { initEditUserModal } from './components/EditUserModal.js'
 import { initMoveAreaModal } from './components/MoveAreaModal.js'
+import { initConfirmImpersonateModal, ConfirmImpersonateModalTemplate } from './components/ConfirmImpersonateModal.js'
 
 /* ── 1. Register Alpine stores ──────────────────────────────── */
 Alpine.store('app', appStore)
@@ -102,10 +103,17 @@ Alpine.magic('icon', () => (name) => icons[name] || '')
   initConfirmDeleteModal()
   initEditUserModal()
   initMoveAreaModal()
+  // Sesion 27: ConfirmImpersonateModal debe estar registrado ANTES de
+  // Alpine.start() para que el template inyectado pueda encontrar el
+  // x-data="confirmImpersonateData". Los otros modales (Auth, Profile,
+  // etc.) se inicializan despues porque sus templates viven dentro de
+  // sus paginas y se montan en tiempo de carga, no al inicio.
+  initConfirmImpersonateModal()
 
 /* ── 5. Inject standalone modal templates ────────────────────── */
 // document.body.insertAdjacentHTML('beforeend', ObsolescenciaModalTemplate)
 // document.body.insertAdjacentHTML('beforeend', ConfirmCancelModalTemplate)
+document.body.insertAdjacentHTML('beforeend', ConfirmImpersonateModalTemplate)
 
 /* ── 6. Start Alpine ─────────────────────────────────────────── */
 Alpine.start()

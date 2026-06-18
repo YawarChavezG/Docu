@@ -1183,9 +1183,25 @@ export const page = {
           window.toast('⛔ No puede impersonarse a si mismo', 'error')
           return
         }
-        if (!confirm(`¿Impersonar a ${u.nombre_completo} (${u.username})? Tu sesión actual (${me?.username}) se mantiene en segundo plano. El backend registrará este evento en el log de auditoría.`)) {
+        // Sesion 27: modal personalizado en vez del confirm() nativo del browser.
+        // El modal muestra info del usuario a impersonar, su rol/area y el impacto
+        // (la app se va a recargar). Confirmar abre el callback que hace la llamada
+        // al backend + reload a la homeRoute del nuevo rol.
+        if (!window.confirmImpersonate) {
+          // Fallback defensivo si el modal no se registro
+          if (!confirm(`¿Impersonar a ${u.nombre_completo} (${u.username})?`)) return
+        } else {
+          window.confirmImpersonate.abrir({
+            target: u,
+            me: { username: me?.username, nombre_completo: me?.nombre_completo },
+            onConfirm: () => this._ejecutarImpersonate(u, me),
+          })
           return
         }
+        await this._ejecutarImpersonate(u, me)
+      },
+
+      async _ejecutarImpersonate(u, me) {
         try {
           const res = await fetch(`${API_BASE}/admin/impersonate/start`, {
               method: 'POST',
