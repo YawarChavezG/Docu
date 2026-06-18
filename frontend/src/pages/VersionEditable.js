@@ -20,8 +20,9 @@ export const page = {
       // Politica de descargas (Issue 10.1: viene de BD, no hardcodeada)
       politicaDescargas: {
         max: 1,
-        excepciones: [],   // ej: ['METODOLOGIA', 'ESPECIFICACION']
-        excepcionMax: 10,  // limite por dia para tipos excluidos
+        excepciones: [],
+        excepcionMax: 10,
+        texto: 'Se puede descargar 1 documento(s) por dia',
       },
 
       _debounceTimer: null,
@@ -62,9 +63,25 @@ export const page = {
               )
             }
           }
+          this._armarTextoPolitica()
         } catch (e) {
-          // Silenciar: defaults (1 + 10) ya están en el estado
+          let txt = 'Se puede descargar ' + this.politicaDescargas.max + ' documento(s) por dia'
+          if (this.politicaDescargas.excepciones.length > 0) {
+            txt += ', a excepcion de los documentos tipo ' + this.politicaDescargas.excepciones.join(' Y ')
+            txt += ', de los cuales se pueden descargar hasta ' + this.politicaDescargas.excepcionMax + ' por dia'
+          }
+          this.politicaDescargas.texto = txt
         }
+      },
+
+      _armarTextoPolitica() {
+        const p = this.politicaDescargas
+        let txt = 'Se puede descargar ' + p.max + ' documento(s) por dia'
+        if (p.excepciones.length > 0) {
+          txt += ', a excepcion de los documentos tipo ' + p.excepciones.join(' Y ')
+          txt += ', de los cuales se pueden descargar hasta ' + p.excepcionMax + ' por dia'
+        }
+        Alpine.nextTick(() => { p.texto = txt })
       },
 
       // ─── Buscar con debounce (autocomplete en vivo) ───
@@ -162,11 +179,10 @@ export const page = {
   </div>
 
   <!-- Policy banner (Issue 10.1: texto desde BD) -->
-  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:start;gap:8px">
-    <span style="font-size:16px;flex-shrink:0">INFO</span>
+  <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:16px">
     <div style="font-size:11.5px;color:#1e3a8a;line-height:1.5">
       <strong>Politica de Descargas:</strong>
-      Se puede descargar <strong x-text="politicaDescargas.max + ' documento(s) por dia'"></strong><template x-if="politicaDescargas.excepciones.length > 0">, a excepcion de los documentos tipo <strong x-text="politicaDescargas.excepciones.join(' Y ')"></strong>, de los cuales se pueden descargar hasta <strong x-text="politicaDescargas.excepcionMax + ' por dia'"></strong></template>.
+      <span x-text="politicaDescargas.texto"></span>
     </div>
   </div>
 

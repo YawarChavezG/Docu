@@ -208,6 +208,9 @@ this.area = (u.gerencia_sigla && u.area_sigla)
 
 ## Issue 10.1 — Política de Descargas hardcodeada en pantalla /version-editable
 
+> ✅ **RESUELTO (sesión 31, 2026-06-18)** — Validado end-to-end con Chrome MCP. Banner renderiza texto completo desde BD (incluye "a excepcion de..."). Fix adicional: eliminado `<template x-if>` que no renderizaba text nodes intermedios, reemplazado por `x-text` con string completo. Eliminado "INFO" grande. Persistencia F5 OK. BD dinámico OK (1→5→1). 217/228 pytest PASS (0 regresiones).
+> Próximo fix: **11.1** (Quitar Analista ETO del wizard paso 1).
+
 **Página afectada:** `/version-editable` (cualquier usuario con acceso)
 
 **Error reportado por el cliente:**
@@ -242,6 +245,9 @@ this.area = (u.gerencia_sigla && u.area_sigla)
 
 ## Issue 11.1 — Campo "Analista ETO asignado" en wizard paso 1 no debería existir
 
+> ✅ **RESUELTO (sesión 31, 2026-06-18)** — Validado por el cliente directamente. Wizard paso 1 ya no muestra campo "Analista ETO asignado".
+> Próximo fix: **11.2** (UI Reemplazo o baja + sub-bug).
+
 **Página afectada:** Wizard de creación de documento (`/aprobacion-documento`) → Paso 1
 
 **Error reportado por el cliente:**
@@ -275,6 +281,9 @@ this.area = (u.gerencia_sigla && u.area_sigla)
 ---
 
 ## Issue 11.2 — Campo "¿Reemplazo o baja de documento?" no se renderizaba en wizard paso 3
+
+> ✅ **RESUELTO (sesión 31, 2026-06-18)** — Validado por el cliente directamente. Wizard paso 3 ya muestra select No/Si + input chips + fix sub-bug `[]`→`chipsReemplazo`.
+> Próximo fix: **11.3** (Wizard no persiste en documento_flujo).
 
 **Página afectada:** Wizard de creación de documento → Paso 3 (Firmas)
 
