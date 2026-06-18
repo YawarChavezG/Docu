@@ -2,8 +2,10 @@
  * pages/VersionEditable.js — Descarga de documento en versión editable
  * Sesion 22 R2 FASE 2: consume /api/v1/documentos/buscar (BD real).
  * Sesion 22 (fix 2): autocomplete EN VIVO mientras el usuario escribe.
+ * Sesion 25 / Issue 10.1: política de descargas desde BD (no hardcodeada).
  */
 import { documentos } from '../services/documentosApi.js'
+import { configGlobal, tiposDocumento } from '../services/parametrizacionApi.js'
 
 export const page = {
   init() {
@@ -15,7 +17,55 @@ export const page = {
       resultados: [], // para mostrar lista de matches
       mostrarLista: false, // mostrar el dropdown de sugerencias
 
+      // Politica de descargas (Issue 10.1: viene de BD, no hardcodeada)
+      politicaDescargas: {
+        max: 1,
+        excepciones: [],   // ej: ['METODOLOGIA', 'ESPECIFICACION']
+        excepcionMax: 10,  // limite por dia para tipos excluidos
+      },
+
       _debounceTimer: null,
+
+      async init() {
+        // Cargar politica desde BD (Issue 10.1)
+        try {
+          const [cfgRes, tiposRes] = await Promise.all([
+            configGlobal.list('DESCARGAS'),
+            tiposDocumento.list(),
+          ])
+          if (cfgRes.ok) {
+            const items = cfgRes.data?.items || cfgRes.data || []
+            const maxKey = items.find(i => i.clave === 'max_descargas_editables_dia')
+            if (maxKey) this.politicaDescargas.max = Number(maxKey.valor)
+            const exKey = items.find(i => i.clave === 'tipos_excluidos_limite_descarga')
+            if (exKey) {
+              // valor puede ser JSON string o array
+              let ex = exKey.valor
+              if (typeof ex === 'string') {
+                try { ex = JSON.parse(ex) } catch { ex = ex.split(',').map(s => s.trim()) }
+              }
+              this.politicaDescargas.excepciones = ex || []
+            }
+          }
+          if (tiposRes.ok) {
+            const tipos = tiposRes.data?.items || tiposRes.data || []
+            const excludidos = tipos.filter(t =>
+              this.politicaDescargas.excepciones.some(e =>
+                e.toUpperCase() === t.codigo?.toUpperCase() ||
+                e.toUpperCase() === t.nombre?.toUpperCase() ||
+                e.toUpperCase() === t.slug?.toUpperCase()
+              )
+            )
+            if (excludidos.length > 0) {
+              this.politicaDescargas.excepcionMax = Math.max(
+                ...excludidos.map(t => t.max_descargas_dia || 0)
+              )
+            }
+          }
+        } catch (e) {
+          // Silenciar: defaults (1 + 10) ya están en el estado
+        }
+      },
 
       // ─── Buscar con debounce (autocomplete en vivo) ───
       onInputChange() {
@@ -111,11 +161,12 @@ export const page = {
     <a href="#/bandeja" class="btn btn-sm">Bandeja</a>
   </div>
 
-  <!-- Policy banner -->
+  <!-- Policy banner (Issue 10.1: texto desde BD) -->
   <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:16px;display:flex;align-items:start;gap:8px">
     <span style="font-size:16px;flex-shrink:0">INFO</span>
     <div style="font-size:11.5px;color:#1e3a8a;line-height:1.5">
-      <strong>Politica de Descargas:</strong> Se puede descargar <strong>1 documento por dia</strong>, a excepcion de los documentos tipo <strong>METODOLOGIAS Y ESPECIFICACIONES</strong> (CC-1, CC-7), de los cuales se pueden descargar hasta <strong>10 por dia</strong>.
+      <strong>Politica de Descargas:</strong>
+      Se puede descargar <strong x-text="politicaDescargas.max + ' documento(s) por dia'"></strong><template x-if="politicaDescargas.excepciones.length > 0">, a excepcion de los documentos tipo <strong x-text="politicaDescargas.excepciones.join(' Y ')"></strong>, de los cuales se pueden descargar hasta <strong x-text="politicaDescargas.excepcionMax + ' por dia'"></strong></template>.
     </div>
   </div>
 
