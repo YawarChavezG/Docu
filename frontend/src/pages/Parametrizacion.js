@@ -1202,6 +1202,7 @@ export const page = {
       },
 
       async _ejecutarImpersonate(u, me) {
+        const auth = window.Alpine?.store('auth')
         try {
           const res = await fetch(`${API_BASE}/admin/impersonate/start`, {
               method: 'POST',
@@ -1211,24 +1212,45 @@ export const page = {
           })
           if (!res.ok) {
             const err = await res.json().catch(() => ({}))
+            // Sesion 27 fix: si ya estamos impersonando (409), hacer stop
+            // y reintentar automaticamente. El usuario no tiene que hacerlo
+            // manualmente ni ver el error.
+            if (res.status === 409) {
+              window.toast('Ya había un impersonate activo. Terminando y reintentando...', 'info')
+              try {
+                await fetch(`${API_BASE}/admin/impersonate/stop`, {
+                  method: 'POST', credentials: 'include',
+                })
+              } catch (_) { /* ignore */ }
+              // Reintentar
+              const res2 = await fetch(`${API_BASE}/admin/impersonate/start`, {
+                method: 'POST', credentials: 'include',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sAMAccountName: u.username }),
+              })
+              if (!res2.ok) {
+                const err2 = await res2.json().catch(() => ({}))
+                window.toast(`Error impersonando: ${err2.detail || res2.status}`, 'error')
+                return
+              }
+              return this._ejecutarImpersonate(u, me) // recursivo, ahora sin 409
+            }
             window.toast(`Error impersonando: ${err.detail || res.status}`, 'error')
             return
           }
           const data = await res.json()
           window.toast(`🕵️ Impersonando a ${data.user.nombre_completo} (${data.user.username})`, 'info')
-          // Sesion 17: refrescar el store para que el banner aparezca, en vez
-          // de hacer window.location.hash (que rompe el estado del wizard/editor).
+          // Sesion 17: refrescar el store para que el banner aparezca.
           await auth.refreshFromBackend()
-          this.cargarLogs()
           // Sesion 27 (Opcion A): navegar a la homeRoute del nuevo rol Y
           // recargar. Sin el reload, la sidebar queda con los links del
-          // admin (es HTML estatico construido una sola vez). Sin la
-          // navegacion, el router rechaza la URL actual con /403 porque el
-          // impersonado no tiene acceso a parametrizacion.
+          // admin (es HTML estatico). Sin la navegacion, el router
+          // rechaza la URL actual con /403.
           const target = auth.homeRoute
           window.location.hash = '#' + target
           window.location.reload()
         } catch (e) {
+          console.error('[Parametrizacion] _ejecutarImpersonate error:', e)
           window.toast(`Error de red: ${e.message}`, 'error')
         }
       },
