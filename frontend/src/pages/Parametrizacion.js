@@ -1204,6 +1204,14 @@ export const page = {
           // de hacer window.location.hash (que rompe el estado del wizard/editor).
           await auth.refreshFromBackend()
           this.cargarLogs()
+          // Sesion 27 (Opcion A): navegar a la homeRoute del nuevo rol Y
+          // recargar. Sin el reload, la sidebar queda con los links del
+          // admin (es HTML estatico construido una sola vez). Sin la
+          // navegacion, el router rechaza la URL actual con /403 porque el
+          // impersonado no tiene acceso a parametrizacion.
+          const target = auth.homeRoute
+          window.location.hash = '#' + target
+          window.location.reload()
         } catch (e) {
           window.toast(`Error de red: ${e.message}`, 'error')
         }

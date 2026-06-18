@@ -101,6 +101,12 @@ export const authStore = {
       }
       if (window.toast) window.toast('✅ Impersonate terminado. Volvió a su sesión original.', 'success')
       await this.refreshFromBackend()
+      // Sesion 27 (Opcion A): navegar a la homeRoute del admin original
+      // (no del impersonado) y reload completo para que la sidebar se
+      // reconstruya con los links correctos.
+      const target = this.homeRoute
+      window.location.hash = '#' + target
+      window.location.reload()
     } catch (e) {
       if (window.toast) window.toast(`Error de red: ${e.message}`, 'error')
     }
