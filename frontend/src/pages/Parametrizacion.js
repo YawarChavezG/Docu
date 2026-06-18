@@ -876,9 +876,29 @@ export const page = {
         }
       },
       insertarEtiqueta(tag) {
+        // F3: detecta el campo activo (asunto o cuerpo) para insertar la variable
+        // en el lugar correcto. Si el cursor esta en el input "asunto", se inserta
+        // alli; si esta en el Tiptap (cuerpo), se inserta en el editor.
+        const active = document.activeElement
+        // Caso 1: input de asunto (es un <input type="text" x-model="...asunto">)
+        if (active && active.tagName === 'INPUT' && active === this.$refs?.asuntoInput) {
+          const start = active.selectionStart ?? active.value.length
+          const end = active.selectionEnd ?? active.value.length
+          try {
+            active.setRangeText(tag, start, end, 'end')
+            // Disparar input event para que Alpine actualice el x-model
+            active.dispatchEvent(new Event('input', { bubbles: true }))
+          } catch (e) {
+            // Fallback: concatenar al final
+            active.value = (active.value || '') + tag
+            active.dispatchEvent(new Event('input', { bubbles: true }))
+          }
+          return
+        }
+        // Caso 2: Tiptap editor (cuerpo) - comportamiento legacy
         if (!editor || editor.isDestroyed) return
         try {
-          // Insertar como texto plano (no HTML) para que Jinja2 lo renderice
+          // Re-focus al editor antes de insertar (por si el chip robó el focus)
           editor.chain().focus().insertContent(tag).run()
         } catch (e) { console.warn('[tiptap] insertarEtiqueta error:', e) }
       },
@@ -1989,7 +2009,7 @@ export const page = {
         <template x-if="plantillas[plantillaSelect]">
           <div class="mb-3">
             <label class="form-label text-[10.5px]">Asunto del correo</label>
-            <input type="text" x-model="plantillas[plantillaSelect].asunto" class="form-input text-xs">
+            <input type="text" x-model="plantillas[plantillaSelect].asunto" x-ref="asuntoInput" class="form-input text-xs">
           </div>
         </template>
 

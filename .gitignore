@@ -28,6 +28,11 @@ backend_storage/
 minio_data/
 nginx_logs/
 
+# Plantillas documentales (binarios grandes, se copian via docker cp en start)
+# Mantenemos el directorio en git para preservar estructura + .gitkeep
+backend/storage/plantillas/*
+!backend/storage/plantillas/.gitkeep
+
 # IDEs
 .idea/
 .vscode/*

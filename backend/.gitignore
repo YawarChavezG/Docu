@@ -12,7 +12,9 @@ venv/
 .coverage
 htmlcov/
 *.egg-info/
-storage/
+storage/*
+!storage/plantillas/
+!storage/plantillas/.gitkeep
 logs/
 .env
 .env.local

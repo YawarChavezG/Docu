@@ -392,8 +392,11 @@ export const ProfileModalTemplate = /* html */`
             </div>
           </div>
 
-          <!-- Seccion Delegado -->
-          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <!-- Seccion Delegado (F4: oculta para visualizadores/admin) -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4"
+               x-show="rolRequiereDelegado"
+               style="display:none"
+               :style="rolRequiereDelegado ? '' : 'display:none'">
             <div class="text-[13px] font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">🤝 Delegado (Back-up) y Ausencias</div>
             <p class="text-[11px] text-slate-500 mb-3.5 leading-snug" x-show="rolRequiereDelegado">
               Tu rol requiere delegado obligatorio. Selecciona una persona.

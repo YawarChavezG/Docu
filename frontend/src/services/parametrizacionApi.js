@@ -141,6 +141,49 @@ export const usuarios = {
   },
   // Listar usuarios activos para el picker de delegado (modal editar)
   listActivos: (q = '') => apiGet(`/usuarios?estado=activo&page_size=200&q=${encodeURIComponent(q)}`),
+  // Listar usuarios activos que tienen un rol especifico (Sesion 24 / F1)
+  // Usado por dropdowns que requieren solo usuarios de un rol (ej: analistas ETO).
+  // Ej: listPorRol('ETO') -> todos los usuarios con rol ETO
+  listPorRol: (rol, q = '') => {
+    const params = new URLSearchParams({
+      estado: 'activo',
+      rol: rol,
+      page_size: '200',
+    })
+    if (q) params.set('q', q)
+    return apiGet(`/usuarios?${params.toString()}`)
+  },
+  // Listar usuarios activos que tienen CUALQUIERA de los roles dados (Sesion 24 / F2)
+  // Hace N requests en paralelo (uno por rol) y deduplica por id.
+  // Ej: listPorCualquierRol(['ELABORADOR - REVISOR', 'ELABORADOR - REVISOR - APROBADOR'])
+  listPorCualquierRol: async (roles, q = '') => {
+    if (!Array.isArray(roles) || roles.length === 0) {
+      return { ok: true, data: { items: [] } }
+    }
+    // Importar apiGet para evitar depender de `this.listPorRol` (que a veces
+    // es undefined cuando el caller hace destructuring o re-bind).
+    const { apiGet } = await import('../utils/api.js')
+    const params = { estado: 'activo', rol: '', page_size: '200' }
+    if (q) params.q = q
+    const results = await Promise.all(roles.map(async (rol) => {
+      params.rol = rol
+      const search = new URLSearchParams(params).toString()
+      return apiGet(`/usuarios?${search}`)
+    }))
+    const seen = new Set()
+    const items = []
+    for (const r of results) {
+      if (r.ok && r.data?.items) {
+        for (const u of r.data.items) {
+          if (!seen.has(u.id)) {
+            seen.add(u.id)
+            items.push(u)
+          }
+        }
+      }
+    }
+    return { ok: true, data: { items, total: items.length } }
+  },
 }
 
 // ─── Roles (Sesion 9 - Gestion de Usuarios edit) ───

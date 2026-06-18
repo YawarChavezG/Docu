@@ -122,7 +122,7 @@ echo       OK: Backend ready
 echo.
 
 REM ─── 5. Permisos correctos de /app/storage DENTRO del container ───
-echo [5/5] Aplicando permisos correctos a /app/storage dentro del container...
+echo [5/6] Aplicando permisos correctos a /app/storage dentro del container...
 echo       (chown 1000:1000 + chmod 755/644 — forma correcta, no chmod 777)
 echo.
 
@@ -140,6 +140,28 @@ echo.
 echo       Reiniciando celery-beat para regenerar schedule file...
 docker restart sgd-celery-beat >nul 2>&1
 timeout /t 3 /nobreak >nul
+
+REM ─── 6. Copiar plantillas documentales al storage del backend ───
+REM /app/storage es un volumen Docker (no bind mount del host), por lo que
+REM los archivos en backend/storage/plantillas/ no se ven automaticamente
+REM dentro del container. Hacemos docker cp despues de que el container
+REM ya esta corriendo. Ver docs/PR/SESION-24-HANDOFF.md seccion E1.
+echo.
+echo [6/6] Copiando plantillas documentales a /app/storage/plantillas/...
+
+if exist "%STORAGE_DIR%\plantillas\*.docx" (
+    docker exec --user root sgd-backend mkdir -p /app/storage/plantillas
+    docker cp "%STORAGE_DIR%\plantillas\." sgd-backend:/app/storage/plantillas/ >nul 2>&1
+    if errorlevel 1 (
+        echo [WARN] No se pudieron copiar las plantillas. Verificar manualmente.
+    ) else (
+        docker exec --user root sgd-backend sh -c ^
+            "chown -R 1000:1000 /app/storage/plantillas && find /app/storage/plantillas -type f -exec chmod 644 {} +"
+        echo       OK: plantillas copiadas.
+    )
+) else (
+    echo       [SKIP] No hay plantillas en %STORAGE_DIR%\plantillas\
+)
 
 echo.
 echo   ╔════════════════════════════════════════════════════════╗

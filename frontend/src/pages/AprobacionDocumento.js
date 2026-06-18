@@ -24,6 +24,9 @@ export const page = {
       gerenciasList: [],
       areasAll: [],     // todas las areas (para filtrar en cliente por gerencia)
       empleadosList: [],
+      analistasEtoList: [],   // solo usuarios con rol ETO (F1)
+      revisoresList: [],      // usuarios con capacidad de revisar (F2)
+      aprobadoresList: [],    // usuarios con capacidad de aprobar (F2)
       cargandoCatalogos: true,
 
       // ─── Documento en creacion ───
@@ -35,6 +38,7 @@ export const page = {
       tipoSolicitud: '',
       titulo: '',
       justificacion: '',
+      analistaEtoAsignado: '',  // id del ETO que recibira el documento (F1)
 
       // ─── Limites de archivos (cargados de configuracion_global en init()) ───
       _limitesArchivos: { maxTamanoArchivoMb: 20, maxArchivosPorSolicitud: 20 },
@@ -89,6 +93,49 @@ export const page = {
               cargo: u.cargo,
             }))
           }
+          // Cargar SOLO usuarios con rol ETO (Sesion 24 / F1)
+          const etosRes = await usuariosApi.listPorRol('ETO')
+          if (etosRes.ok) {
+            this.analistasEtoList = (etosRes.data?.items || []).map(u => ({
+              id: u.id,
+              username: u.username,
+              nombre_completo: u.nombre_completo,
+              ausente: u.ausente,
+            }))
+            // Pre-seleccionar el ETO del usuario actual si tiene rol ETO
+            const yo = (this.empleadosList || []).find(e => e.username === (window.Alpine?.store('auth')?.user?.username || ''))
+            if (yo && this.analistasEtoList.some(a => a.id === yo.id)) {
+              this.analistaEtoAsignado = yo.id
+            }
+          }
+          // F2: cargar usuarios con capacidad de revisar y aprobar
+          // (revisor = ELABORADOR - REVISOR + ELABORADOR - REVISOR - APROBADOR + ETO)
+          // (aprobador = ELABORADOR - REVISOR - APROBADOR + ETO)
+          const [revRes, aprRes] = await Promise.all([
+            usuariosApi.listPorCualquierRol([
+              'ELABORADOR - REVISOR',
+              'ELABORADOR - REVISOR - APROBADOR',
+              'ETO',
+            ]),
+            usuariosApi.listPorCualquierRol([
+              'ELABORADOR - REVISOR - APROBADOR',
+              'ETO',
+            ]),
+          ])
+          if (revRes.ok) {
+            this.revisoresList = (revRes.data?.items || []).map(u => ({
+              id: u.id,
+              username: u.username,
+              nombre_completo: u.nombre_completo,
+            }))
+          }
+          if (aprRes.ok) {
+            this.aprobadoresList = (aprRes.data?.items || []).map(u => ({
+              id: u.id,
+              username: u.username,
+              nombre_completo: u.nombre_completo,
+            }))
+          }
           // Cargar limites de archivos desde configuracion_global (categoria=ARCHIVOS)
           if (cfgRes.ok && cfgRes.data?.items) {
             for (const cfg of cfgRes.data.items) {
@@ -130,6 +177,11 @@ export const page = {
 
       get tipoSeleccionado() {
         return this.tiposList.find(t => String(t.id) === String(this.tipodoc))
+      },
+
+      get analistaEtoSeleccionadoAusente() {
+        const a = this.analistasEtoList.find(x => String(x.id) === String(this.analistaEtoAsignado))
+        return a ? !!a.ausente : false
       },
 
       // Cuando cambian tipodoc + area + tipoSolicitud, recalcular codigo
@@ -212,12 +264,12 @@ export const page = {
       // (simplificado: usamos el username del dropdown)
 
       addRevisor() {
-        if (this.empleadosList.length === 0) return
-        this.revisores.push({ id: Date.now() + Math.random(), user_id: this.empleadosList[0].id, username: this.empleadosList[0].username, nombre: this.empleadosList[0].nombre_completo })
+        if (this.revisoresList.length === 0) return
+        this.revisores.push({ id: Date.now() + Math.random(), user_id: this.revisoresList[0].id, username: this.revisoresList[0].username, nombre: this.revisoresList[0].nombre_completo })
       },
       addAprobador() {
-        if (this.empleadosList.length === 0) return
-        this.aprobadores.push({ id: Date.now() + Math.random(), user_id: this.empleadosList[0].id, username: this.empleadosList[0].username, nombre: this.empleadosList[0].nombre_completo })
+        if (this.aprobadoresList.length === 0) return
+        this.aprobadores.push({ id: Date.now() + Math.random(), user_id: this.aprobadoresList[0].id, username: this.aprobadoresList[0].username, nombre: this.aprobadoresList[0].nombre_completo })
       },
       removerRevisor(idx) { this.revisores.splice(idx, 1) },
       removerAprobador(idx) { this.aprobadores.splice(idx, 1) },
@@ -237,6 +289,11 @@ export const page = {
         if (this.paso === 1) {
           if (!this.tipodoc || !this.gerencia || !this.area || !this.tipoSolicitud || !this.titulo.trim()) {
             window.toast?.('Complete todos los campos obligatorios del paso 1', 'warn')
+            return
+          }
+          // F1: validar que haya un analista ETO asignado
+          if (!this.analistaEtoAsignado) {
+            window.toast?.('Seleccione un Analista ETO', 'warn')
             return
           }
           // Validar tamano y cantidad de archivos contra configuracion_global (A3)
@@ -445,6 +502,20 @@ export const page = {
         <label class="form-label">Justificacion / motivo de la solicitud</label>
         <textarea class="form-input text-xs resize-y" rows="3" x-model="justificacion" placeholder="Describa el motivo de creacion o actualizacion del documento..."></textarea>
       </div>
+      <!-- Sesion 24 / F1: Analista ETO asignado (solo usuarios con rol ETO) -->
+      <div class="sm:col-span-2">
+        <label class="form-label">Analista ETO asignado *</label>
+        <select class="form-input text-xs" x-model="analistaEtoAsignado" :disabled="analistasEtoList.length===0">
+          <option value="">Seleccionar ETO...</option>
+          <template x-for="a in analistasEtoList" :key="a.id">
+            <option :value="a.id" x-text="a.nombre_completo + ' (@' + a.username + ')' + (a.ausente ? ' - En vacaciones' : '')"></option>
+          </template>
+        </select>
+        <div class="form-hint" x-show="analistasEtoList.length===0">Cargando ETOs...</div>
+        <div class="form-hint" x-show="analistaEtoSeleccionadoAusente && analistasEtoList.length>0" style="color:#d97706">
+          ⚠ El ETO seleccionado esta de vacaciones/licencia. Las tareas se reenrutaran a su delegado.
+        </div>
+      </div>
     </div>
 
     <div class="pt-4 border-t border-slate-100">
@@ -584,7 +655,7 @@ export const page = {
         <template x-for="(r,i) in revisores" :key="r.id">
           <div class="flex gap-2">
             <select class="form-input flex-1 text-xs" x-model.number="r.user_id">
-              <template x-for="emp in empleadosList" :key="emp.id">
+              <template x-for="emp in revisoresList" :key="emp.id">
                 <option :value="emp.id" x-text="emp.nombre_completo + ' (@' + emp.username + ')'"></option>
               </template>
             </select>
@@ -601,7 +672,7 @@ export const page = {
         <template x-for="(a,i) in aprobadores" :key="a.id">
           <div class="flex gap-2">
             <select class="form-input flex-1 text-xs" x-model.number="a.user_id">
-              <template x-for="emp in empleadosList" :key="emp.id">
+              <template x-for="emp in aprobadoresList" :key="emp.id">
                 <option :value="emp.id" x-text="emp.nombre_completo + ' (@' + emp.username + ')'"></option>
               </template>
             </select>

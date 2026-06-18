@@ -67,7 +67,9 @@ class LocalStorage(StorageBackend):
     """
 
     def __init__(self, root: Optional[str] = None) -> None:
-        env_root = os.getenv("STORAGE_ROOT")
+        # F5 (Sesion 24): aceptar tanto STORAGE_ROOT (legacy) como
+        # DOCUMENTOS_STORAGE_PATH (mas descriptivo, default "/app/storage/uploads").
+        env_root = os.getenv("DOCUMENTOS_STORAGE_PATH") or os.getenv("STORAGE_ROOT")
         self.root = Path(root or env_root or "/app/storage/uploads")
         self.root.mkdir(parents=True, exist_ok=True)
 
