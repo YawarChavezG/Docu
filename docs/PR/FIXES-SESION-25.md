@@ -131,6 +131,9 @@ this.area = (u.gerencia_sigla && u.area_sigla)
 
 ## Issue 3.1 — Asignar rol eto/revisor/aprobador OBLIGA a seleccionar delegado
 
+> ✅ **RESUELTO (sesión 30, 2026-06-18)** — Validado end-to-end con Chrome MCP: (1) confirm() nativo reemplazado por modal estilo SGD (ConfirmDelegadoModal), (2) Guardar y cerrar automático, (3) z-index 8600 corregido para que el modal de confirmación aparezca encima del edit modal (z-index 8000). 3 escenarios validados: Visualizador→Elaborador-Revisor, Visualizador→ETO, persistencia F5. BD, audit_log y 24/25 tests pytest OK (1 preexistente).
+> Próximo fix: **4.1** (Botón Sincronizar AD 403 para ETO).
+
 **Página afectada:** Parametrización → Gestión de Usuarios → Editar Usuario (modal)
 
 **Error reportado por el cliente:**

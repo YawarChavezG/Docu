@@ -1434,10 +1434,16 @@ export const page = {
         if (this.editForm.requiere_delegado && !this.editForm.delegado_id) {
           // Issue 3.1: delegado es RECOMENDADO pero NO obligatorio.
           // El cliente quiere poder asignar eto/revisor/aprobador sin delegado.
-          if (!confirm('Este rol sugiere asignar un delegado. ¿Guardar de todos modos?')) {
-            return
-          }
+          window.confirmDelegadoModal?.abrir({
+            mensaje: 'Este rol sugiere asignar un delegado. \u00bfGuardar de todos modos?',
+            onConfirm: () => this._guardarEdicionUsuarioContinuar(),
+          })
+          return
         }
+        await this._guardarEdicionUsuarioContinuar()
+      },
+
+      async _guardarEdicionUsuarioContinuar() {
         this.editModalSaving = true
         try {
           // Construir payload solo con campos que cambiaron respecto al original
@@ -1512,6 +1518,7 @@ export const page = {
 
           if (Object.keys(payload).length === 0) {
             window.toast('Vacaciones actualizadas', 'success')
+            this.editModalSaving = false
             this.cerrarModalEdicion()
             this.cargarUsuarios()
             return
@@ -1522,6 +1529,7 @@ export const page = {
             return
           }
           window.toast('✅ Usuario actualizado', 'success')
+          this.editModalSaving = false
           this.cerrarModalEdicion()
           await this.cargarUsuarios()
           await this.cargarLogs()
