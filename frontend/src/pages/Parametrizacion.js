@@ -1384,8 +1384,11 @@ export const page = {
           return
         }
         if (this.editForm.requiere_delegado && !this.editForm.delegado_id) {
-          window.toast('⚠️ Este rol requiere delegado. Asigna uno.', 'warn')
-          return
+          // Issue 3.1: delegado es RECOMENDADO pero NO obligatorio.
+          // El cliente quiere poder asignar eto/revisor/aprobador sin delegado.
+          if (!confirm('Este rol sugiere asignar un delegado. ¿Guardar de todos modos?')) {
+            return
+          }
         }
         this.editModalSaving = true
         try {
@@ -2369,12 +2372,12 @@ export const page = {
           <div>
             <label class="form-label flex items-center gap-1.5">
               <span class="text-brand-500">●</span> Rol
-              <span class="text-amber-600 text-[10px]" x-show="editForm.requiere_delegado">⚠ requiere delegado</span>
+              <span class="text-slate-500 text-[10px]" x-show="editForm.requiere_delegado">(sugiere delegado)</span>
             </label>
             <select class="form-input text-xs" x-model="editForm.rol_codigo" @change="onRolChange()">
               <option value="">— Seleccionar rol —</option>
               <template x-for="r in editModalRoles" :key="r.codigo">
-                <option :value="r.codigo" x-text="r.nombre + (r.requiere_delegado ? ' (requiere delegado)' : '')"></option>
+                <option :value="r.codigo" x-text="r.nombre + (r.requiere_delegado ? ' (sugiere delegado)' : '')"></option>
               </template>
             </select>
             <div class="form-hint">Determina qué pantallas y permisos tiene el usuario.</div>
@@ -2384,7 +2387,7 @@ export const page = {
           <div x-show="editForm.requiere_delegado">
             <label class="form-label flex items-center gap-1.5">
               <span class="text-brand-500">●</span> Delegado (Back-up)
-              <span class="text-red-600 text-[10px]">*</span>
+              <span class="text-slate-500 text-[10px]">(opcional)</span>
             </label>
 
             <!-- Delegado actual -->
