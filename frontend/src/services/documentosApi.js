@@ -63,6 +63,15 @@ export const documentos = {
     })
     return apiGet(`/documentos/actualizables?${params.toString()}`)
   },
+  // R3 item 0.3: valida caratula .docx SIN crear documento
+  validarCaratula: (file, codigoEsperado, versionEsperada = '00', tituloEsperado = '') => {
+    const formData = new FormData()
+    formData.append('archivo', file)
+    formData.append('codigo_esperado', codigoEsperado)
+    formData.append('version_esperada', versionEsperada)
+    formData.append('titulo_esperado', tituloEsperado)
+    return apiPost('/documentos/validar-caratula', formData)
+  },
 }
 
 // ─── Bandejas ───

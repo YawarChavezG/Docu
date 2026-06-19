@@ -75,6 +75,7 @@ export const page = {
       inputReemplazo: '',
       chipsReemplazo: [],
       submitting: false,  // indica que se esta creando/firmando
+      _validandoCaratula: false, // R3 item 0.3: evitar llamadas concurrentes
 
       // ─── Inicializacion async ───
       async init() {
@@ -167,6 +168,34 @@ export const page = {
         } finally {
           this.cargandoCatalogos = false
         }
+
+        // R3 item 0.3: validar caratula automaticamente al seleccionar archivo
+        this.$watch('archivoPrincipal', async (file) => {
+          if (!file || !file.name?.endsWith('.docx')) return
+                if (!this.codigoAuto || this.codigoAuto === '---') return
+          // Esperar 1.2s para asegurar que el usuario termino de seleccionar
+          await new Promise(r => setTimeout(r, 1200))
+          if (this.archivoPrincipal !== file) return // usuario cambió de archivo
+          if (this._validandoCaratula) return
+          this._validandoCaratula = true
+          try {
+            const codigo = (this.codigoAuto || '').split('/')[0]
+            const res = await documentos.validarCaratula(
+              file, codigo, this.versionAuto || '00', this.titulo,
+            )
+            if (res.ok && res.data) {
+              if (res.data.coincide) {
+                window.toast?.('✅ Caratula del documento verificada correctamente', 'success')
+              } else if (res.data.warnings?.length > 0) {
+                window.toast?.('⚠️ ' + res.data.warnings.join(' | '), 'warn')
+              }
+            }
+          } catch (e) {
+            // Silencio — error de validacion no debe molestar al usuario
+          } finally {
+            this._validandoCaratula = false
+          }
+        })
       },
 
       // ─── Computeds ───
@@ -365,7 +394,7 @@ export const page = {
 
       // ─── Navegacion entre pasos ───
       async nextPaso() {
-        // Paso 1 -> 2: crear documento + subir archivo + validar caratula
+        // Paso 1 -> 2: solo validar (NO crear documento, eso se hace al firmar)
         if (this.paso === 1) {
           if (!this.tipodoc || !this.gerencia || !this.area || !this.tipoSolicitud || !this.titulo.trim()) {
             window.toast?.('Complete todos los campos obligatorios del paso 1', 'warn')
@@ -389,56 +418,6 @@ export const page = {
                 return
               }
             }
-          }
-
-          // R3 item 0.3: crear documento + subir archivo + validar caratula al avanzar
-          if (!this.documentoId) {
-            this.submitting = true
-            try {
-              const resCreate = await documentos.create({
-                gerencia_id: Number(this.gerencia),
-                area_id: Number(this.area),
-                tipo_documento_id: Number(this.tipodoc),
-                titulo: this.titulo.trim(),
-                comentarios_eto: null,
-                tipo_solicitud: this.tipoSolicitud,
-              })
-              if (!resCreate.ok) {
-                window.toast?.(resCreate.message || 'Error al crear documento', 'error')
-                this.submitting = false
-                return
-              }
-              this.documentoId = resCreate.data.documento.id
-              this.flujoId = resCreate.data.flujo_id
-
-              // Subir archivo principal y validar caratula
-              if (this.archivoPrincipal) {
-                const upRes = await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
-                if (upRes.ok && upRes.data?.caratula_validacion) {
-                  const cv = upRes.data.caratula_validacion
-                  if (!cv.coincide && cv.warnings && cv.warnings.length > 0) {
-                    window.toast?.(
-                      '⚠️ Caratula del .docx no coincide: ' + cv.warnings.join(' | '),
-                      'warn',
-                    )
-                  } else if (cv.coincide && cv.caratula?.codigo) {
-                    window.toast?.('✅ Caratula del documento verificada correctamente', 'success')
-                  }
-                }
-              }
-              // Subir formularios
-              for (const f of this.formulariosAsociados) {
-                const upRes = await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
-                if (upRes.ok && upRes.data?.formulario?.codigo_formulario) {
-                  window.toast?.('✅ Formulario subido: ' + upRes.data.formulario.codigo_formulario, 'success')
-                }
-              }
-            } catch (e) {
-              window.toast?.('Error al crear documento: ' + (e?.message || e), 'error')
-              this.submitting = false
-              return
-            }
-            this.submitting = false
           }
         }
         if (this.paso < 3) this.paso++
@@ -465,19 +444,31 @@ export const page = {
           onSuccess: async ({ password }) => {
             this.submitting = true
             try {
-              // 1) El documento ya fue creado en nextPaso() (paso 1 -> 2).
-              //    Solo subir formularios que pudieron haber sido agregados despues.
-              if (!this.documentoId) {
-                window.toast?.('Error: el documento deberia haberse creado en paso 1. Reintente.', 'error')
+              // 1) Crear el documento en BD (recien al firmar, no antes)
+              const resCreate = await documentos.create({
+                gerencia_id: Number(this.gerencia),
+                area_id: Number(this.area),
+                tipo_documento_id: Number(this.tipodoc),
+                titulo: this.titulo.trim(),
+                comentarios_eto: null,
+                tipo_solicitud: this.tipoSolicitud,
+              })
+              if (!resCreate.ok) {
+                window.toast?.(resCreate.message || 'Error al crear documento', 'error')
                 this.submitting = false
                 return
               }
-              if (this.formulariosAsociados.length > 0) {
-                for (const f of this.formulariosAsociados) {
-                  const upRes = await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
-                  if (upRes.ok && upRes.data?.formulario?.codigo_formulario) {
-                    window.toast?.('✅ Formulario subido: ' + upRes.data.formulario.codigo_formulario, 'success')
-                  }
+              this.documentoId = resCreate.data.documento.id
+              this.flujoId = resCreate.data.flujo_id
+              // Subir archivo principal
+              if (this.archivoPrincipal) {
+                await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
+              }
+              // Subir formularios
+              for (const f of this.formulariosAsociados) {
+                const upRes = await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
+                if (upRes.ok && upRes.data?.formulario?.codigo_formulario) {
+                  window.toast?.('✅ Formulario subido: ' + upRes.data.formulario.codigo_formulario, 'success')
                 }
               }
               // 2) Enviar a liberacion con firma 2FA

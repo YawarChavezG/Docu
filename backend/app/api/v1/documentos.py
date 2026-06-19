@@ -250,6 +250,62 @@ async def preview_codigo(
 
 
 # ════════════════════════════════════════════════════════════════
+#  POST /documentos/validar-caratula  (R3 item 0.3)
+#  Valida la caratula de un .docx SIN crear documento.
+#  El frontend lo llama inmediatamente al seleccionar el archivo
+#  en el wizard paso 1. Retorna {coincide, warnings}. No persiste nada.
+# ════════════════════════════════════════════════════════════════
+
+
+@router.post("/validar-caratula")
+async def validar_caratula_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    archivo: UploadFile = File(...),
+    codigo_esperado: str = Form(...),
+    version_esperada: str = Form(default="00"),
+    titulo_esperado: str = Form(default=""),
+):
+    """
+    Recibe un .docx + codigo/version/titulo esperado y valida
+    que la caratula coincida.
+
+    NO crea documento, NO sube archivo, NO persiste nada.
+    Solo lectura. Idempotente.
+    """
+    await require_authenticated(request, db)
+
+    # Solo validar .docx
+    if archivo.content_type not in (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    ):
+        return {"valido": True, "warnings": [], "mensaje": "No es un .docx, no se valida caratula"}
+
+    try:
+        docx_bytes = await archivo.read()
+        from app.services.caratula_service import validar_caratula
+        resultado = validar_caratula(
+            docx_bytes=docx_bytes,
+            codigo_esperado=codigo_esperado,
+            version_esperada=version_esperada,
+            titulo_esperado=titulo_esperado,
+        )
+        return {
+            "coincide": resultado.coincide,
+            "warnings": resultado.warnings,
+            "caratula": {
+                "codigo": resultado.caratula.codigo,
+                "version": resultado.caratula.version,
+                "titulo": resultado.caratula.titulo,
+            },
+        }
+    except Exception as e:
+        logger.warning(f"Error al validar caratula: {e}")
+        return {"coincide": True, "warnings": [], "caratula": None}
+
+
+# ════════════════════════════════════════════════════════════════
 #  GET /documentos/actualizables  (R3 item 0.2)
 #  Lista documentos existentes que se pueden actualizar
 #  (filtrados por area_id + tipo_documento_id, solo APROBADO/VIGENTE).
