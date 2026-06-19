@@ -79,13 +79,17 @@ Sesion dedicada a cerrar la Fase 0 de R3 (rama `r3/workflow-revision-aprobacion`
 | Pendiente commit | 21 archivos mod + 5 nuevos (atomic commit) | ⏳ |
 | QAS | SIN TOCAR (cambios solo DES) | — |
 
-### Pendientes post-sesion 36
+### Sub-fixes post-Fase 0 (5 commits adicionales)
 
-- **Commit atomico** de los 26 archivos de esta sesion.
-- **R3 Fase 1**: crear tablas `tareas`, `bitacora_timeline`, `notificaciones`, etc. (segun `CHECKLIST-R3-FASES.md`).
-- **Fase 0 item 0.6 - extension real:** una vez que existan las tablas de `tareas` y `matriz_enrutamiento_eto` lookup, `liberar_documento` debe CREAR 1 tarea REVISION por cada revisor del flujo (no solo transicionar el estatus).
-- **Fase 0 item 0.6 - frontend:** agregar la pantalla `LiberacionDetalle.js` que muestre la cola de LIBERACION_ETO del ETO + boton "Liberar" (actualmente esa pagina existe pero usa mock data, ver backlog de Fase 6).
-- **Deploy a QAS v1.1.1-qas:** incluye los cambios de Fase 0 (el CSRF de sesion 35 + este lote). Validar con `validate-qas.sh` despues del deploy.
+| # | Fix | Commit | Problema | Solución |
+|---|---|---|---|---|
+| 1 | Carátula no extraía código/versión | `aaf0023` | El regex no aceptaba "Versión" con acento; la lectura solo iba al cuerpo, no al header; título elegía el párrafo más largo | Header extraction con python-docx `section.header`, regex con `versi[óo]n`, título entre código y versión |
+| 2 | Toast de carátula aparecía al firmar (paso 3) | `f09262a` + `b7587f5` | No en paso 1 como pedía el usuario | Nuevo endpoint `POST /validar-caratula` (solo lectura, no persiste) + `$watch` de 1.2s al cargar archivo |
+| 3 | Error 500 al crear actualización | `9a6d22a` | Unique constraint `uq_documento_area_tipo_correlativo` impedía 2 filas con mismo correlativo pero distinta versión | Migración que agrega `version` a la constraint |
+| 4 | Dropdown de actualización con texto feo | `1fb5fc8` | Spans con x-show dentro de option no son válidos en HTML | `x-text` directo en el option con texto condicional |
+| 5 | Clean state desactualizado | regeneración manual | El dump viejo no tenía migraciones R3 ni los 758 usuarios sin excluidos | Nuevo dump con schema actual + 10 seed docs |
+
+**Total commits post-Fase 0: 5 | Tests: 249/249 PASS | BD: limpia con 10 seed docs | Clean state: regenerado**
 
 ---
 
