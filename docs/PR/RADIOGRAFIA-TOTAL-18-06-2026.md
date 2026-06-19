@@ -1,7 +1,7 @@
-# RADIOGRAFÍA TOTAL — COFAR SGD (2026-06-18)
+# RADIOGRAFÍA TOTAL — COFAR SGD (2026-06-19)
 
 > **Documento único de contexto para cualquier IA o developer.** Captura el estado real de: frontend, backend, BD, Docker, scripts, tests, pendientes, y deuda técnica. Para ser leído ANTES de cualquier sesión de trabajo.
-> **Última actualización:** 2026-06-18 (sesión 31 — **228/228 tests PASS, 11 fallas preexistentes RESUELTAS**)
+> **Última actualización:** 2026-06-19 (sesión 36 — **R3 Fase 0 completada, 249/249 tests PASS, rama `r3/workflow-revision-aprobacion`**)
 
 ---
 
@@ -279,7 +279,7 @@ Red: `sgd-des_net` (bridge, DNS corporativo COFAR).
 | `test_documentos_archivos.py` | 4 | ✅ |
 | `test_documentos_flujo_wizard.py` | 2 | ✅ |
 | `test_tracer.py` | 4 | ✅ |
-| **Total** | **228** | **228 PASS, 0 FAIL** |
+| **Total** | **249** | **249 PASS, 0 FAIL** |
 
 **Sesión 31 (2026-06-18) cerró las 11 fallas preexistentes:**
 - `test_email_templates.py` (3): `CodigoPlantilla.NUEVA_TAREA` → `ASIG_REVISION`
@@ -315,7 +315,7 @@ Red: `sgd-des_net` (bridge, DNS corporativo COFAR).
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | ✅ RESUELTO |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | ✅ RESUELTO |
 
-**Total: 20 RESUELTO + 1 DEPRECADO = 21/22 cerrados.**
+**Total: 21/21 RESUELTOS (100% — 1 DEPRECADO). Rama `r3/workflow-revision-aprobacion` con Fase 0 cerrada.**
 
 ---
 
