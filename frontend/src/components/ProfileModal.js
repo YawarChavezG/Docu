@@ -395,7 +395,8 @@ export const ProfileModalTemplate = /* html */`
          :style="open ? 'display:flex' : 'display:none'">
 
       <div @click.stop="mostrarListaDelegado = false"
-           class="modal-box max-w-[440px] relative max-h-[90vh] overflow-y-auto">
+           class="modal-box max-w-[440px] relative max-h-[90vh] overflow-y-auto"
+           style="position:relative">
 
         <button @click="cerrar()" :disabled="saving"
                 class="absolute top-3.5 right-3.5 text-slate-400 hover:text-red-500 transition-colors text-lg leading-none cursor-pointer disabled:opacity-30">✕</button>
@@ -586,28 +587,28 @@ export const ProfileModalTemplate = /* html */`
               </span>
             </button>
           </div>
-        </div>
-      </div>
-    </div>
 
-    <!-- Modal Confirmacion custom -->
-    <div x-show="confirmOpen"
-         x-transition:enter="transition ease-out duration-200"
-         x-transition:enter-start="opacity-0"
-         x-transition:enter-end="opacity-100"
-         x-transition:leave="transition ease-in duration-150"
-         x-transition:leave-start="opacity-100"
-         x-transition:leave-end="opacity-0"
-         @keydown.escape.window="_confirmNo()"
-         class="modal-overlay" style="z-index:8600;display:none"
-         :style="confirmOpen ? 'display:flex' : 'display:none'">
+          <!-- Confirm dialog dentro del modal principal -->
+          <div x-show="confirmOpen"
+               x-transition:enter="transition ease-out duration-150"
+               x-transition:enter-start="opacity-0 scale-95"
+               x-transition:enter-end="opacity-100 scale-100"
+               x-transition:leave="transition ease-in duration-100"
+               x-transition:leave-start="opacity-100 scale-100"
+               x-transition:leave-end="opacity-0 scale-95"
+               class="absolute inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm rounded-xl"
+               style="display:none"
+               :style="confirmOpen ? 'display:flex' : 'display:none'">
+            <div @click.stop class="bg-white rounded-xl shadow-2xl p-6 max-w-[340px] w-full mx-4 text-center">
+              <div class="text-4xl mb-3">🤔</div>
+              <div class="text-sm text-slate-700 mb-6 leading-relaxed" x-text="confirmMsg"></div>
+              <div class="flex gap-2.5 justify-center">
+                <button @click="_confirmNo()" class="btn btn-ghost text-sm">Cancelar</button>
+                <button @click="_confirmYes()" class="btn btn-danger text-sm">Sí, confirmar</button>
+              </div>
+            </div>
+          </div>
 
-      <div @click.stop class="modal-box max-w-[380px] text-center max-h-[90vh] overflow-y-auto" style="display:block">
-        <div class="text-4xl mb-3">🤔</div>
-        <div class="text-sm text-slate-700 mb-6 leading-relaxed" x-text="confirmMsg"></div>
-        <div class="flex gap-2.5 justify-center">
-          <button @click="_confirmNo()" class="btn btn-ghost text-sm">Cancelar</button>
-          <button @click="_confirmYes()" class="btn btn-danger text-sm">Sí, confirmar</button>
         </div>
       </div>
     </div>
