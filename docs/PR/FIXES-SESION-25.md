@@ -622,6 +622,8 @@ Aplicado en:
 
 ## Issue 2.1 — Perfil tarda mucho en cargar (Tarda en mostrar recursos)
 
+> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado por el cliente. Performance mejorada con Promise.all.
+
 **Página afectada:** Perfil → Mi Perfil (todos los usuarios)
 
 **Error reportado por el cliente:**
@@ -667,6 +669,8 @@ Aplicado en:
 
 ## Issue 8.3 — Header de columna dice "Área / Gerencia" (debería ser "Área")
 
+> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado por el cliente. Header cambiado a "Área" en tabla y XLSX.
+
 **Página afectada:** Parametrización → Gestión de Usuarios (tabla + export XLSX)
 
 **Error reportado por el cliente:**
@@ -705,6 +709,8 @@ Aplicado en:
 
 ## Issue 9.1 — /plantillas no es responsive (vista tienda)
 
+> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado end-to-end con Chrome MCP. Root cause: inline `grid-template-columns:1fr` tenía mayor especificidad que las clases Tailwind responsive. Fix: reemplazar inline style por clases Tailwind `grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4`. 4 breakpoints verificados (mobile 1col, tablet 3col, desktop 4col). Persistencia F5 OK. 11/11 tests pytest PASS.
+
 **Página afectada:** `/plantillas`
 
 **Error reportado por el cliente:**
@@ -730,6 +736,8 @@ Aplicado en:
 
 ## Issue 9.2 — Quitar bloque "IA — Recomendación" de /plantillas
 
+> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado por el cliente. Bloque IA eliminado de /plantillas.
+
 **Página afectada:** `/plantillas`
 
 **Error reportado por el cliente:**
@@ -746,6 +754,8 @@ Aplicado en:
 ---
 
 ## Issue 6.1 — Ocultar columna SLUG en tipos_documento
+
+> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado por el cliente. Columna SLUG oculta de la tabla.
 
 **Página afectada:** Parametrización → Tipos de Documento (tabla)
 

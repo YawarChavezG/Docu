@@ -97,7 +97,7 @@ export const page = {
   </div>
 
   <!-- Cards de plantillas - Issue 9.1: vista tienda responsive (1/2/3/4 cols segun screen) -->
-  <div x-show="!loading" style="display:grid;grid-template-columns:1fr;gap:14px" class="sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+  <div x-show="!loading" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
     <template x-for="p in filtered" :key="p.nombre_archivo">
       <div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 1px 3px rgba(0,0,0,0.05);transition:all 200ms"
            @mouseenter="$el.style.boxShadow='0 6px 20px rgba(0,0,0,0.08)';$el.style.transform='translateY(-2px)'"

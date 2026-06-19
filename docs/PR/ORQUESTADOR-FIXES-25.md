@@ -127,14 +127,14 @@ Reglas duras:
 | 5.1 | Selector Estados con 4 opciones | 🟡 | ✅ RESUELTO |
 | 1.2 | Lista delegados corta | 🟡 | ✅ RESUELTO |
 | 7.1 | Matriz ETO dropdown delegado solo ETO | 🟡 | ✅ RESUELTO |
-| 2.1 | Performance login (Promise.all) | 🟡 | pendiente |
-| 8.3 | Header "Área" | 🟢 | pendiente |
+| 2.1 | Performance login (Promise.all) | 🟡 | ✅ RESUELTO |
+| 8.3 | Header "Área" | 🟢 | ✅ RESUELTO |
 | 8.5 | KPI inactivos + desvinculados | 🟢 | pendiente |
-| 9.1 | /plantillas vista tienda responsive | 🟢 | pendiente |
-| 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | pendiente |
-| 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | pendiente |
+| 9.1 | /plantillas vista tienda responsive | 🟢 | ✅ RESUELTO |
+| 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | ✅ RESUELTO |
+| 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | ✅ RESUELTO |
 
-**Progreso**: 14/22 (63.6%).
+**Progreso**: 19/22 (86.4%).
 
 ---
 
