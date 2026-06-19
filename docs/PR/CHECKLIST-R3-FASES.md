@@ -63,6 +63,7 @@
 - [ ] Crear tabla `documento_reemplazos`
 - [ ] Crear tabla `documento_alcance_difusion`
 - [ ] Crear tabla `tarea_observaciones`
+- [ ] Crear tabla `procesos` (catálogo, seed con 10 valores genéricos)
 - [ ] Extender enum `TipoTarea`: agregar LIBERACION, CORRECCION
 - [ ] Agregar columna `usa_dias_habiles` a `semaforizacion_tarea`
 - [ ] Actualizar valores de semáforo: verde=4, amarillo=7, rojo=10

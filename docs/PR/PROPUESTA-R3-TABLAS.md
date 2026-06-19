@@ -205,7 +205,19 @@ Wizard paso 3 → usuario ingresa códigos a reemplazar → se guardan en docume
 
 La tabla `documento_reemplazos` de la propuesta R3 cubre esto. Pero el trigger debe implementarse en `publicar_documento()` (sección 3.4 de la propuesta).
 
-#### 1.5.7 Notificaciones: panel y store deben ser reemplazados por API real
+#**Missing para R3:** El modelo `Documento` tiene `proceso_id: Mapped[Optional[int]]` (columna sin FK). La UI de Lista Maestra muestra una columna "Proceso" con valores como "Análisis", "Fabricación", etc. Se necesita una tabla catálogo:
+
+```sql
+CREATE TABLE procesos (
+    id      SERIAL PRIMARY KEY,
+    nombre  VARCHAR(100) NOT NULL UNIQUE,
+    activo  BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+```
+**Nota:** El usuario confirmó que el campo Proceso debe existir pero los valores los definirán después. Seed mínimo con 10 procesos genéricos.
+
+### 1.5.7 Notificaciones: panel y store deben ser reemplazados por API real
 
 Hoy:
 - `notificaciones.js` (store) importa de `data/tasks.js` (mock) y filtra por rol
@@ -891,6 +903,7 @@ El seed actual usa `envio_service.enviar_a_liberacion()` para transicionar docum
 | Tabla | Acción | Columnas nuevas |
 |---|---|---|
 | `tareas` | **CREATE** | id, documento_flujo_id, usuario_id, delegado_origen_id, tipo_tarea, estado, fecha_asignacion, fecha_vencimiento, fecha_completado, firma_id, observacion, intento_reasignacion, activo, created_at, updated_at |
+| `procesos` | **CREATE** | id, nombre, activo, created_at |
 | `bitacora_timeline` | **CREATE** | id, documento_flujo_id, tarea_id, usuario_id, accion, estado_origen, estado_destino, color_nodo, observacion, adjunto_url, created_at |
 | `notificaciones` | **CREATE** | id, usuario_destino_id, usuario_origen_id, documento_flujo_id, tarea_id, titulo, mensaje, tipo_notificacion, leida, fecha_lectura, email_enviado, created_at |
 | `documento_reemplazos` | **CREATE** | id, documento_flujo_id, codigo_documento_viejo, documento_viejo_id, ejecutado, ejecutado_at, created_at |
