@@ -1,237 +1,134 @@
-# INICIO DE SESIÓN — Prompt maestro
+# INICIO DE SESIÓN — Prompt maestro actualizado
 
-> **Última actualización:** 2026-06-18 (sesión 27).
-> **Cómo arrancar cada sesión nueva con opencode + M3.**
-> **Copia y pega este texto al abrir cada sesión** (o configúralo como un comando slash personalizado).
+> **Última actualización:** 2026-06-18 (sesión 29).
+> **Contiene: ritual de inicio, forma de trabajo, atajos, plan de avance, trucos MCP, clean state, reglas de commit.**
 
 ---
 
 ## Prompt para pegar al inicio de CADA sesión
 
 ```
-Actua como Tech Lead senior del proyecto COFAR SGD. Realiza el siguiente ritual de inicio de sesion:
+Actúa como Tech Lead senior del proyecto COFAR SGD. Realiza el siguiente ritual de inicio:
 
 1. LEE en este orden:
-   a) docs/PR/BITACORA.md (que se hizo en sesiones anteriores, leer la ultima entrada)
-   b) docs/PR/ESTADO.md (estado REAL del codigo, no el planeado)
-   c) docs/PR/INICIO-SESION.md (este archivo, para confirmar el flujo)
-   d) docs/PR/REUNIONES-R3-R6.md (si estamos en R3 o posterior)
-   e) docs/PR/DECISIONES.md (ADRs activos, especialmente los ultimos 3)
+   a) docs/PR/RADIOGRAFIA-TOTAL-18-06-2026.md (radiografía completa del proyecto)
+   b) docs/PR/BITACORA.md (última entrada de sesión)
+   c) docs/PR/ESTADO.md (estado REAL del código)
+   d) docs/PR/INICIO-SESION.md (este archivo)
+   e) docs/PR/DECISIONES.md (ADRs activos, últimos 5)
+   f) docs/PR/PRD.md (PRD actualizado)
 
-2. DIAGNOSTICA el ambiente (rapido, 2 min):
-   - Docker corriendo: `docker info` (si falla, abrir Docker Desktop)
-   - Stack Up: `docker ps --filter "name=sgd-"`
+2. DIAGNOSTICA el ambiente (rápido, 2 min):
+   - Docker ps: `docker ps --filter "name=sgd-"`
    - Backend health: `curl.exe http://localhost:18000/api/v1/health`
-   - Branch actual y working tree: `git status --short && git log --oneline -3`
+   - BD limpia: `docker exec sgd-postgres psql -U sgd -d sgd -c "SELECT * FROM verify_clean_state();"`
+   - Branch actual: `git status --short && git log --oneline -3`
 
 3. IDENTIFICA la siguiente tarea PENDIENTE:
-   - Leer la tabla en ESTADO.md (seccion "Progreso")
-   - Identificar la primera fila con estado ⏳ o pendiente
-   - Si la sesion anterior quedo a mitad de una tarea, retomar ahi
-   - Backlog: scripts ROTOS de seed (referenciados en sesion 27)
+   - Leer RADIOGRAFIA-TOTAL-18-06-2026.md §9 (Pendientes)
+   - Identificar la primera tarea con prioridad P0/P1
+   - Si la sesión anterior quedó a mitad, retomar ahí
+   - Siempre preguntar al usuario: "Procedo con X? o preferís priorizar otra cosa?"
 
-4. PROPON al usuario:
-   - "La siguiente tarea pendiente es #X: <titulo>"
-   - "Tiempo estimado: <X> minutos"
-   - "Riesgos: <lista>"
-   - "Como la voy a ejecutar: <plan corto>"
-   - PREGUNTAR: "Procedo? o preferis priorizar otra cosa?"
+4. FORMA DE TRABAJO OBLIGATORIA:
+   - Código limpio: sin code smells, sin debug leftovers, con type hints
+   - Arquitectura modular: 1 archivo = 1 responsabilidad
+   - Si hay cambios en backend: `docker restart sgd-backend`
+   - Si hay cambios en frontend: `docker restart sgd-frontend` (o esperar HMR)
+   - Validar con Chrome MCP (take_snapshot + take_screenshot) para UI
+   - Validar con pytest para backend: `cd backend && .venv\Scripts\python -m pytest tests/`
+   - Validar persistencia: F5 reload y verificar que el estado se mantenga
+   - Probar múltiples escenarios (no solo el feliz)
+   - Usar `scripts\restore_clean_state.bat` para volver a BD limpia
 
-5. Si el usuario aprueba, EJECUTA:
-   - Tarea de codigo frontend: editar -> reiniciar `sgd-frontend` (`docker restart sgd-frontend`) -> Chrome MCP
-   - Tarea de codigo backend: editar -> reiniciar `sgd-backend` (`docker restart sgd-backend`) -> pytest
-   - Tarea de bugfix: leer el error, hipotetizar, fix minimo, validar empiricamente
-   - Tarea de review: leer codigo, listar issues, NO tocar nada sin aprobacion
-   - Tarea de test: leer test existente, escribir test que falla, fix, validar
-   - Documentar paso a paso con outputs visibles
+5. AL FINALIZAR LA SESIÓN (antes de cerrar):
+   a) Hacer commit atómico con conventional commit
+   b) Actualizar ESTADO.md (marcar tareas completadas)
+   c) Actualizar BITACORA.md (agregar entrada de sesión)
+   d) Actualizar DECISIONES.md (si hubo nuevas decisiones)
+   e) Actualizar PRD.md (si cambió el alcance)
+   f) Actualizar RADIOGRAFIA-TOTAL.md (si cambió la estructura)
+   g) Reportar resumen al usuario
+
+6. REGLAS DURAS:
+   - No asumas victoria sin evidencia visual + BD + persistencia + tests
+   - No inventes datos — la BD es la única fuente de verdad
+   - No uses mocks del frontend en backend
+   - Toda mutación pasa por API y deja audit_log
    - Si te trabas >15 min, salir del loop y consultar
-
-6. ANTES de cerrar sesion, ACTUALIZA:
-   - docs/PR/ESTADO.md (marcar tareas como completadas/pendientes + actualizar header con fecha)
-   - docs/PR/BITACORA.md (anadir sesion nueva con lo que se hizo)
-   - Si hubo decisiones tecnicas, agregar ADR en DECISIONES.md
-   - Si hay pendientes nuevas, agregarlas a "Pendientes" en INICIO-SESION.md
-   - Hacer commit con conventional commit
-   - Reportar resumen al usuario: que se hizo, que quedo pendiente, si hay bloqueos
-
-ESCENARIOS DE EMERGENCIA:
-
-- Si la sesion se quedo sin tokens: el usuario debe decir "lee docs/PR/INICIO-SESION.md y retoma desde donde quedamos" y vos seguis el ritual.
-- Si el agente itera en loop sobre lo mismo: SALIR inmediatamente. Decir "Detecte un loop. Forzando salida. Cual es el siguiente paso que el usuario quiere?" Documentar el loop en BITACORA.md.
-- Si la sesion se cerro por error: el agente debe dejar ESTADO.md y BITACORA.md actualizados ANTES de cualquier cambio grande (regla de "checkpoint frecuente").
-- Si el usuario vuelve despues de dias: leer BITACORA.md (entrada de la ultima sesion) y ESTADO.md, preguntar "retomamos la tarea #X que quedo al 50%? o preferis empezar una nueva?"
-
-
-
----
-
-
-
-
+   - Si detectas un loop, forzar salida inmediatamente
 ```
 
 ---
 
-## Atajos rápidos (para usar en cualquier momento)
+## Stack y credenciales
 
-### Verificar que el stack está OK
+- **Frontend:** `http://localhost:8080` (Nginx) o `http://localhost:5173` (Vite dev)
+- **Backend:** `http://localhost:18000/api/v1/...` (FastAPI)
+- **BD:** `postgresql://sgd:sgd_dev_only_change_in_prod@localhost:25432/sgd`
+- **Usuarios locales:** admin_local, eto_test, elaborador_revisor, elab._revisor_aprob., visualizador_cl (password: `cofar.2026`, admin_local: `admin.2026`)
+- **Usuarios AD (requieren auth_source: "cofar"):** aromero, ychavez, etc.
+
+---
+
+## Pre-flight checks
+
 ```powershell
-docker ps --filter "name=sgd-"
-curl.exe http://localhost:18000/api/v1/health
+docker ps --filter "name=sgd-"           # 8 servicios Up
+curl.exe http://localhost:18000/api/v1/health  # {"status":"ok","database":"ok"}
+docker exec sgd-postgres psql -U sgd -d sgd -c "SELECT * FROM verify_clean_state();"
 ```
 
-### Re-levantar todo
-```bash
+Si nginx da 502: `docker restart sgd-nginx` (recarga DNS tras stop/start).
+
+---
+
+## Clean state (BD)
+
+```powershell
+scripts\restore_clean_state.bat
+```
+
+Esto detiene backend+celery, restaura dump de `backups/clean_state_20260618/`, y los vuelve a levantar. Verificar después con `verify_clean_state()`.
+
+---
+
+## Trucos Chrome MCP aprendidos
+
+- `x-model` de Alpine NO se actualiza con `dispatchEvent(new Event('input'))` para `<input type="date">` ni checkboxes. Workaround: setear `Alpine.$data(root).variable = valor` directamente.
+- Para `<select>`, el match por `value` SÍ funciona bien.
+- Después de hacer click en botón que dispara POST, los uids del snapshot pueden quedar viejos. Hacer `take_snapshot` antes del próximo click.
+- Para evitar `confirm()` del browser: `window.confirm = () => true;` antes del click.
+- Para radio buttons "Fuente de autenticación": usar `evaluate_script` con `r.click()` directo.
+
+---
+
+## Atajos rápidos
+
+```powershell
+# Re-levantar todo
 scripts\start-stack-des.bat
-```
 
-### Bajar todo
-```bash
+# Bajar todo
 scripts\stop-stack-des.bat
-```
 
-### Ver logs del backend en vivo
-```bash
+# Logs backend
 docker logs sgd-backend -f --tail 100
-```
 
-### Aplicar migración Alembic (cuando exista)
-```bash
-docker exec sgd-backend alembic upgrade head
-```
+# Tests
+cd backend && .venv\Scripts\python -m pytest tests/ 2>&1 | Select-Object -Last 5
 
-### Generar nueva migración
-```bash
-docker exec sgd-backend alembic revision --autogenerate -m "descripcion del cambio"
-```
-
-### Probar login LDAP real
-```bash
-curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/json" -d "{\"username\":\"soporteglpi\",\"password\":\"glpi.1T.C0f4r\",\"auth_source\":\"cofar\"}"
-```
-
-### Login con stubs (sin LDAP)
-```bash
-curl -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/json" -d "{\"username\":\"aromero\",\"password\":\"cofar.2026\",\"auth_source\":\"local\"}"
+# Login local
+curl.exe -X POST http://localhost:18000/api/v1/login -H "Content-Type: application/json" -d '{\"username\":\"eto_test\",\"password\":\"cofar.2026\",\"auth_source\":\"local\"}'
 ```
 
 ---
 
+## Orden de lectura de archivos (para IA)
 
-
-#### 🅰️ SESIÓN A — Backend completo (10 tareas, ~6-7h)
-
-| # | Tarea concreta | |
-|---|---|---|
-| **1** | `frontend/src/utils/api.js` (apiFetch con CSRF) | `frontend-design-direction`, `api-design`, `frontend-a11y` |
-| **2** | `backend/scripts/seed_organizacion.py` | `database-migrations`, `coding-standards`, `verification-loop` |
-| **3** | `GET/POST/PATCH /api/v1/gerencias` | `fastapi-patterns`, `api-design`, `error-handling`, `python-reviewer` (agent, antes de commit) |
-| **4** | `GET/POST/PATCH /api/v1/areas` | `fastapi-patterns`, `api-design`, `error-handling` |
-| **5** | `GET/POST/PATCH /api/v1/configuracion-global` | `fastapi-patterns`, `api-design`, `verification-loop` |
-| **6** | `GET/POST/PATCH /api/v1/feriados` | `fastapi-patterns`, `api-design` |
-| **7** | `GET/POST/PATCH /api/v1/email-templates` (US-9.04, **6 plantillas** del PDF) | `fastapi-patterns`, `api-design`, `error-handling` |
-| **8** | `GET/POST/PATCH /api/v1/matriz-enrutamiento-eto` | `fastapi-patterns`, `api-design`, `verification-loop` |
-| **9b** | `GET/POST/PATCH /api/v1/tipos-documento` (US-9.03) | `fastapi-patterns`, `api-design`, `database-migrations` |
-| **9c** | `GET/POST/PATCH /api/v1/estados` (US-9.03) | `fastapi-patterns`, `api-design` |
-
-#### 🅱️ SESIÓN B — UI + tests + bulk (6 tareas, ~4-5h)
-
-| # | Tarea concreta ||
-|---|---|---|
-| **9** | `GET /api/v1/audit-log` (con filtros) | `fastapi-patterns`, `api-design`, `postgres-patterns` |
-| **9d** | Operaciones jerárquicas áreas (`POST /areas/{id}/mover`, `/promover-a-gerencia`, `DELETE` lógico) | `fastapi-patterns`, `api-design`, `error-handling`, `database-migrations` |
-| **9e** | Override vacaciones (`PATCH /usuarios/{id}`) + export Excel/CSV | `fastapi-patterns`, `api-design`, `frontend-design-direction` |
-| **10** | Refactor `Parametrizacion.js` para consumir los 9 endpoints | `frontend-design-direction`, `frontend-a11y`, `api-design`, `python-reviewer` (verificar contratos) |
-| **11** | Tests pytest de los 9 endpoints nuevos (80% coverage) | `tdd-workflow`, `tdd-mattpocock`, `verification-loop` |
-| **12** | Asignación masiva desde `USUARIOS EXISTENTES A ABRIL.xlsx` (730 usuarios) | `database-migrations`, `fastapi-patterns`, `api-design`, `python-reviewer` — ver `docs/PR/MATRIZ-ABRIL-ASIGNACION.md` |
-
-**Total: 16 sub-tareas** (15 reales + 9c/9d/9e marcadas como sub-índices de 9).
-
-**Verificación de cierre de R1:** cuando las 16 sub-tareas estén ✅, abrir PR `epica-1/rama-1` → `main`, mergear, crear `epica-2/rama-1`.
-
-
-
-
----
-
-## 📋 Plan de avance actualizado (16 sub-tareas, divididas en 2 sesiones)
-
-> **IMPORTANTE:** el plan tiene 15 sub-tareas dividido en 2 sesiones para que sea alcanzable. Ver tabla arriba.
->
-> - **Sesión A:** 10 sub-tareas backend (~6-7h). Cierra el backend de la ÉPICA 9. Validación con curl.
-> - **Sesión B:** 6 sub-tareas UI + tests + bulk (~4-5h). Cierra R1 al 100% (backend + UI + tests + bulk).
-
----
-
-## 🔧 PRE-FLIGHT CHECKS (5 min, ANTES de la tarea #1)
-
-> Estos checks son OBLIGATORIOS antes de arrancar Sesión A. El agente los hace una sola vez al inicio.
-
-1. **Crear helper `_require_eto_or_admin`** en `backend/app/api/v1/auth.py` (reutilizable para todos los routers nuevos; el patrón es el mismo que `_require_admin` pero acepta ETO o ADMIN).
-
-2. **Verificar cómo se inicializan las tablas en la BD** (`create_all()` o init SQL). Si las tablas `gerencias`/`areas` NO existen, el seed falla. Documentar el mecanismo en un comentario.
-
-3. **Ajustar `cascade="all, delete-orphan"`** en `gerencia.py` a `"save-update, merge"` para que el borrado lógico funcione (no queremos delete físico en cascada).
-
-4. **Verificar el middleware CSRF**: leer `auth.py` y `core/` para confirmar cómo se emite/valida el token. Si NO existe, agregarlo en la tarea #1.
-
-5. **Crear los 6 modelos faltantes como archivos vacíos** (solo la clase con `__tablename__`) para que el import no rompa. Después cada tarea los va completando:
-   - `backend/app/models/configuracion_global.py`
-   - `backend/app/models/feriado.py`
-   - `backend/app/models/email_template.py`
-   - `backend/app/models/matriz_enrutamiento_eto.py`
-   - `backend/app/models/tipo_documento.py`
-   - `backend/app/models/estado.py`
-   - + registrarlos en `models/__init__.py`
-
-**NO empezar con Alembic** (no es R1, queda para sesión 5). **NO hacer tests pytest** (queda para Sesión B). **NO tocar Parametrizacion.js** (queda para Sesión B).
-
----
-
-## 🎯 Prompts maestros (copiar y pegar)
-
-> Los prompts completos están en **`docs/PR/PROMPTS-MAESTROS.md`** (separados para fácil copia).
-> Son 3 prompts:
-> 1. **Prompt de inicio Sesión A** (pegar al abrir opencode)
-> 2. **Prompt de cierre** (pegar al final del día)
-> 3. **Prompt de inicio Sesión B** (pegar al abrir la próxima sesión)
->
-> **Atajo rápido:**
-> - Sesión A → copiar bloque 1 de `PROMPTS-MAESTROS.md`
-> - Cierre → copiar bloque 2
-> - Sesión B → copiar bloque 3 (cuando vuelvas)
-
----
-
-## Plan de avance (resumen)
-
-> **Actualizado sesion 27 (2026-06-18)**: L1 cerrado al 100% (incluye QAS v1.1.0-qas). L2 cerrado al 100% (wizard + storage + bandejas). L3 en planificacion (R3 + B+C+D). L4-L6 en backlog.
-
-| Lote | Alcance | Estado | Notas |
-|---|---|---|---|
-| **L1** (R1 cierre) | Alembic init + utils/api.js + endpoints faltantes + tests + rate limit + CSP + QAS | ✅ 100% | Cerrado sesion 19 (deploy v1.0.0-qas). Acumulado 25 sesiones de cambios. |
-| **L2** (R2) | Modelos R2 + wizard 4 pasos + correlativos + uploads + firma 2FA + storage + bandejas | ✅ 100% | FASE 1 (sesion 21) + FASE 2 (sesion 22) cerradas. 60 tests R2 verde. |
-| **L3** (R3) | Workflow ETO + bandejas paralelas + aprobación + cron SLA + liberación + árbol Outlook | 🟡 Planificado | 3 pages sin refactor (Bandeja, LiberacionDetalle, ListaMaestra). |
-| **L4** (R4) | Office 365 + IA similitud + embeddings + webhook + cron sincronización AD | 🔴 0% | Backlog. |
-| **L5** (R5) | PDF custodiado + marca de agua + obsolescencia + lista maestra + vencimientos | 🔴 0% | Trigger obsolescencia pendiente. |
-| **L6** (R6) | Capacitación + exámenes + certificados + copias CC/CN + BI + chat RAG | 🔴 0% | Backlog. |
-
-Ver `docs/PR/REUNIONES-R3-R6.md` para el detalle de cada lote.
-
----
-
-## Para HOY (sesion 27, presentacion R1+R2 al cliente)
-
-Lo más importante es poder mostrar **demostración end-to-end** de:
-1. **Login LDAP real** (ychavez / Quesadilla.94.) — `auth_source: "cofar"`
-2. **Login con stubs** (admin_local / admin.2026) — `auth_source: "local"`
-3. **Pantalla Parametrización > Gestión de Usuarios** con los 763 usuarios del AD ya sincronizados
-4. **Bandeja del ETO** mostrando un documento (R2 listo)
-5. **Wizard de creación** (R2 listo)
-6. **Impersonate** con modal personalizado (sesion 27)
-
-Si no llegamos a R2 completo, al menos R1 demo debe estar sólido:
-- Login funciona (LDAP real + stubs)
-- 763 usuarios en BD con código SAP
-- ETO puede parametrizar gerencias/áreas
-- Sync AD manual funciona (botón solo admin)
+1. `docs/PR/RADIOGRAFIA-TOTAL-18-06-2026.md` — radiografía completa
+2. `docs/PR/INICIO-SESION.md` — este archivo
+3. `docs/PR/BITACORA.md` — última sesión
+4. `docs/PR/ESTADO.md` — progreso actual
+5. `docs/PR/DECISIONES.md` — ADRs activos
+6. `docs/PR/PRD.md` — PRD actualizado

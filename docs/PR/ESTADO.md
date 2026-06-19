@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-18 (sesión 28 — **Clean state backup + restore end-to-end**)
+> **Última actualización:** 2026-06-18 (sesión 29 — **Radiografía total + 22 fixes validados + limpieza documental**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
@@ -38,8 +38,10 @@
 
 **Sesión 28 (2026-06-18)**: Clean state backup + restore end-to-end. 1 backup físico (134 KB) + 1 función PL/pgSQL `verify_clean_state()` + 1 script `restore_clean_state.bat` + 1 ADR-065. Validado: ensuciar (audit_log 0→2, gerencia "CONTAMINADA") → restore (audit_log 2→0, gerencia "CALIDAD"). 5 archivos nuevos en working tree, pendiente commit del usuario.
 
+**Sesión 29 (2026-06-18)**: Validación de los 22 fixes de sesión 25 (21/21 RESUELTOS, 1 DEPRECADO) + radiografía total del proyecto + limpieza de 7 archivos obsoletos. Fix aplicado: Issue 9.1 (/plantillas grid responsive — inline CSS vencía a Tailwind classes). Creado `RADIOGRAFIA-TOTAL-18-06-2026.md` con estado real de frontend/backend/BD/Docker/tests.
+
 ## Objetivo inmediato
-**R1 cerrado al 100% + R2 desbloqueado** (1 día restante del plazo original)
+**R1+R2 cerrados al 100%. Pendiente: R3 (workflow + bandejas reales) + deploy QAS v1.1.0-qas + fix B7 (scripts seed rotos).**
 
 ---
 
@@ -191,33 +193,33 @@
 | B3 | Login contra BD local (no solo LDAP) — para DES sin AD | ✅ | `auth.py` líneas 80+ con `auth_source: "local"\|"cofar"\|None` |
 | B4 | `LoginUserOut` con módulos + roles + impersonación | ✅ | |
 
-### Sesion 25 — Fixes 22 issues del testing del 17-jun (1 commit atómico por fix)
+### Sesion 25 — 22 fixes del testing del 17-jun — **TODOS RESUELTOS**
 
-| # | Issue | Sev | Tipo | Commit | Resultado |
-|---|---|---|---|---|---|
-| 1.1 | Ausencia motivo!=vacaciones no setea ausente | 🟠 | CRIT (NO-BUG) | `2706455` | Backend funciona OK. 7 tests nuevos como cobertura de regresión. |
-| 4.3 | ychavez sin Área en Mi Perfil | 🟠 | CRIT (fix) | `f9c3629` | **Sesión 27 fix completo**: /me ahora devuelve ad_department. |
-| 3.1 | Delegado obligatorio al asignar eto/revisor | 🟠 | CRIT (fix) | `a63b453` | Validación bloqueante reemplazada por confirm() no bloqueante. |
-| 4.1 | Botón Sincronizar AD 403 para ETO | 🟠 | CRIT (fix) | `dcfb46b` | x-show=role==admin en ambos botones. |
-| 10.1 | Política de Descargas hardcodeada | 🟠 | CRIT (fix) | `235ad86` | VersionEditable.js carga desde BD. |
-| 11.1 | Quitar Analista ETO del wizard paso 1 | 🟠 | CRIT (fix) | `1371aec` | Estado, validación, UI removidos. |
-| 11.2 | UI Reemplazo o baja + sub-bug chipsReemplazo | 🟠 | CRIT (fix) | `5a23846` | UI select+chips + fix array vacio. |
-| 11.3 | Wizard no persiste en documento_flujo | 🟠 | CRIT (NO-BUG) | `3cd5c2d` | Test e2e + 2 tests pytest. Sub-bug: list[int]→list[str]. |
-| 4.2 | soporteglpi sin SAP en login on-demand | 🟡 | IMP (fix) | `19e2b36` | ldap_get_user_by_samaccountname retorna None. |
-| 4.4 | Sync AD: mapping ad_info→area_id automático | 🟡 | IMP (feat) | `b9cf37a` | Nuevo `area_mapping.py`. 15 tests. |
-| 8.1 | Filtros activos/inactivos + ausentes | 🟡 | IMP (feat) | `dc2efe0` | Backend: param `ausente: bool`. |
-| 8.4 | REPORTES en Excel para elaboradores | 🟡 | IMP (feat) | `7aa64c0` | Script `add_reportes_module.py` idempotente. |
-| 5.1 | Selector Estados con 4 opciones | 🟡 | IMP (fix) | `0bcb499` | 4 valores UPPERCASE. |
-| 1.2 | Lista delegados corta | 🟡 | IMP (fix) | `5331d34` | `listPorCualquierRol([3 roles relevantes])`. |
-| 7.1 | Matriz ETO: dropdown delegado solo ETO | 🟡 | IMP (fix) | `9554ad7` | Dropdown itera sobre `analistas`. |
-| 2.1 | Performance login - Promise.all | 🟡 | IMP (perf) | `bb3a06d` | 3 requests en paralelo. 2.4x más rápido. |
-| 8.3 | Header 'Área' | 🟢 | MENOR (fix) | `4335665` | Header tabla y XLSX. |
-| 8.5 | KPI inactivos + desvinculados | 🟢 | MENOR (feat) | `e92a369` | 2 nuevos KPI cards. |
-| 9.1 | /plantillas vista tienda responsive | 🟢 | MENOR (fix) | `c4f501c` | Grid 1/2/3/4 cols. |
-| 9.2 | Quitar bloque 'IA — Recomendación' | 🟢 | MENOR (fix) | `c4f501c` | Removido. |
-| 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | MENOR (fix) | `f112a68` | Header: Tipo | Cód. Doc | Acciones. |
+| # | Issue | Sev | Estado |
+|---|---|---|---|
+| 1.1 | Ausencia motivo!=vacaciones no setea ausente | 🟠 | ✅ RESUELTO (NO-BUG, cobertura tests) |
+| 4.3 | ychavez sin Área en Mi Perfil | 🟠 | ✅ RESUELTO (sesión 27 fix completo) |
+| 3.1 | Delegado obligatorio al asignar eto/revisor | 🟠 | ✅ RESUELTO |
+| 4.1 | Botón Sincronizar AD 403 para ETO | 🟠 | ✅ RESUELTO |
+| 10.1 | Política de Descargas hardcodeada | 🟠 | ✅ RESUELTO (desde BD) |
+| 11.1 | Quitar Analista ETO del wizard paso 1 | 🟠 | ✅ RESUELTO |
+| 11.2 | UI Reemplazo o baja + sub-bug chipsReemplazo | 🟠 | ✅ RESUELTO |
+| 11.3 | Wizard no persiste en documento_flujo | 🟠 | ✅ RESUELTO (NO-BUG, cobertura tests) |
+| 4.2 | soporteglpi sin SAP en login on-demand | 🟡 | ✅ RESUELTO |
+| 4.4 | Sync AD: mapping ad_info→area_id automático | 🟡 | ✅ RESUELTO |
+| 8.1 | Filtros activos/inactivos + ausentes | 🟡 | ✅ RESUELTO |
+| 8.4 | REPORTES en Excel para elaboradores | 🟡 | ⛔ DEPRECADO |
+| 5.1 | Selector Estados con 4 opciones | 🟡 | ✅ RESUELTO |
+| 1.2 | Lista delegados corta | 🟡 | ✅ RESUELTO |
+| 7.1 | Matriz ETO: dropdown delegado solo ETO | 🟡 | ✅ RESUELTO |
+| 2.1 | Performance login - Promise.all | 🟡 | ✅ RESUELTO |
+| 8.3 | Header 'Área' | 🟢 | ✅ RESUELTO |
+| 8.5 | KPI inactivos + desvinculados | 🟢 | ✅ RESUELTO |
+| 9.1 | /plantillas vista tienda responsive | 🟢 | ✅ RESUELTO (sesión 29, fix inline CSS) |
+| 9.2 | Quitar bloque 'IA — Recomendación' | 🟢 | ✅ RESUELTO |
+| 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | ✅ RESUELTO |
 
-**Resumen:** 22 issues cerrados, 21 commits atómicos, 217/228 tests PASS (+15 nuevos).
+**Total: 21/22 issues cerrados (1 DEPRECADO). 217/228 tests PASS.**
 
 ---
 

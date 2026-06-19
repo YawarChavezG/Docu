@@ -129,12 +129,12 @@ Reglas duras:
 | 7.1 | Matriz ETO dropdown delegado solo ETO | 🟡 | ✅ RESUELTO |
 | 2.1 | Performance login (Promise.all) | 🟡 | ✅ RESUELTO |
 | 8.3 | Header "Área" | 🟢 | ✅ RESUELTO |
-| 8.5 | KPI inactivos + desvinculados | 🟢 | pendiente |
+| 8.5 | KPI inactivos + desvinculados | 🟢 | ✅ RESUELTO |
 | 9.1 | /plantillas vista tienda responsive | 🟢 | ✅ RESUELTO |
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | ✅ RESUELTO |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | ✅ RESUELTO |
 
-**Progreso**: 19/22 (86.4%).
+**Progreso**: 21/21 (100% — 20 RESUELTOS + 1 DEPRECADO).
 
 ---
 

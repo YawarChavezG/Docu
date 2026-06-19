@@ -1,14 +1,14 @@
 # BITACORA — Sesion de trabajo SGD
 
 > **Bitacora cronologica de las sesiones de trabajo en el proyecto COFAR SGD.**
-> **Ultima actualizacion:** 2026-06-18 (sesion 28).
+> **Ultima actualizacion:** 2026-06-18 (sesion 29).
 > Para que cuando la ventana de contexto se llene, una nueva sesion pueda leer este archivo y retomar.
 
 ---
 
-## Resumen ejecutivo (sesiones 1-22)
+## Resumen ejecutivo (sesiones 1-29)
 
-> **S�ntesis de las 22 sesiones iniciales. Para el detalle, ver `SESION-HISTORIAL-R1.md` (2925 lineas, archivado) o las entradas individuales de sesiones 23-27 que siguen a continuaci�n.**
+> **S�ntesis de las 29 sesiones completadas hasta el 2026-06-18.**
 
 ### Fases del proyecto (cronol�gicas)
 
@@ -39,14 +39,18 @@
 - 3 pages R2 sin refactor: Bandeja.js, LiberacionDetalle.js, ListaMaestra.js
 - 3 scripts de seed ROTOS: importan `usuario_modulos` eliminado sesi�n 26 (B7, P0)
 
-### M�tricas al cierre de sesi�n 22
+### M�tricas al cierre de sesi�n 29
 
 - **R1 + EPICA9 + QAS + R2**: 100% cerrados
+- **22 fixes sesi�n 25**: 21/21 RESUELTOS (1 DEPRECADO)
 - **R3-R6**: 0% (backlog)
-- **Tests**: 60 R2 + 123 R1 = 183 (luego +34 en sesiones 23-25 = 217 verde)
-- **Migraciones**: 14 aplicadas
-- **Endpoints**: 58+
-- **Comandos utiles**: `scripts\start-stack-des.bat`, `scripts\deploy-qas.bat`, `bash /opt/sgd/scripts/start-stack-qas.sh`
+- **Tests**: ~228 (217 PASS, 11 fallas preexistentes no relacionadas)
+- **Migraciones**: 18 aplicadas
+- **Endpoints**: 87 REST
+- **Tablas BD**: 22 tablas + 16 enums
+- **Archivos frontend**: 86 archivos, ~15K líneas
+- **Archivos backend**: 91 archivos .py
+- **Comandos utiles**: `scripts\start-stack-des.bat`, `scripts\deploy-qas.bat`, `scripts\restore_clean_state.bat`, `bash /opt/sgd/scripts/start-stack-qas.sh`
 
 ---
 
@@ -86,11 +90,43 @@ Sesion dedicada a crear el mecanismo de "clean state" para que el usuario pueda 
 - 1 ADR nuevo (065).
 - Sin commits aun (todo en working tree, pendiente de commit del usuario).
 
-### Pendientes para sesion 29
-- **Commit atomico** de los 5 archivos nuevos (script + backup + 2 sql + README + cambios en ESTADO/BITACORA/DECISIONES).
-- **B7 P0**: 3 scripts de seed ROTOS (sigue pendiente).
-- **Deploy QAS v1.1.0-qas**: bumpear tag con acumulado de sesiones 20-27 (sigue pendiente).
-- **CSRF middleware** (B2): sigue pendiente.
+---
+
+## Sesión 29 — 2026-06-18 (jueves) — Validación 22 fixes + radiografía total + limpieza docs
+
+### Resumen ejecutivo
+Sesión dedicada a validar los 22 fixes pendientes de la sesión 25, limpiar documentación obsoleta, y hacer una radiografía completa del proyecto para tener contexto actualizado. **Total: 21/21 issues validados (1 DEPRECADO), 7 archivos eliminados, 1 radiografía creada, 6 documentos actualizados.**
+
+### Tareas ejecutadas
+
+| # | Tarea | Resultado |
+|---|---|---|
+| 1 | Marcar issues 2.1, 8.3, 9.2, 6.1 como RESUELTO | ✅ Por confirmación del cliente |
+| 2 | Issue 9.1: Validar /plantillas responsive en desktop | 🔴 FALLO: inline `grid-template-columns:1fr` anulaba Tailwind classes. Fix: reemplazar por `class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"`. Validado 4 breakpoints con Chrome MCP |
+| 3 | Issue 8.5: Marcar como RESUELTO | ✅ Por confirmación del cliente |
+| 4 | Eliminar 7 archivos obsoletos | ✅ `ANALISIS-FIXES-TESTING-17JUN.md`, `HANDOFF-BLOQUES-A-B-C-D.md`, `PROMPTS-MAESTROS.md`, `FIXES-SESION-25.md`, `SESION-22-HANDOFF.md`, `SESION-24-HANDOFF.md`, `SESION-HISTORIAL-R1.md` |
+| 5 | Radiografía total del proyecto | ✅ `RADIOGRAFIA-TOTAL-18-06-2026.md` creado |
+| 6 | Actualizar BITACORA, DECISIONES, ESTADO, INICIO-SESION, PRD | ✅ Actualizados |
+| 7 | Crear radiografía frontend+backend+BD+docker+tests | ✅ Incluido en RADIOGRAFIA-TOTAL |
+
+### Logros técnicos
+1. **Fix 9.1 root cause**: inline CSS vence a Tailwind classes por especificidad. Solución: usar puras clases Tailwind.
+2. **Radiografía completa**: 86 archivos frontend, 91 archivos backend, 228 tests, 22 tablas, 8 servicios Docker.
+3. **Limpieza documental**: 7 archivos obsoletos eliminados (~4,500 líneas de documentación muerta).
+
+### Estado del working tree
+- 3 docs modificados (FIXES-SESION-25 ya eliminado, cambios aplicados a ORQUESTADOR, BITACORA, etc.)
+- 1 radiografía nueva
+- Pendiente commit atómico
+
+### Pendientes post-sesión 29
+- **B7 P0**: 3 scripts de seed ROTOS (sigue pendiente)
+- **Deploy QAS v1.1.0-qas**: bumpear tag (sigue pendiente)
+- **CSRF middleware** (B2): sigue pendiente
+- **R3**: refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js, Revision.js, AprobacionFinal.js, Correccion.js (6 páginas con datos mock)
+- **R3 workflow**: encadenar flujo revisión→aprobación→liberación completo
+- **#13 Deuda delegado**: 139 usuarios sin delegado
+- **Data mocks cleanup**: 16 archivos en `frontend/src/data/` son código muerto
 
 ---
 ## Sesión 25 — 2026-06-17 (miercoles 23:00 → 00:30) — Fixes 22 issues del testing del 17-jun
