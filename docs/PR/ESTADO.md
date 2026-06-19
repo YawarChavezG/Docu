@@ -1,13 +1,18 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-19 (sesión 33 — **DEPLOY v1.1.0-qas EXITOSO: 35/35 PASS, 228/228 tests, 8/8 contenedores healthy**)
+> **Última actualización:** 2026-06-19 (sesión 34 — **CIERRE 6 FIXES POST-DEPLOY: OpenSSL 3.x + seed_documentos + restore_qas validado, 35/35 PASS, 10 documentos en QAS**)
 
 ## Versión actual
-**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
+**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
 1. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` (FASE 3.1 de STARTUP-CHECKLIST.md). Los 723 usuario_roles actuales son snapshot de DES; el operador debe re-asignar con la matriz oficial.
+2. **Restore script + nginx restart** (low): agregar `docker restart sgd-qas-nginx` al final de `restore_clean_state_qas.sh` para automatizar el fix del 502.
+
+**Sesión 34 (2026-06-19)**: **Cierre 6 fixes pendientes post-deploy v1.1.0-qas**. 3 archivos modificados (deploy-qas.bat OpenSSL 3.x + start-stack-qas.sh seed_documentos + BITACORA.md) + 1 nuevo (`scripts/restore_clean_state_qas.sh`, 81 lineas, untracked, ya en QAS via scp). 0 commits aún (pendiente cierre de sesión). QAS 35/35 PASS. 10 documentos en BD (seed_documentos.py primera corrida). Restore script validado (audit_log=0, gerencias=10, usuarios=754, documentos=0 pre-seed). Nginx 502 post-restore resuelto con `docker restart sgd-qas-nginx` (trampa conocida sesión 33). 3 queries adicionales OK: excluidos AD=0, documentos=10, usuario_roles=723.
 
 **Sesión 33 (2026-06-19)**: **DEPLOY v1.1.0-qas ejecutado**: 8 archivos modificados + 3 nuevos. 2 commits atómicos (`d03aea6` y `63ffe7d`). Tag `v1.1.0-qas` force-updated. 8/8 contenedores QAS healthy. 35/35 validaciones validate-qas.sh PASS. 228/228 tests PASS en DES. 723/750 usuario_roles en QAS (6 locales del seed DES no matchean). Sync AD cada 6h activado (cron celery-beat). visitador/visitador2 eliminados de QAS via cleanup SQL.
+
+**Sesión 34 (2026-06-19)**: **Cierre 6 fixes pendientes post-deploy**: OpenSSL 3.x cert check en `deploy-qas.bat` (-8/+4 lineas), `seed_documentos.py` agregado a `start-stack-qas.sh` (3 lugares: REQUIRED_FILES, SEEDS, resumen final con count), `restore_clean_state_qas.sh` validado en QAS (audit_log=0, gerencias=10, usuarios=754, documentos=0), `seed_documentos.py` primera corrida en QAS (10/10 insertados), 35/35 validate-qas.sh PASS post-seed. 3 queries adicionales OK: excluidos AD=0, documentos=10, usuario_roles=723. 4 archivos modificados/creados (3 modificados + 1 nuevo `scripts/restore_clean_state_qas.sh`). Pendiente: commit atómico de la sesión.
 
 **Sesión 32 (2026-06-18)**: Preparación deploy v1.1.0-qas. 5 archivos modificados + 1 nuevo. 7/7 healthchecks PASS en validación DES. 228/228 tests PASS. 2 ADRs nuevos (066, 067). 3 learnings nuevos (X06, X07, X08). 1 doc nuevo (STARTUP-CHECKLIST.md). **QAS NO fue tocado** — todo es código local.
 

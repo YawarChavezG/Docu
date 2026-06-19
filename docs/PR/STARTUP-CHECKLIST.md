@@ -4,7 +4,7 @@
 > QAS/PRD en orden, validando cada paso, y registrando los pasos POST-DEPLOY
 > que son responsabilidad del operador (no del script automatizado).
 >
-> **Ultima actualizacion:** 2026-06-18 (sesion 32 — preparacion v1.1.0-qas).
+> **Ultima actualizacion:** 2026-06-19 (sesion 34 — cierre 6 fixes post-deploy: OpenSSL 3.x + seed_documentos en orquestador + restore_qas validado).
 
 ---
 
@@ -28,7 +28,7 @@ se monta en bind, no requiere seeds ni sync AD real.
 - [ ] `deploy/docker-compose.qas.yml` actualizado con TZ + healthchecks
       (validar contra este repo: `deploy/docker-compose.qas.yml`).
 - [ ] `scripts/validate-qas.sh` actualizado con los conteos esperados del tag.
-- [ ] `scripts/start-stack-qas.sh` corregido (8 seeds, no 7).
+- [ ] `scripts/start-stack-qas.sh` corregido (10 seeds, no 7 — sesion 34 agrego seed_documentos).
 
 ---
 
@@ -51,7 +51,7 @@ bash /opt/sgd/scripts/start-stack-qas.sh
 3. Levanta 8 servicios Docker (postgres, redis, mailhog, backend, celery-W/B, frontend, nginx).
 4. Espera healthchecks.
 5. Aplica permisos de storage dentro del container.
-6. Aplica **8 seeds** idempotentes (seed_data, seed_organizacion, seed_tipos_documento, seed_estados, seed_feriados, seed_email_templates, seed_matriz_eto, seed_configuracion_global).
+6. Aplica **10 seeds** idempotentes (seed_data, seed_organizacion, seed_tipos_documento, seed_estados, seed_feriados, seed_email_templates, seed_matriz_eto, seed_configuracion_global, seed_usuario_roles, **seed_documentos** — este último opcional post-deploy, sesion 34).
 7. Ejecuta `sync_ad_oficial.py` (solo si `LDAP_ENABLED=true`).
 8. Imprime resumen + URLs.
 
@@ -182,7 +182,7 @@ docker cp sgd-qas-backend:/app/storage/usuarios_sap_FINAL2026.csv \
 | Cada 6 horas | Sync AD desde COFAR (cron celery-beat, sesion 33) | automatico |
 | Manual | Sync AD on-demand desde UI | Parametrizacion > Usuarios > Sincronizar AD |
 | Manual | Import matriz (si se actualiza el Excel) | seccion 3.1 |
-| Bajo demanda | Restore BD al clean state | `bash /opt/sgd/scripts/restore_clean_state.sh` (TBD) |
+| Bajo demanda | Restore BD QAS al clean state | `ssh sistemas@sgdqas.cofar.com.bo "bash /opt/sgd/scripts/restore_clean_state_qas.sh"` (sesion 34; requiere `docker restart sgd-qas-nginx` post-restore para fix 502) |
 
 ---
 

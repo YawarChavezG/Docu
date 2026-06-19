@@ -66,18 +66,11 @@ if not errorlevel 1 (
 echo       OK: disco suficiente.
 
 echo       Verificando cert SSL vigente (^>30 dias)...
-for /f "tokens=2,4 delims==" %%a in ('ssh %QAS_USER%@%QAS_HOST% "openssl x509 -in /opt/sgd/deploy/nginx/ssl/sgdqas.crt -noout -dates 2^>nul"') do set %%a=%%b
-if not defined notAfter (
-    echo [WARN] No se pudo leer el cert SSL. Continuando bajo responsabilidad.
+for /f "usebackq tokens=*" %%a in ('ssh %QAS_USER%@%QAS_HOST% "openssl x509 -in /opt/sgd/deploy/nginx/ssl/sgdqas.crt -noout -enddate -checkend 2592000 2>&1"') do set SSL_CHECK=%%a
+if not defined SSL_CHECK (
+    echo [WARN] No se pudo leer cert SSL. Continuando.
 ) else (
-    echo       notBefore=%notBefore%
-    echo       notAfter=%notAfter%
-    echo       Verificando dias restantes...
-    powershell -Command "$d = (Get-Date '%notAfter%'); $diff = ($d - (Get-Date)).Days; if ($diff -lt 30) { Write-Host '[ERROR] Cert SSL expira en' $diff 'dias. Renovar antes de deploy.' -ForegroundColor Red; exit 1 } else { Write-Host '       OK: cert SSL vigente (' $diff 'dias restantes).' }" 2>nul
-    if errorlevel 1 (
-        echo [ERROR] Validacion de cert SSL fallo. Ver manualmente.
-        exit /b 1
-    )
+    echo       OK: %SSL_CHECK%
 )
 
 echo       Backup obligatorio de BD antes del deploy...

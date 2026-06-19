@@ -110,6 +110,7 @@ REQUIRED_FILES=(
     "${SCRIPTS_DIR}/seed_configuracion_global.py"
     "${SCRIPTS_DIR}/seed_usuario_roles.py"
     "${SCRIPTS_DIR}/seed_usuario_roles.sql"
+    "${SCRIPTS_DIR}/seed_documentos.py"
     "${SCRIPTS_DIR}/sync_ad_oficial.py"
 )
 MISSING=()
@@ -223,6 +224,7 @@ SEEDS=(
     "seed_matriz_eto.py:10 filas matriz ETO + usuario cecEspinoza"
     "seed_configuracion_global.py:11 parametros US-9.01+9.02 (VIGENCIA, SEMAFORO, ARCHIVOS, DESCARGAS)"
     "seed_usuario_roles.py:729 asignaciones snapshot (idempotente, sesion 33)"
+    "seed_documentos.py:10 documentos de ejemplo (idempotente, sesion 21 R2; opcional post-deploy)"
 )
 SEED_FAILED=0
 for entry in "${SEEDS[@]}"; do
@@ -239,7 +241,7 @@ done
 if [ "$SEED_FAILED" -gt 0 ]; then
     warn "${SEED_FAILED} seed(s) fallaron. Verificar manualmente: docker exec ${C_BACKEND} python scripts/seed_*.py"
 else
-    ok "9/9 seeds aplicados correctamente."
+    ok "10/10 seeds aplicados correctamente."
 fi
 
 # ─── 7. Sync AD (opcional, solo si LDAP_ENABLED=true) ───
@@ -289,6 +291,7 @@ docker exec "$C_POSTGRES" psql -U "$(grep ^POSTGRES_USER "$ENV_FILE" | cut -d= -
         SELECT '  areas:           ' || count(*) FROM areas;
         SELECT '  usuarios:        ' || count(*) FROM usuarios;
         SELECT '  tipos_documento: ' || count(*) FROM tipos_documento;
+        SELECT '  documentos:      ' || count(*) FROM documentos;
         SELECT '  estados:         ' || count(*) FROM estados;
         SELECT '  feriados:        ' || count(*) FROM feriados;
         SELECT '  email_templates: ' || count(*) FROM email_templates;

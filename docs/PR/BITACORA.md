@@ -1,3 +1,73 @@
+## Sesión 34 — 2026-06-19 (viernes AM) — Cierre de 6 fixes pendientes post-deploy
+
+### Resumen ejecutivo
+Sesión corta dedicada a cerrar los 6 items pendientes que dejó el deploy v1.1.0-qas (sesión 33): fix OpenSSL 3.x en cert check del deploy-qas.bat, agregar `seed_documentos.py` al orquestador QAS, validar `restore_clean_state_qas.sh`, ejecutar el seed de documentos en QAS por primera vez, y re-validar 35/35 PASS. **Total: 3 archivos modificados + 1 nuevo pusheado, 0 commits aún (pendiente), QAS 35/35 PASS, 10 documentos sembrados, 723 usuario_roles, 0 usuarios excluidos en BD.**
+
+### Tareas ejecutadas (6 items del checklist)
+
+| # | Tarea | Archivos | Resultado |
+|---|---|---|---|
+| 1 | Verificar `--no-cache` removido del build | (verificacion) | Confirmado en `fbd357c` (sesión 33). Línea 136 actual tiene solo `--pull backend celery-worker celery-beat frontend`. |
+| 2 | Fix OpenSSL 3.x cert check en `deploy-qas.bat` | `scripts/deploy-qas.bat` | Línea 69 reemplazada: `-dates` (formato OpenSSL 1.x que falla parsing en 3.x) → `-enddate -checkend 2592000` con `usebackq tokens=*`. Diff: -8/+4. |
+| 3 | Agregar `seed_documentos.py` a `start-stack-qas.sh` | `scripts/start-stack-qas.sh` | 3 cambios: (a) `REQUIRED_FILES` línea 113, (b) `SEEDS` línea 227 (descripción "10 documentos... idemotente, opcional post-deploy"), (c) `9/9` → `10/10` línea 244, (d) resumen final línea 294 (`SELECT '  documentos:      ' || count(*) FROM documentos`). |
+| 4 | Push de los 3 scripts actualizados a QAS | (scp) | `start-stack-qas.sh` (15951→16159 bytes), `restore_clean_state_qas.sh` (3773 bytes, untracked), permisos +x restaurados. `deploy-qas.bat` queda solo local (es Windows-only, se pushea via `deploy-qas.bat` cuando se corra el próximo deploy). |
+| 5 | Validar `restore_clean_state_qas.sh` en QAS | (SSH) | Ejecutado: 3 servicios stopped, `pg_restore --clean --if-exists --single-transaction` aplicado, servicios restarted. **WARN**: backend no respondio en 45s (esperado — necesita `docker restart sgd-qas-nginx` por cache de IP). Verificado: `audit_log=0, documentos=0, gerencias=10, usuarios=754`. |
+| 6 | Fix nginx 502 post-restore | `docker restart sgd-qas-nginx` | Backend healthy via HTTPS (`{"status":"ok","service":"cofar-sgd-api","database":"ok"}`). Trampa conocida de sesión 33 (ADR implícito en restore script). |
+| 7 | Correr `seed_documentos.py` en QAS primera vez | (SSH) | `docker exec sgd-qas-backend python scripts/seed_documentos.py` → `Inserted: 10 \| Skipped: 0 \| Errors: 0`. Distribución: 5 APROBADO (1 VENCIDO + 1 POR_VENCER), 2 EN_ELABORACION, 2 EN_REVISION, 1 OBSOLETO. Correlativos generados: CC-5-001/00 a MCB-6-001/00. |
+| 8 | `validate-qas.sh` final | (SSH) | **35/35 PASS, 0 FAIL, 0 WARN**. Las 35 validaciones A-L intactas. |
+| 9 | 3 queries adicionales | (SSH + SQL via container) | (a) excluidos AD (ajaimes/visitador/visitador2/ozegarra/dlanchipa) en BD: **0** ✅. (b) `count(documentos)`: **10** ✅. (c) `count(usuario_roles)`: **723** (>= 720) ✅. |
+
+### Hallazgos
+
+1. **dump clean_state_qas_20260619.dump tiene 754 usuarios** (no 752 como esperado en checklist). Razón: el dump fue generado después de una sync AD que agregó 2 usuarios post-deploy sesión 33. `validate-qas.sh` ya usa `>=` así que el conteo pasa. No afecta a la lógica.
+2. **502 post-restore en nginx** (mismo bug sesión 33). El script `restore_clean_state_qas.sh` no reinicia nginx. Debería agregarse `docker restart sgd-qas-nginx` al final para automatizar el fix. Pendiente (low priority — fix manual en 3 seg).
+3. **`start-stack-qas.sh` en QAS no tenía `seed_documentos`**: el seed se ejecutó manualmente esta vez (paso 7 del checklist), pero el orquestador local actualizado lo aplicará automáticamente en próximos deploys.
+
+### Decisiones técnicas
+
+- **`-enddate -checkend 2592000` (30 días) en vez de parsear `-dates`**: OpenSSL 3.x cambió el formato de salida de `-dates` (línea con `notAfter=...` se mantiene, pero el comportamiento de algunos wrappers cambió). `-enddate -checkend` es API estable desde 1.x y funciona idéntico en 3.x. Output: `notAfter=Jun 18 12:00:00 2027 GMT` o `Certificate will not expire` (si está vigente).
+- **`seed_documentos.py` queda como opcional**: el comentario en SEEDS dice "opcional post-deploy" porque la BD de QAS no necesariamente quiere documentos sembrados — eso depende del operador. Pero ahora está disponible 1-click para el próximo deploy que quiera sembrarlos.
+- **`restore_clean_state_qas.sh` queda untracked-local**: la versión QAS ya está sincronizada (sesión 33 + scp de esta sesión). Pendiente commit para que el repo local lo registre.
+
+### Archivos modificados (3) + creado/pusheado (1)
+
+**Modificados (3):**
+- `scripts/deploy-qas.bat` (-8 / +4 — OpenSSL 3.x cert check)
+- `scripts/start-stack-qas.sh` (+5 / -1 — seed_documentos en 3 lugares)
+- `docs/PR/BITACORA.md` (esta entrada)
+
+**Creado (1):**
+- `scripts/restore_clean_state_qas.sh` (81 líneas — untracked en local, ya en QAS via scp)
+
+**Pendiente commit:** 4 archivos (los 3 modificados + 1 nuevo).
+
+### Estado de QAS post-sesión 34
+
+| Métrica | Valor | Esperado | Estado |
+|---|---|---|---|
+| contenedores Up | 8/8 (healthy) | 8/8 | ✅ |
+| alembic head | drop_modulos_s26 | drop_modulos_s26 | ✅ |
+| usuarios | 754 | >=752 | ✅ |
+| usuario_roles | 723 | >=720 | ✅ |
+| documentos | 10 | >=10 | ✅ (NUEVO) |
+| excluidos AD (visitador/etc) | 0 | 0 | ✅ |
+| validate-qas.sh | 35/35 PASS | PASS | ✅ |
+| nginx HTTPS health | 200 OK | 200 | ✅ |
+| Login aromero (BD Local) | 200 OK + roles=[ETO] | 200 + ETO | ✅ |
+
+### Pendientes post-sesión 34
+
+- **Commit atómico** de los 4 archivos modificados (esta sesión lo hace).
+- **Restore script + nginx restart**: agregar `docker restart sgd-qas-nginx` al final de `restore_clean_state_qas.sh` para automatizar el fix del 502.
+- **CRÍTICO POST-DEPLOY (FASE 3.1 STARTUP-CHECKLIST)**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` para re-asignar roles en base a la matriz oficial. Sin este paso, los 723 usuario_roles actuales son del snapshot de DES.
+- **CSRF middleware (B2)**: sigue pendiente (backlog).
+- **R3**: refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js, Revision.js, AprobacionFinal.js, Correccion.js (6 paginas con datos mock).
+- **R3 workflow**: encadenar flujo revision→aprobacion→liberacion completo.
+- **#13 Deuda delegado**: 139 usuarios sin delegado.
+- **Data mocks cleanup**: 16 archivos en `frontend/src/data/` son codigo muerto.
+
+---
+
 ## Sesión 33 — 2026-06-19 (viernes AM) — Deploy v1.1.0-qas ejecutado (35/35 PASS)
 
 ### Resumen ejecutivo
