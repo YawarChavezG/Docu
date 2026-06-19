@@ -588,12 +588,12 @@ export const page = {
         <label class="form-label">Documento a actualizar *</label>
         <select class="form-input text-xs" x-model="docActualizar" @change="onDocActualizarChange()"
                 :disabled="!tipodoc || !area || cargandoDocsActualizables">
-          <option value="">
-            <span x-show="!cargandoDocsActualizables && (!tipodoc || !area)">Seleccione tipo y area primero...</span>
-            <span x-show="cargandoDocsActualizables">Cargando documentos...</span>
-            <span x-show="!cargandoDocsActualizables && tipodoc && area && docsActualizables.length === 0">No hay documentos APROBADOS de este (area, tipo)</span>
-            <span x-show="!cargandoDocsActualizables && tipodoc && area && docsActualizables.length > 0">Seleccionar documento a actualizar...</span>
-          </option>
+          <option value="" x-text="
+            !tipodoc || !area ? 'Seleccione tipo y area primero...' :
+            cargandoDocsActualizables ? 'Cargando documentos...' :
+            docsActualizables.length === 0 ? 'No hay documentos APROBADOS disponibles' :
+            'Seleccionar documento...'
+          "></option>
           <template x-for="d in docsActualizables" :key="d.id">
             <option :value="d.id" x-text="d.codigo_completo + ' — ' + d.titulo"></option>
           </template>
