@@ -547,13 +547,16 @@ Aplicado en:
 
 ## Issue 1.2 — Lista de delegados en Mi Perfil corta (solo hasta "D")
 
-> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado end-to-end con Chrome MCP. 3 fixes aplicados:
-> 1. **Backend `permissions.py`**: Nueva función `require_eto_admin_o_rol_delegable` que permite acceso a `GET /usuarios` para roles con `requiere_delegado=True` (Elaborador-Revisor, etc.) — antes daba 403.
-> 2. **Backend `usuarios.py`**: PATCH `/usuarios/{id}` ahora permite que un usuario con `requiere_delegado=True` actualice su propio `delegado_id` — antes daba 403.
-> 3. **Frontend `ProfileModal.js`**: `usuariosFiltrados` incrementado de `slice(0,30)` a `slice(0,100)` para mostrar más de 30 usuarios iniciales.
-> 4. **Frontend `parametrizacionApi.js`**: `listPorCualquierRol` page_size subido de 200 a 500.
+> ✅ **RESUELTO (sesión actual, 2026-06-18)** — Validado end-to-end con Chrome MCP. 7 sub-fixes en 3 commits:
+> 1. **Backend `permissions.py`**: Nueva función `require_eto_admin_o_rol_delegable` — permite acceso a `GET /usuarios` para roles con `requiere_delegado=True`.
+> 2. **Backend `usuarios.py`**: `listar_usuarios` usa la nueva función permisiva (ya no 403 para Elaborador-Revisor).
+> 3. **Backend `usuarios.py`**: PATCH `/usuarios/{id}` permite self-edit de `delegado_id` para usuarios con `requiere_delegado=True`.
+> 4. **Frontend `ProfileModal.js`**: removido `slice(0,30/100)` — muestra todos los 155 usuarios sin límite.
+> 5. **Frontend `parametrizacionApi.js`**: `listPorCualquierRol` ahora ordena A→Y con `localeCompare('es')`. `page_size` 200→500.
+> 6. **Frontend `Parametrizacion.js`** (Edit User): reemplazado `listActivos()` por `listPorCualquierRol()` para filtrar solo ETO/Revisor/Aprobador.
+> 7. **Ambos modales**: `@click.stop` con handler en modal-box cierra dropdown al clickear fuera del buscador (fix UX).
 >
-> Validación visual: eto_test ve 100 usuarios (A→M, no truncado en C). elaborador_revisor ahora ve el dropdown completo (antes invisible por 403). Persistencia F5: delegado_id=1 (aromero) permanece. BD: estado_delegacion='asignado'. Tests: 115/116 PASS.
+> Validación visual: eto_test ve 155 usuarios A→Y ordenados (no truncado en C/M). elaborador_revisor dropdown completo (antes invisible por 403). Edit User modal mismo filtro. Click fuera del dropdown lo repliega. Persistencia F5 OK. BD: estado_delegacion='asignado'. Tests: 115/116 PASS.
 >
 > Próximo fix: **7.1** (Matriz ETO dropdown delegado solo ETO).
 
