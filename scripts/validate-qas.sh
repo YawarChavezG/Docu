@@ -147,21 +147,24 @@ fi
 # ════════════════════════════════════════════════════════════════
 heading "═══ D. DATOS BD ═══"
 
-# Conteos esperados (post-deploy R1 + R2 + sesiones 20-31 cerrado)
-# Sesion 31: usuarios=761 (sync AD ya ejecutado), email_templates=11 (catalogo completo),
-# estados=12 (data-migration B3 sesion 23), configuracion_global=7 (4 redundantes removidas sesion 23 A5)
+# Conteos esperados (post-deploy v1.1.0-qas, sesion 33)
+# - usuarios=752: 4 stubs + 750 AD - 2 visitador/visitador2 excluidos (sesion 32 fix)
+# - estados=16: 5 originales + 4 PROCESO + 6 TAREA + 3 ACCION (sesion 23 B3) - algunos marcados inactivos
+#   NOTA: validate pasa si count >= esperado; el limite inferior es 12.
+# - configuracion_global=11: 11 parametros US-9.01+9.02 (no se removieron)
+# - email_templates=11: catalogo completo (sesion 13)
 declare -A EXPECTED_COUNTS=(
     [roles]=5
     [modulos]=11
     [gerencias]=10
     [areas]=50
-    [usuarios]=761
+    [usuarios]=752
     [tipos_documento]=13
     [estados]=12
     [feriados]=20
     [email_templates]=11
     [matriz_enrutamiento_eto]=10
-    [configuracion_global]=7
+    [configuracion_global]=11
     [semaforizacion_tarea]=4
 )
 for table in "${!EXPECTED_COUNTS[@]}"; do
@@ -180,6 +183,23 @@ if [ "$INST_TECNICO" = "15" ]; then
     pass "D.13 INSTRUCTIVO_TECNICO.codigo=15"
 else
     fail "D.13 INSTRUCTIVO_TECNICO.codigo=$INST_TECNICO (esperado 15)"
+fi
+
+# D.14 usuario_roles count >= 720 (esperado 723-729 segun cuantos
+# usuarios del AD estan en BD; el seed es idempotente y ON CONFLICT skip)
+UR_COUNT=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c "SELECT count(*) FROM usuario_roles" 2>/dev/null)
+if [ "${UR_COUNT:-0}" -ge 720 ] 2>/dev/null; then
+    pass "D.14 usuario_roles count=$UR_COUNT (>= 720 esperado)"
+else
+    fail "D.14 usuario_roles count=$UR_COUNT (< 720 esperado). Re-correr seed_usuario_roles.py"
+fi
+
+# D.15 visitador/visitador2/ozegarra NO en BD (sesion 32 fix)
+EXCL_COUNT=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c "SELECT count(*) FROM usuarios WHERE username IN ('visitador', 'visitador2', 'ozegarra', 'dlanchipa')" 2>/dev/null)
+if [ "$EXCL_COUNT" = "0" ]; then
+    pass "D.15 usuarios excluidos del sync AD: 0 en BD (visitador/visitador2/ozegarra/dlanchipa)"
+else
+    fail "D.15 $EXCL_COUNT usuarios excluidos del sync AD todavia en BD. Aplicar cleanup."
 fi
 
 # ════════════════════════════════════════════════════════════════

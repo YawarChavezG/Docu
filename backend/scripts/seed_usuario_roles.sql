@@ -1,729 +1,744 @@
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1, 2) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (2, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (3, 1) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (4, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (9, 1) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (17, 1) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (18, 2) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (19, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (20, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (21, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (711, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (712, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (713, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (714, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (715, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (716, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (717, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (718, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (719, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (720, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (721, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (722, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (723, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (724, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (725, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (726, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (727, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (728, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (729, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (730, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (731, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (732, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (733, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (734, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (735, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (736, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (737, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (738, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (739, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (740, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (741, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (742, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (743, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (744, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (745, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (746, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (747, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (748, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (749, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (750, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (751, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (752, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (753, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (754, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (755, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (756, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (757, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (758, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (759, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (760, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (761, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (762, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (763, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (764, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (765, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (766, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (767, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (768, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (769, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (770, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (771, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (772, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (773, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (774, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (775, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (776, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (777, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (778, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (779, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (780, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (781, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (782, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (783, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (784, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (785, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (786, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (787, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (788, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (789, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (790, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (791, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (792, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (793, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (794, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (795, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (796, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (797, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (798, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (799, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (800, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (801, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (802, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (803, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (804, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (805, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (806, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (807, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (808, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (809, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (810, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (811, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (812, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (813, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (814, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (815, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (816, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (817, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (818, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (819, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (820, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (821, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (822, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (823, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (824, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (825, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (826, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (827, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (828, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (829, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (830, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (831, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (832, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (833, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (834, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (835, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (836, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (837, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (838, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (839, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (840, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (841, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (842, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (843, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (844, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (845, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (846, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (847, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (848, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (849, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (850, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (851, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (852, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (853, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (854, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (855, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (856, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (857, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (858, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (859, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (860, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (861, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (862, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (863, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (864, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (865, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (866, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (867, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (868, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (869, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (870, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (871, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (872, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (873, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (874, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (875, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (876, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (877, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (878, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (879, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (880, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (881, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (882, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (883, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (884, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (885, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (886, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (887, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (888, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (889, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (890, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (891, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (892, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (893, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (894, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (895, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (896, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (897, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (898, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (899, 2) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (900, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (901, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (902, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (903, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (904, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (905, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (906, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (907, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (908, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (909, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (910, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (911, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (912, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (913, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (914, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (915, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (916, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (917, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (918, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (919, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (920, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (921, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (922, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (923, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (924, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (925, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (926, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (927, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (928, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (929, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (930, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (931, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (932, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (933, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (934, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (935, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (936, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (937, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (938, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (939, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (940, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (941, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (942, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (943, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (944, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (945, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (946, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (947, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (948, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (949, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (950, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (951, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (952, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (953, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (954, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (955, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (956, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (957, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (958, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (959, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (960, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (961, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (962, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (963, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (964, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (965, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (966, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (967, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (968, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (970, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (971, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (972, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (973, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (974, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (975, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (976, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (977, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (978, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (979, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (980, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (981, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (982, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (983, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (984, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (985, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (986, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (987, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (988, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (989, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (990, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (991, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (992, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (993, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (994, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (995, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (996, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (997, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (998, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (999, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1000, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1001, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1002, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1003, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1004, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1005, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1006, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1007, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1008, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1009, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1010, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1011, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1012, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1013, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1014, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1015, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1016, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1017, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1018, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1019, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1020, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1021, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1022, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1023, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1024, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1025, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1026, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1027, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1028, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1029, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1030, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1031, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1032, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1033, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1034, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1035, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1036, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1037, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1038, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1039, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1040, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1041, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1042, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1043, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1044, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1045, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1046, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1047, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1048, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1049, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1050, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1051, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1052, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1053, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1054, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1055, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1056, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1057, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1059, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1060, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1061, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1062, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1063, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1064, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1065, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1066, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1067, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1068, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1069, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1070, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1071, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1072, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1073, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1074, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1075, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1076, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1077, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1078, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1079, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1080, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1081, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1082, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1083, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1084, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1085, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1086, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1087, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1088, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1089, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1090, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1091, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1092, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1093, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1094, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1095, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1096, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1097, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1098, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1099, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1100, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1101, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1102, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1103, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1104, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1105, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1106, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1107, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1108, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1109, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1110, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1111, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1112, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1113, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1114, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1115, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1116, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1117, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1118, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1119, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1120, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1121, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1122, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1123, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1124, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1125, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1126, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1127, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1128, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1129, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1130, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1131, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1132, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1133, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1134, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1135, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1136, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1137, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1138, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1139, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1140, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1141, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1142, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1143, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1144, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1145, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1146, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1147, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1148, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1149, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1150, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1151, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1152, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1153, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1154, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1155, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1156, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1157, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1158, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1159, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1160, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1161, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1162, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1163, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1164, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1165, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1166, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1167, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1168, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1169, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1170, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1171, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1172, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1173, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1174, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1175, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1176, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1177, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1178, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1179, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1180, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1181, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1182, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1183, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1184, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1185, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1186, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1187, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1188, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1189, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1190, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1191, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1192, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1193, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1194, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1195, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1196, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1197, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1198, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1199, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1200, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1201, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1202, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1203, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1204, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1205, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1206, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1207, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1208, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1209, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1210, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1211, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1212, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1213, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1214, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1215, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1216, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1217, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1218, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1219, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1220, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1221, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1222, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1223, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1224, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1225, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1226, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1227, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1228, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1229, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1230, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1231, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1232, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1233, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1234, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1235, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1236, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1237, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1238, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1239, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1240, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1241, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1242, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1243, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1244, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1245, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1246, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1247, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1248, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1249, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1250, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1251, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1252, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1253, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1254, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1255, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1256, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1257, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1258, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1259, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1260, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1261, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1262, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1263, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1264, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1265, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1266, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1267, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1268, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1269, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1270, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1271, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1272, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1273, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1274, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1275, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1276, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1277, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1278, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1279, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1281, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1282, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1283, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1284, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1285, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1286, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1287, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1288, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1289, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1291, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1292, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1293, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1294, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1295, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1296, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1297, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1298, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1299, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1300, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1301, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1302, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1303, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1304, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1305, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1306, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1308, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1309, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1310, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1312, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1313, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1314, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1319, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1320, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1321, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1323, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1324, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1326, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1327, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1328, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1329, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1330, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1331, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1333, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1334, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1336, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1337, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1338, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1339, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1340, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1343, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1344, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1345, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1347, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1348, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1349, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1350, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1351, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1352, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1353, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1354, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1355, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1356, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1358, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1360, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1361, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1362, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1363, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1364, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1365, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1366, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1367, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1368, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1369, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1370, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1371, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1372, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1373, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1374, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1375, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1376, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1377, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1378, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1379, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1381, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1383, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1384, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1385, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1386, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1387, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1388, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1389, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1390, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1391, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1392, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1393, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1394, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1395, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1397, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1399, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1400, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1401, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1402, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1403, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1405, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1406, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1407, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1408, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1409, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1410, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1411, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1412, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1413, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1414, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1416, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1417, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1418, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1419, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1420, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1421, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1422, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1423, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1424, 4) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1425, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1426, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1429, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1430, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1431, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1432, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1434, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1436, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1437, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1438, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1439, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1440, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1441, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1443, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1444, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1445, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1446, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1447, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1448, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1449, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1452, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1453, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1454, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1455, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1456, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1457, 3) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1458, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1459, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1461, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
-INSERT INTO usuario_roles (usuario_id, rol_id) VALUES (1462, 5) ON CONFLICT (usuario_id, rol_id) DO NOTHING;
+-- Sesion 33 (deploy v1.1.0-qas): snapshot de las 729 asignaciones
+-- usuario_roles de DES, portado via (username, codigo_rol) para que
+-- funcione en cualquier ambiente donde existan esos usuarios + roles.
+--
+-- Idempotente: ON CONFLICT (usuario_id, rol_id) DO NOTHING sobre la PK.
+-- Si un usuario o rol no existe, la fila se ignora silenciosamente.
+-- Generado: 729 asignaciones.
+
+INSERT INTO usuario_roles (usuario_id, rol_id)
+SELECT u.id, r.id
+FROM (VALUES
+    ($$aadriazola$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aaguilar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aalarcon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aaranibar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aarce$$, $$ELABORADOR - REVISOR$$),
+    ($$abasswerner$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$abeltran$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$acahuana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$achambi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$acoca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$acondori$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$acossio$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$acuestas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$admin$$, $$ADMIN$$),
+    ($$admin_local$$, $$ADMIN$$),
+    ($$aemorice$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aescobar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aespinoza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aflores$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$afloresh$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$agarcia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$agranier$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$agutierrezm$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ajacome$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ajurado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$alazaro$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$alima$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$alimam$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$alimpias$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$alinares$$, $$ELABORADOR - REVISOR$$),
+    ($$alinarest$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$amayorga$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$amercado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$amiranda$$, $$ELABORADOR - REVISOR$$),
+    ($$amolina$$, $$ELABORADOR - REVISOR$$),
+    ($$amontano$$, $$ELABORADOR - REVISOR$$),
+    ($$anoya$$, $$ELABORADOR - REVISOR$$),
+    ($$aorihuela$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aoropeza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aparedes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$aparedesa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$apaz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$apinto$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$apool$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$arios$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$arodriguez$$, $$ELABORADOR - REVISOR$$),
+    ($$aromero$$, $$ETO$$),
+    ($$aruiz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asaavedra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asalazar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asalazarm$$, $$ELABORADOR - REVISOR$$),
+    ($$asalinas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asalvatierra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asanchez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asaucedo$$, $$ELABORADOR - REVISOR$$),
+    ($$asegura$$, $$ELABORADOR - REVISOR$$),
+    ($$aserrano$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asinani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asosa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$asotopolar$$, $$ELABORADOR - REVISOR$$),
+    ($$aticona$$, $$ELABORADOR - REVISOR$$),
+    ($$atordoya$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$atorrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$atorricor$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$avallejos$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$avargas$$, $$ELABORADOR - REVISOR$$),
+    ($$baguilard$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$balfaro$$, $$ELABORADOR - REVISOR$$),
+    ($$bapaza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$bconde$$, $$ELABORADOR - REVISOR$$),
+    ($$bgutierrezq$$, $$ELABORADOR - REVISOR$$),
+    ($$bhuanverdy$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$bquisbert$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$bribera$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$bsilva$$, $$ELABORADOR - REVISOR$$),
+    ($$bteran$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$bterrazas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$btola$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$bzenteno$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$calfaro$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$carispe$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cbanegas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cbeltran$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ccanseco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ccardona$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ccastro$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ccolquechambi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ccondori$$, $$ELABORADOR - REVISOR$$),
+    ($$ccrespo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ccuba$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ccuellar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cdacosta$$, $$ELABORADOR - REVISOR$$),
+    ($$cescobar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cespinoza$$, $$ETO$$),
+    ($$cestivariz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cestrada$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cgarciag$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cgarfias$$, $$ELABORADOR - REVISOR$$),
+    ($$cgutierrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cjimenez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cjove$$, $$ELABORADOR - REVISOR$$),
+    ($$cjustiniano$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$clopez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$clopezm$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$clopezv$$, $$ELABORADOR - REVISOR$$),
+    ($$cmaldonado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cmarquez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cmartinez$$, $$ELABORADOR - REVISOR$$),
+    ($$cmartinezp$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cmier$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cnavia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cpaco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cpecka$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cperedo$$, $$ELABORADOR - REVISOR$$),
+    ($$cperez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cpiluy$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cquisbert$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$creynozo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$crios$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$criosa$$, $$ELABORADOR - REVISOR$$),
+    ($$crodas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$crodriguez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$crodriguezc$$, $$ELABORADOR - REVISOR$$),
+    ($$crojas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$csalazarv$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$csoria$$, $$ELABORADOR - REVISOR$$),
+    ($$ctavera$$, $$ELABORADOR - REVISOR$$),
+    ($$ctuco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cvaca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$cvelasquez$$, $$ELABORADOR - REVISOR$$),
+    ($$cvillegas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$daracayo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$daramayo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dayllon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dbazbazat$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dberdeja$$, $$ELABORADOR - REVISOR$$),
+    ($$dbigabriel$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dblanco$$, $$ELABORADOR - REVISOR$$),
+    ($$dcallisaya$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dcanaviri$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dcardenas$$, $$ELABORADOR - REVISOR$$),
+    ($$dcartagena$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dchoqueticlla$$, $$ELABORADOR - REVISOR$$),
+    ($$dcordova$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dcossio$$, $$ELABORADOR - REVISOR$$),
+    ($$dcuellar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dcusi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ddias$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$descalante$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$destrada$$, $$ELABORADOR - REVISOR$$),
+    ($$dguachalla$$, $$ELABORADOR - REVISOR$$),
+    ($$dgutierrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$disnado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$djimenez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dlazarte$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dleandro$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dledezma$$, $$ELABORADOR - REVISOR$$),
+    ($$dloza$$, $$ELABORADOR - REVISOR$$),
+    ($$dmachaca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dmillares$$, $$ELABORADOR - REVISOR$$),
+    ($$dmiranda$$, $$ELABORADOR - REVISOR$$),
+    ($$dmorales$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dpereira$$, $$ELABORADOR - REVISOR$$),
+    ($$dsaavedra$$, $$ELABORADOR - REVISOR$$),
+    ($$dsanjinez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dsejas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dsirpa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dsolizs$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dsucasaca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dtarqui$$, $$ELABORADOR - REVISOR$$),
+    ($$dtoconas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$dtorrez$$, $$ELABORADOR - REVISOR$$),
+    ($$dvaca$$, $$ELABORADOR - REVISOR$$),
+    ($$dzapana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ealberto$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$eaquice$$, $$ELABORADOR - REVISOR$$),
+    ($$earce$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$eardaya$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$eavila$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ebejar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ecaceres$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ecamargo$$, $$ELABORADOR - REVISOR$$),
+    ($$ecarrillo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$echipana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ecuellar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$eduran$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$eflores$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$egarnica$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$egarrido$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ejarandilla$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ejemio$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ekanan$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$elaborador_revisor$$, $$ELABORADOR - REVISOR$$),
+    ($$elaborador_revisor_aprobador$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$elopez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$elorono$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$eluna$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$emolina$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$enina$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$epereira$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$equinajo$$, $$ELABORADOR - REVISOR$$),
+    ($$equispe$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$erada$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$erivero$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$erodriguez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$esuxo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$eto_test$$, $$ETO$$),
+    ($$evaldez$$, $$ELABORADOR - REVISOR$$),
+    ($$evargas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$evargase$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$evera$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$falvarez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fbadani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fcamacho$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fcamachom$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fcartagena$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fchino$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fchipana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fconde$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fcopa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fcortez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fflores$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fgutierrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fhinojosa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fjerez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$flopez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fmamani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fmamanim$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fmarquez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fmejia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fmerino$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fonofre$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$frequena$$, $$ELABORADOR - REVISOR$$),
+    ($$fsantalla$$, $$ELABORADOR - REVISOR$$),
+    ($$fsilva$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fticona$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fvargas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fyujra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fyujrag$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$fyujrai$$, $$ELABORADOR - REVISOR$$),
+    ($$gacosta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$galbarracin$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$galcocer$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$galcon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gbaradi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gbascon$$, $$ELABORADOR - REVISOR$$),
+    ($$gcabrera$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gcalcina$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gcapriles$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gcarvajal$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gescobar$$, $$ELABORADOR - REVISOR$$),
+    ($$gescobari$$, $$ELABORADOR - REVISOR$$),
+    ($$ggalvan$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ggonzales$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ggorostiaga$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ggutierrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ghuanca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gignacio$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gjemio$$, $$ELABORADOR - REVISOR$$),
+    ($$gjimenez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$glaura$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gmallea$$, $$ELABORADOR - REVISOR$$),
+    ($$gmamani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gmayori$$, $$ELABORADOR - REVISOR$$),
+    ($$gmendieta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gmendoza$$, $$ELABORADOR - REVISOR$$),
+    ($$grevollo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$grioja$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$grodriguez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$grojas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$grojasl$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gsanca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gtancaram$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gvalle$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gvargas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gvasquez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gvegaa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gvela$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gvillegas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$gviscarra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$haguilera$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$hcastillo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$hcastro$$, $$ELABORADOR - REVISOR$$),
+    ($$hgamez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$hgranadero$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$hmamani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$hmercado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$hzambrana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$iacosta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$iaguilar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$iari$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ibustamante$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$icanqui$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$icervantes$$, $$ELABORADOR - REVISOR$$),
+    ($$icusicanqui$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ielio$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$iespinoza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$imarca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$imarquez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$imorales$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$isoruco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$itinta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$iverastegui$$, $$ELABORADOR - REVISOR$$),
+    ($$ividaurre$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ivillca$$, $$ELABORADOR - REVISOR$$),
+    ($$jacarapi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jadministrativo$$, $$ELABORADOR - REVISOR$$),
+    ($$jajata$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jarancibia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jaranibar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jarauz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jaruquipa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jbalcazar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jbarrancos$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jbecerra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jbecerrai$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jburgos$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jcallejas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jcanisaca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jchoqueb$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jcolodro$$, $$ELABORADOR - REVISOR$$),
+    ($$jcondoric$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jcondorif$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jcorzon$$, $$ELABORADOR - REVISOR$$),
+    ($$jcruz$$, $$ELABORADOR - REVISOR$$),
+    ($$jdiaz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jdiazl$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jeguez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jencina$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jencinas$$, $$ELABORADOR - REVISOR$$),
+    ($$jespinozao$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jfranco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jfuentes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jgamboa$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$jgarcia$$, $$ELABORADOR - REVISOR$$),
+    ($$jgarciaz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jgonzalesf$$, $$ELABORADOR - REVISOR$$),
+    ($$jgonzalesg$$, $$ELABORADOR - REVISOR$$),
+    ($$jgumucio$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jherbas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jhernani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jhurtadom$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jibarra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jkaliman$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jkantuta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jllusco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jlopezf$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmachaca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmamani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmarin$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmendez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmercadog$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmillan$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmontecinos$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmonzon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmoreno$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jmurguia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jnava$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jnina$$, $$ELABORADOR - REVISOR$$),
+    ($$jpaco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jpoma$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jquenta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jquispe$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jquispec$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jrada$$, $$ELABORADOR - REVISOR$$),
+    ($$jrico$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jromano$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jrubindecelis$$, $$ELABORADOR - REVISOR$$),
+    ($$jsanjines$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$jsoleto$$, $$ELABORADOR - REVISOR$$),
+    ($$jtorrezm$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jtorricov$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jverastegui$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jvillaverde$$, $$ELABORADOR - REVISOR$$),
+    ($$jvmamani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$jzurita$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kandrade$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$karias$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kayala$$, $$ELABORADOR - REVISOR$$),
+    ($$kcastaneta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kcastellon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kclaure$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kgalarza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kgarvizu$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kibanez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kmendieta$$, $$ELABORADOR - REVISOR$$),
+    ($$ksalazar$$, $$ELABORADOR - REVISOR$$),
+    ($$kvillarroel$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$kzuazo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lalave$$, $$ELABORADOR - REVISOR$$),
+    ($$lalvarez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lameller$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$larnez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$layala$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lballon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lbarrientos$$, $$ELABORADOR - REVISOR$$),
+    ($$lbetancourt$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lburton$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lcampos$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lcandia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lcardona$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lcatacora$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lchoque$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lclaudio$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lcondori$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lcondorit$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lcuili$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ldelafuente$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lescobar$$, $$ELABORADOR - REVISOR$$),
+    ($$lespinoza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lgonzales$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lhurtado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ljimenez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$llaura$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lledezma$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$llimachi$$, $$ELABORADOR - REVISOR$$),
+    ($$lmamani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lmiranda$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lmurga$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lorellana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lpazsoldan$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lpena$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lquispe$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lrada$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lramirez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lroca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lrodriguezm$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lsalinas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lsalinasc$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lsalinasv$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lsanchez$$, $$ELABORADOR - REVISOR$$),
+    ($$lsirpa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ltellez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lvaras$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lvargas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lvargasg$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lvargass$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lvelasco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lvilla$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$lvinolas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$maduran$$, $$ELABORADOR - REVISOR$$),
+    ($$maguilarj$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$malban$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$malcon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mandrade$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mapaza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$marce$$, $$ELABORADOR - REVISOR$$),
+    ($$maro$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$mbacarreza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mbravo$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$mcaballero$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mcallisaya$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mcamacho$$, $$ELABORADOR - REVISOR$$),
+    ($$mcanaza$$, $$ELABORADOR - REVISOR$$),
+    ($$mcarvajalq$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mcassas$$, $$ELABORADOR - REVISOR$$),
+    ($$mcastedo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mcastedoz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mcazuriaga$$, $$ELABORADOR - REVISOR$$),
+    ($$mchura$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mcochi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mecanaviri$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mencinas$$, $$ELABORADOR - REVISOR$$),
+    ($$mergueta$$, $$ELABORADOR - REVISOR$$),
+    ($$mfita$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mflores$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mfloresb$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mfloreso$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mfloresp$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mgalarza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mguarachi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mguaygua$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mgutierrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mgutierrezc$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mhegedus$$, $$ELABORADOR - REVISOR$$),
+    ($$mherrera$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mhuallpa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mhuchani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mhurtado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mibanez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mledezma$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mleonz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mloayza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mlozac$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mluna$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmaldonadom$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmamanif$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmamaniq$$, $$ELABORADOR - REVISOR$$),
+    ($$mmanotas$$, $$ELABORADOR - REVISOR$$),
+    ($$mmarca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmayta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmedrano$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmendozac$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmhur$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mmichel$$, $$ELABORADOR - REVISOR$$),
+    ($$mmorales$$, $$ELABORADOR - REVISOR$$),
+    ($$mmunoz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$morihuela$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mortizp$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mpachagaya$$, $$ELABORADOR - REVISOR$$),
+    ($$mpaiva$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mparedes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mpenaranda$$, $$ELABORADOR - REVISOR$$),
+    ($$mperalta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mpereira$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mpol$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mpoma$$, $$ELABORADOR - REVISOR$$),
+    ($$mponces$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mquezadas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mquino$$, $$ELABORADOR - REVISOR$$),
+    ($$mquispe$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mquispez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mrodriguezm$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mrojas$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$mrojasm$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$msanchez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$msancheza$$, $$ELABORADOR - REVISOR$$),
+    ($$msaucedo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mthuanca$$, $$ELABORADOR - REVISOR$$),
+    ($$mtorrez$$, $$ELABORADOR - REVISOR$$),
+    ($$mtouchard$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mugarte$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mvargasq$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$mvillarreal$$, $$ELABORADOR - REVISOR$$),
+    ($$mzurita$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$naguilar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nalanes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$narosqueta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nbonilla$$, $$ELABORADOR - REVISOR$$),
+    ($$ncaceres$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ncharca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nchavez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ncrespo$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$nduran$$, $$ELABORADOR - REVISOR$$),
+    ($$ngisbert$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$nimanareco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nmoreno$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nperez$$, $$ELABORADOR - REVISOR$$),
+    ($$nquisbert$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nroca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nrojas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ntarifa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ntorrico$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nvargas$$, $$ELABORADOR - REVISOR$$),
+    ($$nvedia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$nyevara$$, $$ELABORADOR - REVISOR$$),
+    ($$nzamorano$$, $$ELABORADOR - REVISOR$$),
+    ($$oaltamirano$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ochoque$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ococa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ocolmena$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$oguzman$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$omurillo$$, $$ELABORADOR - REVISOR$$),
+    ($$opoma$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pabapinta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pabrego$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pardiles$$, $$ELABORADOR - REVISOR$$),
+    ($$pargollo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pazurduy$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pbazan$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pcastellon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pcedeno$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pcerda$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pchoque$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pcordero$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pcriales$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pdiaz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pguzman$$, $$ELABORADOR - REVISOR$$),
+    ($$phurtado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pjurado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pmaceda$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pmercado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$promotor$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$psuarez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$purquiola$$, $$ELABORADOR - REVISOR$$),
+    ($$puyuni$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pvillca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$pvillegas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$qgomez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$raguilar$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rantezana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rarias$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rcalderon$$, $$ELABORADOR - REVISOR$$),
+    ($$rcallisaya$$, $$ELABORADOR - REVISOR$$),
+    ($$rcampero$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rchalco$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rcoca$$, $$ELABORADOR - REVISOR$$),
+    ($$rconde$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rcontreras$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rcruz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rflores$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rgutierrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rgutierrezs$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rguzmanm$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rillanes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rlima$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rlimachi$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rlimachiq$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rlira$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rlopez$$, $$ELABORADOR - REVISOR$$),
+    ($$rluna$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rmamani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rmamania$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rmendoza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rmontecinos$$, $$ELABORADOR - REVISOR$$),
+    ($$rmontes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rmontiel$$, $$ELABORADOR - REVISOR$$),
+    ($$rmoya$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rmurillo$$, $$ELABORADOR - REVISOR$$),
+    ($$rnavarro$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rpadilla$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rparedes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rpaz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rpenaloza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rpenaranda$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rperalta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rperaltal$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rperez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rquinteros$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rquirogat$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rramos$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rrivera$$, $$ELABORADOR - REVISOR$$),
+    ($$rrojas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rsantamaria$$, $$ELABORADOR - REVISOR$$),
+    ($$rsantos$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rsoto$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rtaborga$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rtancara$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rterrazas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rtinta$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rtorrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rvaca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rvacas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rvalverde$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rvargasr$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rvenegas$$, $$ELABORADOR - REVISOR$$),
+    ($$rvillarroel$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rvillaverde$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$rzapana$$, $$ELABORADOR - REVISOR$$),
+    ($$sachacollo$$, $$ELABORADOR - REVISOR$$),
+    ($$sadministrativo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$salfaro$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$samonzabel$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sanez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sarenas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sarmijo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sbaldiviezo$$, $$ELABORADOR - REVISOR$$),
+    ($$sbarrera$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sblanco$$, $$ELABORADOR - REVISOR$$),
+    ($$scalani$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$schaparro$$, $$ELABORADOR - REVISOR$$),
+    ($$scoronado$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sgarcia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sgautam$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sguaygua$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sleyva$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$slujan$$, $$ELABORADOR - REVISOR$$),
+    ($$smamani$$, $$ELABORADOR - REVISOR$$),
+    ($$smariscal$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$smaydana$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$smichel$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$solicitante$$, $$ELABORADOR - REVISOR - APROBADOR$$),
+    ($$spenaloza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sprocchio$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$squispea$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$srada$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sreyes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sriveros$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$starquiola$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$sterceros$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$stola$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$stroncoso$$, $$ELABORADOR - REVISOR$$),
+    ($$svalencia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$svillarroel$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$talarcon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$tchura$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$tflorian$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$theredia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$tluna$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$tmendoza$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$tnunez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$tsuntura$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$tvelasco$$, $$ELABORADOR - REVISOR$$),
+    ($$vcalderon$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vcondori$$, $$ELABORADOR - REVISOR$$),
+    ($$vcortez$$, $$ELABORADOR - REVISOR$$),
+    ($$vflores$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vgarcia$$, $$ELABORADOR - REVISOR$$),
+    ($$vgutierrez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vibanez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$villescas$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$visualizador$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$visualizador_cl$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vjimenez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vjustinianoj$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vloayza$$, $$ELABORADOR - REVISOR$$),
+    ($$vmamani$$, $$ELABORADOR - REVISOR$$),
+    ($$vmartinez$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vmedina$$, $$ELABORADOR - REVISOR$$),
+    ($$vmoscoso$$, $$ELABORADOR - REVISOR$$),
+    ($$vortega$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vpenaranda$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vsaravia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vsiles$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vucedo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vvargasp$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$vvillarroelc$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wacero$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$walanes$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wcastillo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wchoque$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wchumacero$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wcopa$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wherrera$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wmedina$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$wrojas$$, $$ELABORADOR - REVISOR$$),
+    ($$wsalvatierra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ycastro$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ychavez$$, $$ADMIN$$),
+    ($$ychung$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$ypaz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$yperedo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$yrodriguez$$, $$ELABORADOR - REVISOR$$),
+    ($$yschwarz$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$yvaca$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$yyujra$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$zchuquimia$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$zperedo$$, $$VISUALIZADOR (CL-EVAL)$$),
+    ($$zyapura$$, $$VISUALIZADOR (CL-EVAL)$$)
+) AS v(username, codigo)
+JOIN usuarios u ON u.username = v.username
+JOIN roles r ON r.codigo::text = v.codigo
+ON CONFLICT (usuario_id, rol_id) DO NOTHING;

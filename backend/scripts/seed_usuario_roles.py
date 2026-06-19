@@ -53,13 +53,17 @@ async def main() -> None:
         sys.exit(1)
 
     sql_text = SQL_FILE.read_text(encoding="utf-8")
-    # Contar statements (cada linea es un INSERT)
-    inserts = [ln.strip() for ln in sql_text.splitlines() if ln.strip().startswith("INSERT")]
-    total = len(inserts)
+    # Contar asignaciones: cada par (username, codigo) aparece como
+    # ($$user$$, $$ROL$$) o ($$user$$, $$ROL$$, ...) con 2 $$ por valor.
+    # Si hay 2 columnas (username + codigo), total $$ / 2 / 2.
+    # Mas robusto: contar lineas que arrancan con "($$" en el VALUES.
+    n_dollar_quotes = sql_text.count("$$")
+    # Cada tupla del VALUES tiene 2 strings dollar-quoted, o sea 4 $$ por fila.
+    total = n_dollar_quotes // 4 if n_dollar_quotes else 0
     print("=" * 70)
-    print("COFAR SGD - Seed usuario_roles (snapshot 729 filas, sesion 33)")
+    print("COFAR SGD - Seed usuario_roles (snapshot portatil, sesion 33)")
     print("=" * 70)
-    print(f"Archivo: {SQL_FILE.name} ({total} INSERTs ON CONFLICT DO NOTHING)")
+    print(f"Archivo: {SQL_FILE.name} ({total} asignaciones ON CONFLICT DO NOTHING)")
 
     async with AsyncSessionLocal() as db:
         try:
@@ -69,11 +73,11 @@ async def main() -> None:
             )).scalar_one()
             print(f"\n  Antes:   {count_before} filas en usuario_roles")
 
-            # asyncpg (y por lo tanto SQLAlchemy async) NO soporta multiples
-            # statements en una sola prepared statement. Hay que ejecutar
-            # cada INSERT por separado. 729 INSERTs tarda ~1-2s, es OK.
-            for i, stmt in enumerate(inserts, 1):
-                await db.execute(text(stmt))
+            # El SQL portable es UN solo INSERT ... SELECT ... JOIN con un
+            # VALUES de 729 tuplas. Es 1 sola prepared statement, valido
+            # para asyncpg. ON CONFLICT DO NOTHING sobre la PK lo hace
+            # idempotente.
+            await db.execute(text(sql_text))
             await db.commit()
 
             # Count DESPUES
