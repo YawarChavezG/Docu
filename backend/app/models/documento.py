@@ -173,11 +173,12 @@ class Documento(Base):
     )
 
     # ─── Constraints ───
-    # Unico: el correlativo es monotono dentro de (area, tipo) — no se puede duplicar.
+    # Unico: el correlativo es monotono dentro de (area, tipo, version).
+    # Incluye version para permitir ACTUALIZACION (mismo correlativo, version+1).
     __table_args__ = (
         UniqueConstraint(
-            "area_id", "tipo_documento_id", "correlativo",
-            name="uq_documento_area_tipo_correlativo",
+            "area_id", "tipo_documento_id", "correlativo", "version",
+            name="uq_documento_area_tipo_correlativo_version",
         ),
         # Codigo completo (incluye version) tambien es unico.
         # Esto evita que 2 documentos con misma (area, tipo, correlativo, version) coexistan.
