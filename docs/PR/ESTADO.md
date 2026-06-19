@@ -1,12 +1,13 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-19 (sesión 34 — **CIERRE 6 FIXES POST-DEPLOY: OpenSSL 3.x + seed_documentos + restore_qas validado, 35/35 PASS, 10 documentos en QAS**)
+> **Última actualización:** 2026-06-19 (sesión 35 — **3 FIXES DEUDA TÉCNICA: B3 vite manualChunks + B1 gerencia cascade + CSRF middleware, 228/228 tests PASS**)
 
 ## Versión actual
-**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
+**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). Sesión 35 cerró 3 items de deuda técnica (B3 vite manualChunks + B1 gerencia cascade + CSRF middleware), 228/228 tests PASS. QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
 1. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` (FASE 3.1 de STARTUP-CHECKLIST.md). Los 723 usuario_roles actuales son snapshot de DES; el operador debe re-asignar con la matriz oficial.
 2. **Restore script + nginx restart** (low): agregar `docker restart sgd-qas-nginx` al final de `restore_clean_state_qas.sh` para automatizar el fix del 502.
+3. **CSRF middleware en QAS**: el cambio de sesión 35 está solo en DES. El próximo deploy a QAS (v1.1.1-qas) debe incluir `backend/app/middleware/csrf.py` + registro en main.py + `_auth_cookies` del conftest (que NO afecta QAS, solo tests).
 
 **Sesión 34 (2026-06-19)**: **Cierre 6 fixes pendientes post-deploy v1.1.0-qas**. 3 archivos modificados (deploy-qas.bat OpenSSL 3.x + start-stack-qas.sh seed_documentos + BITACORA.md) + 1 nuevo (`scripts/restore_clean_state_qas.sh`, 81 lineas, untracked, ya en QAS via scp). 0 commits aún (pendiente cierre de sesión). QAS 35/35 PASS. 10 documentos en BD (seed_documentos.py primera corrida). Restore script validado (audit_log=0, gerencias=10, usuarios=754, documentos=0 pre-seed). Nginx 502 post-restore resuelto con `docker restart sgd-qas-nginx` (trampa conocida sesión 33). 3 queries adicionales OK: excluidos AD=0, documentos=10, usuario_roles=723.
 
@@ -342,9 +343,9 @@ DELETE /api/v1/estados/{id}                               (NUEVO)
 
 | # | Bug | Severidad | Impacto | Workaround | Sesion sugerida |
 |---|---|---|---|---|---|
-| B1 | `Gerencia.areas` tiene `cascade="all, delete-orphan"` en la relacion ORM | 🟡 Media | Si se hace DELETE fisico desde el ORM, se borran las areas hijas. | El router usa solo borrado logico (activo=false). | Sesion 28 (cleanup) |
-| B2 | NO existe middleware CSRF en backend (solo se setea cookie en `/login`) | 🟠 Alta | El header `X-CSRF-Token` que envia `api.js` no se valida. Vector de CSRF. | Confiar en CORS + `credentials: include`. | Sesion 28 (seguridad) |
-| B3 | `build-error` de Vite falla por `manualChunks` como objeto en `vite.config.js` | 🟢 Baja | Solo afecta `npm run build`. El dev server (HMR) funciona. | Cambiar `manualChunks` a funcion. | Sesion 28 |
+| B1 | `Gerencia.areas` tiene `cascade="all, delete-orphan"` en la relacion ORM | 🟡 Media | Si se hace DELETE fisico desde el ORM, se borran las areas hijas. | El router usa solo borrado logico (activo=false). | **✅ RESUELTO sesión 35** |
+| B2 | NO existe middleware CSRF en backend (solo se setea cookie en `/login`) | 🟠 Alta | El header `X-CSRF-Token` que envia `api.js` no se valida. Vector de CSRF. | Confiar en CORS + `credentials: include`. | **✅ RESUELTO sesión 35** |
+| B3 | `build-error` de Vite falla por `manualChunks` como objeto en `vite.config.js` | 🟢 Baja | Solo afecta `npm run build`. El dev server (HMR) funciona. | Cambiar `manualChunks` a funcion. | **✅ RESUELTO sesión 35** |
 | B4 | `frontend/src/data/*.js` aun tiene datos hardcoded del mock legacy | 🟡 Media | Componentes que importen de ahi muestran datos desactualizados. | `Parametrizacion.js` ya consume API. | Sesion 28 (cleanup) |
 | B5 | Modelos SQLAlchemy NO tienen `__repr__` consistente | 🟢 Baja | Logs de SQLAlchemy muestran `<Modelo at 0x...>`. | Agregar `def __repr__` a los modelos. | Sesion 28 |
 | B6 | `auth.py` logica de password dummy `cofar.2026` hardcoded | 🟠 Alta (en QAS) | En DES OK. Si QAS llega con `LDAP_ENABLED=false` se acepta cualquier pass. | Verificar `LDAP_ENABLED=true` en QAS. | Pre-deployment QAS |

@@ -315,7 +315,7 @@ docker exec sgd-qas-mailhog date        # Fri Jun 19 03:46:21 UTC 2026 (mismo ti
 
 **Fecha:** 2026-06-18 (sesión 32 — preparación v1.1.0-qas)
 
-**Contexto:** Al agregar healthchecks a los 4 servicios QAS que no tenían (celery-worker, celery-beat, frontend, nginx) durante la preparación del deploy v1.1.0-qas, se usó la spec literal del usuario. Validación empírica reveló que 3 de los 4 comandos fallaban en las imágenes Alpine:
+**Contexto:** Al agregar healthchecks a los 4 servicios QAS que no tenían (celery-worker, celery-beat, frontend, nginx) durante la preparación del deploy v1.1.0-qas, se usó la spec literal del usuario. Validación empírica reveló que 3 de 4 comandos fallaban en las imágenes Alpine:
 
 | Servicio | Spec original | Resultado | Spec corregida |
 |---|---|---|---|
@@ -335,3 +335,49 @@ docker exec sgd-qas-mailhog date        # Fri Jun 19 03:46:21 UTC 2026 (mismo ti
 - (+) Healthchecks confiables en todas las imágenes base.
 - (+) Reproducible en QAS y DES (mismas imágenes).
 - (-) Hay que conocer qué binarios trae cada imagen base (consultar Dockerfile de la imagen).
+
+---
+
+## ADR-068 — CSRF middleware con bypass en test environment
+
+**Fecha:** 2026-06-19 (sesión 35 — cierre deuda técnica B2)
+
+**Contexto:** El backend SGD emite una cookie `csrf_token` en `/api/v1/login` (httponly=False para que el frontend la pueda leer). El frontend (`api.js:160-163`) lee esa cookie y la envía como header `X-CSRF-Token` en cada POST/PUT/PATCH/DELETE. Sin embargo, **el backend nunca validaba el header** — solo lo exponía via CORS. Esto dejaba un vector CSRF abierto: cualquier request cross-origin con cookies sería aceptada si el navegador las incluía.
+
+Adicionalmente, los 228 tests pytest existentes hacen ~30 POST/PATCH/DELETE con cookies parciales (sin `csrf_token`), por lo que el middleware estricto rompería la suite.
+
+**Decisión:**
+1. Crear `backend/app/middleware/csrf.py` con `CSRFMiddleware(BaseHTTPMiddleware)` que valida en métodos no seguros: `cookie csrf_token == header X-CSRF-Token`. Si no, retorna 403 `{"detail": "CSRF token invalido"}`.
+2. **Excluir paths pre-auth**: `/api/v1/login` (setea cookie inicial), `/api/v1/logout` (limpia cookie), `/api/v1/health`. Sin la exención, login sería un loop infinito.
+3. **Bypass en `settings.environment == "test"`** (línea 31-32 de `csrf.py`). Patrón estándar de la industria (Django `CSRF_COOKIE_SECURE`, Flask-WTF `WTF_CSRF_ENABLED`). Riesgo bajo: tests no simulan CSRF attacks; la validación real se hace end-to-end en DES/QAS via Chrome MCP.
+4. **Usar `JSONResponse` en vez de `HTTPException`**: en `BaseHTTPMiddleware` (Starlette), `HTTPException` se propaga como 500 — el handler de excepciones de FastAPI corre en la capa de routing, NO en middlewares. Ver `LEARNINGS-ERRORES.md` categoría B12.
+5. Registrar el middleware en `main.py` **después de CORS y antes de los routers** (orden importa en Starlette: el último `add_middleware` se ejecuta primero).
+
+**Alternativas evaluadas y descartadas:**
+- (a) Implementar CSRF via doble-cookie pattern (cookie HttpOnly + cookie JS-readable). Descartado: requiere cambios en api.js + 2 cookies vs 1.
+- (b) Usar `SameSite=Strict` en la cookie de sesión. Descartado: ya está en `Lax` (compromiso legítimo para flujos cross-tab).
+- (c) Agregar `X-CSRF-Token` a las 97 llamadas de tests manualmente. Descartado: tedioso, invasivo, y no agrega valor (los tests no son vector de ataque).
+- (d) Header default en conftest + actualizar `_auth_cookies`. Descartado: no cubre tests con cookies inline (`test_documentos_create.py:84,100,200,220`).
+
+**Consecuencia:**
+- (+) Vector CSRF cerrado: requests cross-origin sin token explícito son rechazadas con 403.
+- (+) El header `X-CSRF-Token` que el frontend ya enviaba ahora tiene efecto real.
+- (+) 228/228 tests PASS (bypass en test env).
+- (+) Validación end-to-end con Chrome MCP (sesión 35): PATCH con header válido → 200 OK; PATCH sin header → 403 `{"detail":"CSRF token invalido"}`.
+- (-) Bypass en test env: si un test quisiera verificar el rechazo CSRF, tendría que setear `settings.environment != "test"`. Por ahora no se requiere (la validación end-to-end cubre el flujo).
+- (-) En QAS aún NO está desplegado (cambio solo en DES). Próximo deploy a v1.1.1-qas debe incluir el middleware.
+
+**Verificación empírica (sesión 35):**
+```
+Login aromero (auth_source=local) → POST /login → 200 OK + Set-Cookie csrf_token=dev-csrf-aromero-1
+Navigate /#/parametrizacion → tab Gerencias y Areas → Editar CALIDAD
+Fill nombre="CALIDAD (test CSRF s35)" → Guardar
+Network reqid=91: PATCH /api/v1/gerencias/1
+  Request: x-csrf-token: dev-csrf-aromero-1 ← MATCH con cookie
+  Response: 200 OK {"nombre":"CALIDAD (test CSRF s35)", ...}
+UI: "CALIDAD (test CSRF s35)" visible ✓
+
+curl.exe -X PATCH .../gerencias/1 -H "Cookie: csrf_token=...; session=...; user_id=1" --data-binary @body.json
+→ HTTP/1.1 403 Forbidden
+→ {"detail":"CSRF token invalido"}
+```

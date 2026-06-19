@@ -40,10 +40,13 @@ class Gerencia(Base):
     )
 
     # Relación: una gerencia tiene muchas áreas
+    # Sesion 35: removido cascade="all, delete-orphan" (B1) — el borrado en cascada
+    # desde el ORM podia borrar areas hijas accidentalmente. El router
+    # (app/api/v1/gerencias.py:262-267) ya hace la desactivacion logica
+    # explicita de las areas hijas en el DELETE.
     areas: Mapped[list["Area"]] = relationship(  # noqa: F821
         "Area",
         back_populates="gerencia",
-        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

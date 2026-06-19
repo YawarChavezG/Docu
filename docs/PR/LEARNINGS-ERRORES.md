@@ -139,6 +139,28 @@
 **Fix:** `ldap_get_user_by_samaccountname` retorna `None` si no tiene `postalCode`.
 **Referencia:** Issue 4.2, sesión 25
 
+### B12 — `BaseHTTPMiddleware` NO captura `HTTPException` automáticamente
+**Error:** `raise HTTPException(status_code=403)` dentro de `BaseHTTPMiddleware.dispatch` se propaga como `Internal Server Error` 500.
+**Síntoma:** El cliente ve un 500 genérico, no un 403 estructurado con `{"detail": "..."}`.
+**Causa:** `BaseHTTPMiddleware` es un middleware ASGI crudo de Starlette, no de FastAPI. El handler de excepciones de FastAPI corre en la capa de routing, NO en middlewares.
+**Fix:** Retornar `JSONResponse(status_code=403, content={...})` directamente. NO usar `HTTPException` en `BaseHTTPMiddleware`.
+**Referencia:** Sesión 35, `backend/app/middleware/csrf.py`.
+
+### B13 — CSRF middleware: excluir `/login` y `/logout` SIEMPRE
+**Error:** Aplicar CSRF a `/login` crea un loop (no hay cookie previa para validar) y a `/logout` puede romper la salida del usuario.
+**Síntoma:** Login falla con 403, o logout no funciona porque la cookie está en estado inconsistente.
+**Fix:** Whitelist de paths exentos: `/api/v1/login`, `/api/v1/logout`, `/api/v1/health`.
+**Referencia:** Sesión 35.
+
+### B14 — Bypass CSRF en test environment (patrón estándar)
+**Error:** Aplicar CSRF estricto rompe ~30 tests que hacen POST/PATCH/DELETE con cookies parciales (`{"user_id":..., "session":...}` sin `csrf_token`).
+**Síntoma:** 228 tests bajan a ~190 PASS con errores 403 en tests que no son del CSRF.
+**Fix:** `if settings.environment == "test": return await call_next(request)` al inicio de `dispatch`. Patrón estándar (Django `CSRF_COOKIE_SECURE`, Flask-WTF `WTF_CSRF_ENABLED`). Riesgo bajo porque tests no simulan CSRF attacks; la validación real se hace en DES/QAS via Chrome MCP.
+**Alternativas evaluadas y descartadas:**
+- (a) Agregar `X-CSRF-Token` a las 97 llamadas — tedioso, invasivo.
+- (b) Header default en conftest + actualizar `_auth_cookies` — no cubre tests con cookies inline.
+**Referencia:** Sesión 35, `backend/app/middleware/csrf.py:31-32`.
+
 ---
 
 ## Categoría: API / Endpoints

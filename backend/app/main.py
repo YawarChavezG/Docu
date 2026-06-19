@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from app import __version__
 from app.core.config import settings
 from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias, areas, bandeja, configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados, audit_log, roles, semaforizacion_tarea, documentos, ausencias, plantillas_documentales
+from app.middleware.csrf import CSRFMiddleware
 
 # ─── Timezone (Bolivia = UTC-4) ───
 # Truco: pisamos el converter CLASS-attribute de logging.Formatter con
@@ -76,6 +77,11 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-CSRF-Token"],  # para que el frontend pueda leerlo
 )
+
+# ─── CSRF (Sesion 35) ───
+# Valida X-CSRF-Token contra cookie csrf_token en POST/PUT/PATCH/DELETE.
+# Registrado DESPUES de CORS y ANTES de los routers.
+app.add_middleware(CSRFMiddleware)
 
 
 # ─── Startup / Shutdown ───

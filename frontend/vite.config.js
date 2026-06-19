@@ -24,8 +24,10 @@ export default defineConfig({
     rollupOptions: {
       input: './index.html',
       output: {
-        manualChunks: {
-          vendor: ['alpinejs', 'dompurify'],
+        manualChunks(id) {
+          if (id.includes('node_modules/alpinejs') || id.includes('node_modules/dompurify')) {
+            return 'vendor';
+          }
         },
       },
     },
