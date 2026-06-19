@@ -159,8 +159,8 @@ async def test_get_usuario_no_existente_404(client: AsyncClient, auth_admin_cook
 async def test_override_usuario_cambiar_estado(
     client: AsyncClient, auth_eto_cookies, seed_catalogos, db_session
 ):
-    """ETO/ADMIN puede override estado/ausente (US-9.05)."""
-    target = seed_catalogos["eto"]
+    """ETO/ADMIN puede override estado/ausente (US-9.05). No puede cambiarse a si mismo."""
+    target = seed_catalogos["sin_rol"]
     r = await client.patch(
         f"/api/v1/usuarios/{target.id}",
         json={"estado": "inactivo", "observaciones": "Suspendido test"},
@@ -219,7 +219,7 @@ async def test_override_genera_audit(
     from app.models.audit_log import AuditLog
     from sqlalchemy import select, func
 
-    target = seed_catalogos["eto"]
+    target = seed_catalogos["sin_rol"]
     await client.patch(
         f"/api/v1/usuarios/{target.id}",
         json={"estado": "activo", "observaciones": "Test audit"},

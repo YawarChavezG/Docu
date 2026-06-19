@@ -10,7 +10,7 @@ from app.models.estado import ContextoEstado
 class EstadoBase(BaseModel):
     codigo: str = Field(min_length=2, max_length=50, pattern=r"^[A-Z0-9_]+$")
     nombre: str = Field(min_length=3, max_length=150)
-    contexto: ContextoEstado = ContextoEstado.AMBOS
+    contexto: ContextoEstado = ContextoEstado.TAREA
     orden: int = Field(default=0, ge=0, le=999)
     descripcion: Optional[str] = Field(default=None, max_length=500)
 

@@ -90,9 +90,11 @@ export const authStore = {
   async stopImpersonate() {
     if (!this.user?.impersonated_by) return
     try {
+      const csrf = ('; ' + document.cookie).split('; csrf_token=').pop().split(';')[0]
       const res = await fetch(`${_API_BASE}/admin/impersonate/stop`, {
         method: 'POST',
         credentials: 'include',
+        headers: { 'X-CSRF-Token': csrf },
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))

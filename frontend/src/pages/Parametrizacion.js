@@ -1293,13 +1293,19 @@ export const page = {
         await this._ejecutarImpersonate(u, me)
       },
 
+      _csrfHeaders(contentType) {
+        const csrf = ('; ' + document.cookie).split('; csrf_token=').pop().split(';')[0]
+        return { 'Content-Type': contentType || 'application/json', 'X-CSRF-Token': csrf }
+      },
+
       async _ejecutarImpersonate(u, me) {
         const auth = window.Alpine?.store('auth')
+        const csrfH = () => this._csrfHeaders('application/json')
         try {
           const res = await fetch(`${API_BASE}/admin/impersonate/start`, {
               method: 'POST',
               credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
+            headers: csrfH(),
             body: JSON.stringify({ sAMAccountName: u.username }),
           })
           if (!res.ok) {
@@ -1311,13 +1317,13 @@ export const page = {
               window.toast('Ya había un impersonate activo. Terminando y reintentando...', 'info')
               try {
                 await fetch(`${API_BASE}/admin/impersonate/stop`, {
-                  method: 'POST', credentials: 'include',
+                  method: 'POST', credentials: 'include', headers: csrfH(),
                 })
               } catch (_) { /* ignore */ }
               // Reintentar
               const res2 = await fetch(`${API_BASE}/admin/impersonate/start`, {
                 method: 'POST', credentials: 'include',
-                headers: { 'Content-Type': 'application/json' },
+                headers: csrfH(),
                 body: JSON.stringify({ sAMAccountName: u.username }),
               })
               if (!res2.ok) {
@@ -1949,7 +1955,6 @@ export const page = {
                       <option value="PROCESO">Proceso</option>
                       <option value="TAREA">Tarea</option>
                       <option value="ACCION">Accion</option>
-                      <option value="AMBOS">Ambos</option>
                     </select>
                   </template>
                   <template x-if="estadoEditing !== e">
@@ -1957,7 +1962,6 @@ export const page = {
                         'badge badge-blue': e.ctx==='TAREA',
                         'badge badge-green': e.ctx==='PROCESO',
                         'badge badge-purple': e.ctx==='ACCION',
-                        'badge badge-gray': e.ctx==='AMBOS'
                       }" x-text="e.ctx"></span>
                   </template>
                 </td>
@@ -2413,7 +2417,7 @@ export const page = {
                   <div x-show="u.ad_warning" class="text-amber-600 mt-0.5" :title="u.ad_warning" x-text="u.ad_warning"></div>
                 </td>
                 <td class="text-center">
-                  <button x-show="$store.auth.role === 'admin' || $store.auth.role === 'eto'"
+                  <button x-show="($store.auth.role === 'admin' || $store.auth.role === 'eto') && u.username !== $store.auth.user.username"
                           @click="impersonarUsuario(u)" class="btn btn-sm text-[10px] mr-1" title="Iniciar sesion como este usuario">Impersonar</button>
                   <button @click="editarUsuario(u)" class="btn btn-sm text-[10px] btn-primary" title="Editar usuario">Editar</button>
                 </td>
@@ -2668,11 +2672,16 @@ export const page = {
             <label class="form-label flex items-center gap-1.5">
               <span class="text-brand-500">●</span> Estado
             </label>
-            <select class="form-input text-xs" x-model="editForm.estado">
-              <option value="activo">✅ Activo (puede usar el sistema)</option>
-              <option value="inactivo">⏸ Inactivo (suspendido temporalmente)</option>
-              <option value="desvinculado">🚫 Desvinculado (baja definitiva)</option>
-            </select>
+            <template x-if="editForm.username === $store.auth.user.username">
+              <input type="text" class="form-input text-xs bg-slate-100" :value="editForm.estado" disabled>
+            </template>
+            <template x-if="editForm.username !== $store.auth.user.username">
+              <select class="form-input text-xs" x-model="editForm.estado">
+                <option value="activo">✅ Activo (puede usar el sistema)</option>
+                <option value="inactivo">⏸ Inactivo (suspendido temporalmente)</option>
+                <option value="desvinculado">🚫 Desvinculado (baja definitiva)</option>
+              </select>
+            </template>
             <div class="form-hint">
               <span class="text-amber-600" x-show="editForm.estado === 'inactivo'">El usuario no podrá iniciar sesión hasta reactivarlo.</span>
               <span class="text-red-600" x-show="editForm.estado === 'desvinculado'">El usuario es removido del AD. No podrá loguearse nunca más por este username.</span>

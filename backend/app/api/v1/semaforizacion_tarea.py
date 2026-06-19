@@ -56,7 +56,9 @@ async def list_semaforizacion(
 ):
     """Lista las 4 reglas. No requiere auth (catalogo publico)."""
     rows = (await db.execute(
-        select(SemaforizacionTarea).order_by(SemaforizacionTarea.tipo_tarea)
+        select(SemaforizacionTarea)
+        .where(SemaforizacionTarea.activo == True)
+        .order_by(SemaforizacionTarea.tipo_tarea)
     )).scalars().all()
     return SemaforizacionTareaListResponse(
         total=len(rows),

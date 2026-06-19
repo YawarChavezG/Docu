@@ -20,11 +20,11 @@ from app.models.estado import Estado, ContextoEstado
 
 # (codigo, nombre, contexto, orden, descripcion)
 ESTADOS = [
-    ("ELABORACION",       "Elaboracion",       ContextoEstado.AMBOS,    1, "Estado inicial del documento. Creador trabajando en el borrador."),
+    ("ELABORACION",       "Elaboracion",       ContextoEstado.PROCESO, 1, "Estado inicial del documento. Creador trabajando en el borrador."),
     ("LIBERACION_ETO",    "Liberacion ETO",    ContextoEstado.PROCESO, 2, "Documento pasa por control de calidad de la oficina ETO antes de liberarse a revisores."),
     ("REVISION_PARALELA", "Revision Paralela", ContextoEstado.PROCESO, 3, "Multiples revisores aprueban en paralelo. Termina cuando todos completan o cuando se fuerza la finalizacion."),
-    ("FINALIZADO",        "Finalizado",        ContextoEstado.AMBOS,    4, "Documento aprobado y publicado en Lista Maestra."),
-    ("ANULADO",           "Anulado",           ContextoEstado.AMBOS,    5, "Documento cancelado antes de su aprobacion. Estado terminal alternativo."),
+    ("FINALIZADO",        "Finalizado",        ContextoEstado.PROCESO, 4, "Documento aprobado y publicado en Lista Maestra."),
+    ("ANULADO",           "Anulado",           ContextoEstado.PROCESO, 5, "Documento cancelado antes de su aprobacion. Estado terminal alternativo."),
 ]
 
 

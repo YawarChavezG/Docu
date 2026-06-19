@@ -5,7 +5,7 @@ Catalogo de estados de proceso y tarea (US-9.03 sub-tarjeta 2).
 Cada estado aplica a un 'contexto':
   - PROCESO: ciclo de vida del documento completo (Elaboracion -> Liberacion -> Revision -> Finalizado)
   - TAREA: estado de una tarea individual dentro del workflow
-  - AMBOS: aplica en ambos contextos
+  - ACCION: accion disparada por el sistema o el usuario
 """
 import enum
 from datetime import datetime
@@ -21,7 +21,6 @@ class ContextoEstado(str, enum.Enum):
     PROCESO = "PROCESO"
     TAREA = "TAREA"
     ACCION = "ACCION"
-    AMBOS = "AMBOS"
 
 
 class Estado(Base):
@@ -33,7 +32,7 @@ class Estado(Base):
     contexto: Mapped[ContextoEstado] = mapped_column(
         SAEnum(ContextoEstado, name="contexto_estado",
                values_callable=lambda x: [e.value for e in x]),
-        nullable=False, default=ContextoEstado.AMBOS,
+        nullable=False, default=ContextoEstado.TAREA,
     )
     orden: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     descripcion: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

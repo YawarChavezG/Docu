@@ -305,8 +305,8 @@ async def login(
     if not password_valida or user is None:
         raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
-    if user.estado == EstadoUsuario.DESVINCULADO:
-        raise HTTPException(status_code=403, detail="Usuario desvinculado. Contacte al administrador.")
+    if user.estado in (EstadoUsuario.DESVINCULADO, EstadoUsuario.INACTIVO):
+        raise HTTPException(status_code=403, detail=f"Usuario {user.estado.value}. Contacte al administrador.")
 
     # ─── Setear cookies HttpOnly ───
     csrf_token = f"dev-csrf-{user.username}-{user.id}"

@@ -50,13 +50,7 @@ async def list_estados(
             func.lower(Estado.nombre).like(pat),
         ))
     if contexto is not None:
-        # Filtra por contexto exacto O AMBOS (que aplica a todos)
-        if contexto == ContextoEstado.AMBOS:
-            pass  # no filtra
-        else:
-            base = base.where(
-                (Estado.contexto == contexto) | (Estado.contexto == ContextoEstado.AMBOS)
-            )
+        base = base.where(Estado.contexto == contexto)
     if solo_activos:
         base = base.where(Estado.activo == True)
 

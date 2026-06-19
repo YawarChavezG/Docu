@@ -217,7 +217,6 @@ export function initProfileModal() {
 
     async cancelarAusencia() {
       if (!this.ausenciaVigenteId) {
-        // Si no hay ausencia activa, solo desmarca el checkbox
         this.ausente = false
         this.fechaInicio = ''
         this.fechaFin = ''
@@ -227,18 +226,32 @@ export function initProfileModal() {
       const res = await apiDelete(`/ausencias/${this.ausenciaVigenteId}`)
       if (res.ok) {
         window.toast('✅ Vacaciones canceladas.', 'success')
-      const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
-      const me = (resList.data.items || []).find(x => x.username === this.username)
-      if (me) await this._cargarAusencias(me.id)
-      // (Issue 1.2: page_size no afecta esta query porque ya busca por username)
         const auth = window.Alpine?.store('auth')
         if (auth && auth.refreshFromBackend) await auth.refreshFromBackend()
         this.ausente = false
         this.fechaInicio = ''
         this.fechaFin = ''
+        this.ausenciaVigenteId = null
       } else {
         window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
       }
+    },
+
+    async eliminarAusencia(a) {
+      if (!confirm(`¿Cancelar ausencia del ${a.fecha_desde} al ${a.fecha_hasta}?`)) return
+      const res = await apiDelete(`/ausencias/${a.id}`)
+      if (res.ok) {
+        window.toast('✅ Ausencia cancelada.', 'success')
+        await this._cargarAusencias((await this._getMiId()))
+      } else {
+        window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
+      }
+    },
+
+    async _getMiId() {
+      const resList = await apiGet(`/usuarios?q=${encodeURIComponent(this.username)}&page_size=5`)
+      const me = (resList.data.items || []).find(x => x.username === this.username)
+      return me?.id
     },
 
     cerrar() {
@@ -280,10 +293,6 @@ export function initProfileModal() {
     },
 
     async guardar() {
-      if (this.rolRequiereDelegado && !this.delegadoId) {
-        window.toast('⚠️ Tu rol requiere delegado. Asigna uno antes de guardar.', 'warn')
-        return
-      }
       this.saving = true
       try {
         // 1) Necesito el ID del usuario actual
@@ -310,11 +319,11 @@ export function initProfileModal() {
           window.toast(`Error: ${res.data?.detail || res.status}`, 'error')
           return
         }
-        window.toast('✅ Mi Perfil actualizado. Sus tareas se re-enrutan al delegado.', 'success')
-        // 3) Refrescar auth store para que el badge de alerta desaparezca
+        window.toast('✅ Mi Perfil actualizado.', 'success')
+        // 3) Refrescar auth store para que el badge de alerta se actualice
         const auth = window.Alpine?.store('auth')
-        if (auth && auth.refreshFromBackend) {
-          await auth.refreshFromBackend()
+        if (auth && auth._checkDelegadoAlerta) {
+          await auth._checkDelegadoAlerta()
         }
         this.delegadoAlerta = (this.rolRequiereDelegado && !this.delegadoId)
         this.observaciones = ''
@@ -553,6 +562,9 @@ export const ProfileModalTemplate = /* html */`
                       <span class="text-slate-400" x-text="a.motivo"></span>
                       <span x-show="a.esta_vigente" class="text-emerald-600 font-semibold">VIGENTE</span>
                       <span x-show="!a.activo" class="text-amber-600">cancelada</span>
+                      <span class="ml-auto flex gap-1" x-show="a.activo && !a.esta_vigente">
+                        <button @click="eliminarAusencia(a)" class="text-red-500 hover:text-red-700 text-[11px] px-1" title="Cancelar ausencia">🗑️</button>
+                      </span>
                     </div>
                   </template>
                 </div>

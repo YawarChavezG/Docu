@@ -653,6 +653,11 @@ async def update_usuario_override(
     }
 
     if "estado" in data and data["estado"] is not None:
+        if user_actor.id == target.id:
+            raise HTTPException(
+                status_code=422,
+                detail="No puede cambiar su propio estado. Solicite a otro administrador.",
+            )
         target.estado = data["estado"]
     if "ausente" in data and data["ausente"] is not None:
         target.ausente = data["ausente"]
