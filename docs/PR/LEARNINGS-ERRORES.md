@@ -69,6 +69,13 @@
 **Fix:** Agregar `.catch(() => [])` a cada promesa individual dentro del array.
 **Referencia:** Issue 2.1 — `ProfileModal.js`
 
+### F12 — `<template x-if>` DENTRO de `x-teleport` causa `_x_dataStack` null
+**Error:** Usar `<template x-if="expr">` dentro de un bloque `x-teleport="body"` lanza `Cannot set properties of null (setting '_x_dataStack')` en Alpine 3.
+**Síntoma:** Error en consola: `Alpine Expression Error: Cannot set properties of null (setting '_x_dataStack')` con la expresión del `x-if`. El modal no renderiza contenido.
+**Causa:** Alpine maneja `x-if` en `<template>` removiendo/agregando nodos del DOM. Dentro de `x-teleport`, el nodo `<template>` puede quedar huérfano (sin padre real) durante el ciclo de teleport, y Alpine intenta setear `_x_dataStack` sobre un nodo que ya no está en el árbol.
+**Fix:** Reemplazar `<template x-if="expr">` por `<span x-show="expr" style="display:none" :style="expr ? '' : 'display:none'">`. El patrón `x-show` con doble control (F02) es compatible con `x-teleport` porque no remueve nodos del DOM, solo los oculta.
+**Referencia:** Sesión 37 — `ProfileModal.js`
+
 ---
 
 ## Categoría: Backend (FastAPI + SQLAlchemy)

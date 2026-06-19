@@ -425,26 +425,26 @@ export const ProfileModalTemplate = /* html */`
           </div>
 
           <!-- Seccion Delegado -->
-          <div :class="'rounded-xl p-4 border-2 transition-all duration-500 ' + (delegadoAlerta ? 'border-amber-300 bg-amber-50/70 animate-pulse-soft' : 'bg-slate-50 border-slate-200')"
+          <div :class="'rounded-xl p-4 border-2 ' + (delegadoAlerta ? 'border-amber-300 bg-amber-50/70 animate-pulse-soft' : 'bg-slate-50 border-slate-200')"
                x-show="rolRequiereDelegado"
                style="display:none"
                :style="rolRequiereDelegado ? '' : 'display:none'">
             <div class="text-[13px] font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
               🤝 Delegado (Back-up)
-              <template x-if="delegadoAlerta">
-                <span class="inline-flex items-center gap-1 text-[10px] font-normal text-amber-700 bg-amber-200/60 px-2 py-0.5 rounded-full">
-                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
-                  Requiere atencion
-                </span>
-              </template>
+              <span x-show="delegadoAlerta"
+                    class="inline-flex items-center gap-1 text-[10px] font-normal text-amber-700 bg-amber-200/60 px-2 py-0.5 rounded-full"
+                    style="display:none" :style="delegadoAlerta ? '' : 'display:none'">
+                <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                Requiere atencion
+              </span>
             </div>
             <p class="text-[11px] text-slate-500 mb-3.5 leading-snug">
-              <template x-if="rolRequiereDelegado && !delegadoNombre">
+              <span x-show="rolRequiereDelegado && !delegadoNombre" style="display:none" :style="(rolRequiereDelegado && !delegadoNombre) ? '' : 'display:none'">
                 Selecciona una persona como back-up para recibir tus tareas cuando no estés disponible.
-              </template>
-              <template x-if="rolRequiereDelegado && delegadoNombre">
+              </span>
+              <span x-show="rolRequiereDelegado && delegadoNombre" style="display:none" :style="(rolRequiereDelegado && delegadoNombre) ? '' : 'display:none'">
                 Tu delegado actual recibirá tus tareas si marcas ausencia.
-              </template>
+              </span>
             </p>
 
             <div x-show="delegadoNombre"
