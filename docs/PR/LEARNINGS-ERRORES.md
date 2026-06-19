@@ -219,6 +219,37 @@
 **Síntoma:** El container responde lento, consume más memoria.
 **Fix:** Usar `exec uvicorn ...` en lugar de solo `uvicorn ...` en el CMD. En QAS no hay `--reload`.
 
+### X06 — Healthchecks en compose: asumir binarios disponibles es trampa
+**Error:** Spec de healthcheck con `curl` en container `node:22-alpine` → `curl: not found`. Spec con `ps aux` en `python:3.12-slim` → `ps: not found`. Spec con `service nginx status` en `nginx:1.27-alpine` → `service: not found` (Alpine usa OpenRC, no SysV init).
+**Síntoma:** Healthchecks siempre unhealthy aunque el servicio esté funcionando.
+**Fix:** Usar comandos Alpine-safe según imagen base:
+- node:22-alpine → `wget -q --spider http://localhost:PORT` o `nc -z localhost PORT` (no curl, sí wget/nc).
+- python:3.12-slim → `xargs -0 echo < /proc/1/cmdline | grep -q 'patron'` o `pgrep -f patron` (no ps aux).
+- nginx:1.27-alpine → `pgrep -f 'nginx: master'` (no service).
+- *:alpine genérico → preferir leer `/proc/1/cmdline` (siempre disponible) sobre `ps`.
+**Regla:** Antes de escribir un healthcheck, validar con `docker exec <container> sh -c 'which <tool>'` que el binario existe. Si no, usar `/proc/1/cmdline` o instalar el paquete en el Dockerfile.
+**Referencia:** ADR-067, sesión 32. Afectó a 3/4 healthchecks de QAS compose v1.1.0-qas.
+
+### X07 — TZ env var: se pasa OK pero Go y Node no la aplican a `date(1)` automáticamente
+**Error:** Setear `TZ=America/La_Paz` en mailhog (Go) o frontend (Node) → `docker exec ... date` muestra `UTC` aunque el tiempo (epoch) sea correcto.
+**Causa:** Go no llama `time.LoadLocation` por default. Node respeta `process.env.TZ` solo si está seteada antes del primer import que cachea zona. El PID 1 de mailhog es el binario Go, no una shell.
+**Síntoma:** Confusión del operador al validar TZ con `docker exec ... date`.
+**Fix:** TZ funciona para todos los efectos prácticos (logs Python, timestamps BD, nginx). NO intentar hacer que `date(1)` muestre `-04` en mailhog/frontend — requeriría rebuild de las imágenes base o instalar `tzdata`. Documentar como limitación.
+**Verificación:** `docker exec <container> sh -c 'date; echo "TZ=$TZ"'` muestra tiempo correcto + env var seteada.
+**Referencia:** ADR-066, sesión 32.
+
+### X08 — `localhost` en healthcheck: puede resolver a `::1` (IPv6) si la imagen no tiene `getent`
+**Error:** `wget -q --spider http://localhost:5173` falla con "Connection refused" aunque el servicio esté escuchando en `0.0.0.0:5173` (IPv4).
+**Causa:** El resolver DNS interno de Docker (127.0.0.11) puede devolver `::1` para `localhost` en lugar de `127.0.0.1`, especialmente si el container no tiene `getent` o si /etc/hosts está en formato reducido. El binario (Vite/Go) escucha en IPv4, no IPv6.
+**Síntoma:** Healthcheck unhealthy aunque `curl 127.0.0.1:5173` funcione desde dentro del container.
+**Fix:** Usar SIEMPRE `127.0.0.1` (o `0.0.0.0`) en healthchecks de compose, NUNCA `localhost`. El test rápido: `docker exec <container> sh -c 'wget -q -O - http://127.0.0.1:PORT'` vs `http://localhost:PORT`.
+**Verificación empírica (sesión 32):**
+```
+docker exec sgd-qas-frontend wget -q -O - http://127.0.0.1:5173 | head -3   # OK (devuelve HTML)
+docker exec sgd-qas-frontend wget -q -O - http://localhost:5173 | head -3    # Connection refused
+```
+**Referencia:** Sesión 32, fix del healthcheck del frontend.
+
 ---
 
 ## Categoría: Lógica de negocio

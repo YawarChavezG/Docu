@@ -1,3 +1,63 @@
+## Sesión 32 — 2026-06-18 (jueves PM) — Preparación deploy v1.1.0-qas (7/7 healthchecks PASS)
+
+### Resumen ejecutivo
+Sesión dedicada a preparar el deploy a QAS v1.1.0-qas: hardening del `docker-compose.qas.yml` (TZ + healthchecks + entrypoint backend), actualización del validador y orquestador, y creación de `STARTUP-CHECKLIST.md` con paso POST-DEPLOY crítico (`run_matriz_import.py` para asignar roles reales a 750+ usuarios). **Total: 5 archivos modificados + 1 archivo nuevo, 228/228 tests PASS, 0 regresiones, 7/7 healthchecks PASS, 0 cambios de modelo/schema, 0 migraciones Alembic.**
+
+### Tareas ejecutadas (7 items del checklist pre-deploy)
+
+| # | Tarea | Archivos | Resultado |
+|---|---|---|---|
+| 1 | TZ: ${TZ} en QAS compose (5 servicios) | `deploy/docker-compose.qas.yml` | Agregado a celery-worker, celery-beat, frontend, nginx, mailhog. Backend/postgres/redis ya lo tenian. |
+| 2 | Healthchecks en QAS compose (4 servicios) | `deploy/docker-compose.qas.yml` | Agregados a celery-worker, celery-beat, frontend, nginx con interval=30s, timeout=10s, retries=3, start_period=60s. **3 specs originales eran Alpine-incompatibles** (ver sesión hallazgos abajo) → corregidas con `/proc/1/cmdline`, `wget`, `pgrep`. **1 fix adicional** (X08): `localhost` → `127.0.0.1` (DNS interno Docker devuelve `::1`). |
+| 3 | Corregir entrypoint backend QAS | `deploy/docker-compose.qas.yml` | `alembic upgrade head 2>&1 || echo 'ERROR' && uvicorn` → `alembic upgrade head 2>&1 && uvicorn`. El `||` hacia que uvicorn arrancara con BD inconsistente. |
+| 4 | Actualizar validate-qas.sh | `scripts/validate-qas.sh` | alembic head 6451593bcab5 → drop_modulos_s26. Conteos: usuarios 750→761, email_templates 10→11, estados 5→12, configuracion 11→7. **NO removido C.3** (check codigo_doc es regression guard, usuario confirmó). |
+| 5 | Corregir comentarios 7→8 en start-stack-qas.sh | `scripts/start-stack-qas.sh` | Linea 6 "7 cosas" → "8 cosas". Linea 205 "7 seeds" → "8 seeds". **Fix completo del header** (lineas 8-17): renumerado 1-8 con el step 5 (permisos storage) que faltaba. |
+| 6 | Crear STARTUP-CHECKLIST.md | `docs/PR/STARTUP-CHECKLIST.md` (nuevo) | 4 fases: Pre-deploy, Deploy, Validacion, **POST-DEPLOY** (3.1: run_matriz_import.py, 3.2: validar usuario real, 3.3: cert HTTPS, 3.4: auditoria CSV). Seccion "Limitaciones conocidas" con TZ display y healthchecks Alpine-safe. |
+| 7 | Validación final en DES | (validación) | `docker compose -f deploy/docker-compose.qas.yml --env-file .env up -d` → 7/7 healthchecks PASS, TZ funcional en backend/celery/nginx. pytest 228/228 PASS en 18.96s. Stack QAS bajado al finalizar. |
+
+### Hallazgos (problemas adicionales descubiertos durante validación)
+
+1. **3/4 healthchecks originales eran Alpine-incompatibles** (sesión 32):
+   - `ps aux` en celery-beat → `ps: not found` (python:3.12-slim sin procps).
+   - `curl -f` en frontend → `curl: not found` (node:22-alpine sin curl, tiene wget/nc).
+   - `service nginx status` en nginx → `service: not found` (nginx:1.27-alpine usa OpenRC, no SysV).
+   - **Fix:** comandos Alpine-safe (ver tabla arriba).
+
+2. **DNS interno Docker resuelve `localhost` a `::1` (IPv6)**: vite escucha en `0.0.0.0` (IPv4), `wget localhost:5173` falla con "Connection refused". **Fix:** usar `127.0.0.1` en healthchecks. Documentado en X08.
+
+3. **TZ display en mailhog/frontend**: env var `TZ=America/La_Paz` se pasa OK pero `date(1)` muestra `UTC` (binarios Go y Node no llaman `time.LoadLocation` / `process.env.TZ` setup). El **tiempo es correcto**, solo el label. Decisión: NO fix (requeriría rebuild de imágenes), documentar como limitación. ADR-066.
+
+### Decisiones técnicas (sin ADR nuevo, son notas operativas)
+
+- **NO se removio C.3** (check `tipos_documento` sin `codigo_doc`): el usuario confirmó que vale como regression guard.
+- **NO se removio el TZ de mailhog/frontend**: el env var se pasa OK y es útil para BD/logs. Solo el display de `date(1)` es UTC.
+- **3 specs de healthcheck cambiadas** (no las originales del usuario) porque las originales no funcionaban en Alpine. Documentado en X06.
+- **Tag v1.1.0-qas NO bumpeado** en esta sesión (queda como pendiente para que el usuario lo haga antes del deploy real).
+
+### Archivos modificados (5) + creados (1)
+
+**Modificados (5):**
+- `deploy/docker-compose.qas.yml` (+45 / -2)
+- `scripts/validate-qas.sh` (+11 / -9)
+- `scripts/start-stack-qas.sh` (+7 / -5)
+- `docs/PR/DECISIONES.md` (+69 lineas: ADR-066 + ADR-067)
+- `docs/PR/LEARNINGS-ERRORES.md` (+31 lineas: X06 + X07 + X08)
+
+**Creados (1):**
+- `docs/PR/STARTUP-CHECKLIST.md` (162 lineas)
+
+### Pendientes post-sesion 32
+- **Tag v1.1.0-qas**: bumpear tag con acumulado sesiones 20-32 (responsabilidad del usuario, yo no lo hago automaticamente).
+- **Deploy QAS v1.1.0-qas**: ejecutar `scripts/deploy-qas.bat` o el flujo documentado en STARTUP-CHECKLIST.md FASE 1.
+- **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` (FASE 3.1 de STARTUP-CHECKLIST.md) para asignar roles reales a 750+ usuarios. NO lo automatizo en el orquestador porque requiere el Excel matriz.
+- **CSRF middleware** (B2): sigue pendiente.
+- **R3**: refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js, Revision.js, AprobacionFinal.js, Correccion.js (6 paginas con datos mock).
+- **R3 workflow**: encadenar flujo revision→aprobacion→liberacion completo.
+- **#13 Deuda delegado**: 139 usuarios sin delegado.
+- **Data mocks cleanup**: 16 archivos en `frontend/src/data/` son codigo muerto.
+
+---
+
 ## Sesión 31 — 2026-06-18 (jueves PM) — Fix 11 tests preexistentes (228/228 PASS)
 
 ### Resumen ejecutivo

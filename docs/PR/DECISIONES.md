@@ -1,7 +1,7 @@
 # DECISIONES — COFAR SGD (ADR-style)
 
 > **Architecture Decision Records.** Versión resumida — los ADRs detallados originales están en `RADIOGRAFIA-TOTAL-18-06-2026.md` §10. Se conserva detalle completo de ADR-059+ (sesiones 26-28).
-> **Ultima actualización:** 2026-06-18 (sesión 29).
+> **Ultima actualización:** 2026-06-18 (sesión 32).
 
 ---
 
@@ -266,3 +266,72 @@ Las 2 backticks (\\) cerraban prematuramente la template string de JS, producien
 - (-) Downtime obligatorio: hay que detener el backend mientras se restaura (porque tiene conexiones activas a la BD).
 - (-) El dump es puntual: si la BD se desvía del snapshot (por cambios intencionales del usuario), hay que regenerarlo.
 - (-) Solo funciona en el mismo PostgreSQL major version (16) y misma plataforma.
+
+---
+
+## ADR-066 — TZ env var en containers: limitaciones de display vs persistencia
+
+**Fecha:** 2026-06-18 (sesión 32 — preparación v1.1.0-qas)
+
+**Contexto:** Al agregar `TZ: ${TZ}` a todos los servicios de QAS (sesión 32, paso 1 del checklist pre-deploy), se validó que:
+- **Python (backend, celery-W, celery-beat)**: `date(1)` muestra `America/La_Paz (UTC-4)`. OK.
+- **nginx**: `date(1)` muestra `America/La_Paz (UTC-4)`. OK.
+- **mailhog (Go binary)**: `date(1)` muestra `UTC` aunque `env | grep TZ` confirma que `TZ=America/La_Paz` está seteado. El tiempo es correcto (valor epoch), solo el label es UTC.
+- **frontend node:22-alpine (Node.js / Vite)**: `date(1)` muestra `UTC` aunque `env | grep TZ` confirma que `TZ=America/La_Paz` está seteado. Mismo caso que mailhog.
+
+**Causa raíz:**
+- Python respeta `TZ` via `time.tzset()` al iniciar.
+- nginx hereda `TZ` y lo pasa a sus workers.
+- Go (mailhog) NO llama `time.LoadLocation` en el código del binario compilado — usa UTC por default.
+- Node.js respeta `process.env.TZ` solo si se setea ANTES del primer require de módulos que cachean zona. Vite/Node 22 sí lo lee, pero la shell `sh` usa el `date` de busybox (Alpine), que sí respeta TZ — la diferencia es que el PID 1 del container de mailhog es el binario Go, no una shell.
+
+**Decisión:**
+1. Mantener `TZ: ${TZ}` en TODOS los servicios QAS (no remover) — la env var se pasa correctamente y es útil para:
+   - Logs de Python (formateo con `logging.Formatter` que respeta TZ).
+   - Conexiones asyncpg/psycopg (timestamps `created_at`, `updated_at` en BD).
+   - nginx access logs / error logs.
+2. NO intentar hacer que el `date(1)` de mailhog/frontend muestre `-04` — requeriría rebuild de las imágenes base con la zona horaria hardcodeada o instalar paquetes extra (`tzdata`). El esfuerzo no se justifica porque el tiempo ES correcto.
+3. Documentar en `docs/PR/STARTUP-CHECKLIST.md` y `docs/PR/LEARNINGS-ERRORES.md` como limitación conocida.
+
+**Consecuencia:**
+- (+) TZ funciona para todos los efectos prácticos (BD, logs, Python, nginx).
+- (-) Operador que haga `docker exec sgd-qas-mailhog date` verá `UTC` aunque el tiempo esté bien.
+- (-) Frontend (vite) mostrará timestamps en UTC si el cliente JS no convierte a local.
+- (-) Aplica también a DES (mismas imágenes base). La sesión 32 lo descubrió en QAS, pero aplica a todo el stack.
+
+**Verificación empírica (sesión 32):**
+```
+docker exec sgd-qas-backend date        # Thu Jun 18 23:46:19 -04 2026 OK
+docker exec sgd-qas-celery-worker date  # Thu Jun 18 23:46:20 -04 2026 OK
+docker exec sgd-qas-celery-beat date    # Thu Jun 18 23:46:21 -04 2026 OK
+docker exec sgd-qas-nginx date          # Thu Jun 18 23:46:21 -04 2026 OK
+docker exec sgd-qas-frontend date       # Fri Jun 19 03:46:20 UTC 2026 (mismo tiempo, label UTC)
+docker exec sgd-qas-mailhog date        # Fri Jun 19 03:46:21 UTC 2026 (mismo tiempo, label UTC)
+```
+
+---
+
+## ADR-067 — Healthchecks QAS: comandos Alpine-safe (lección operacional)
+
+**Fecha:** 2026-06-18 (sesión 32 — preparación v1.1.0-qas)
+
+**Contexto:** Al agregar healthchecks a los 4 servicios QAS que no tenían (celery-worker, celery-beat, frontend, nginx) durante la preparación del deploy v1.1.0-qas, se usó la spec literal del usuario. Validación empírica reveló que 3 de los 4 comandos fallaban en las imágenes Alpine:
+
+| Servicio | Spec original | Resultado | Spec corregida |
+|---|---|---|---|
+| celery-worker | `celery -A app.workers.celery_app inspect ping` | ✅ OK ("1 node online") | sin cambio |
+| celery-beat | `ps aux \| grep celery beat` | ❌ `ps: not found` (Alpine sin procps) | `xargs -0 echo < /proc/1/cmdline \| grep -q 'celery_app beat'` |
+| frontend | `curl -f http://localhost:5173` | ❌ `curl: not found` (node:22-alpine sin curl) | `wget -q --spider http://localhost:5173` |
+| nginx | `service nginx status \|\| exit 1` | ❌ `service: not found` (nginx:1.27-alpine usa OpenRC, no SysV) | `pgrep -f 'nginx: master'` |
+
+**Decisión:**
+1. Usar SIEMPRE comandos Alpine-safe en los healthchecks de compose.
+2. Preferir leer `/proc/1/cmdline` (siempre disponible) sobre `ps aux` (puede no estar).
+3. Preferir `wget` (incluido en node:22-alpine) sobre `curl` (no incluido).
+4. Preferir `pgrep` (incluido en nginx:1.27-alpine) sobre `service` (no incluido).
+5. Documentar en `docs/PR/LEARNINGS-ERRORES.md` categoría Docker.
+
+**Consecuencia:**
+- (+) Healthchecks confiables en todas las imágenes base.
+- (+) Reproducible en QAS y DES (mismas imágenes).
+- (-) Hay que conocer qué binarios trae cada imagen base (consultar Dockerfile de la imagen).

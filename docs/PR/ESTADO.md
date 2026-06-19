@@ -1,10 +1,15 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-18 (sesión 31 — **228/228 tests PASS, 11 fallas preexistentes RESUELTAS**)
+> **Última actualización:** 2026-06-18 (sesión 32 — **Preparado para deploy v1.1.0-qas: 7/7 healthchecks PASS, 228/228 tests PASS**)
 
 ## Versión actual
-**v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
+**v1.1.0-qas (PENDIENTE bumpeo de tag)** — sesión 32 dejó el código listo para deploy. Pendiente:
+1. Bumpear tag `v1.1.0-qas` (responsabilidad del usuario, no automatizado).
+2. Ejecutar `scripts/deploy-qas.bat` o seguir `docs/PR/STARTUP-CHECKLIST.md` FASE 1.
+3. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` para asignar roles reales a 750+ usuarios (FASE 3.1 de STARTUP-CHECKLIST.md).
+
+**Sesión 32 (2026-06-18)**: Preparación deploy v1.1.0-qas. 5 archivos modificados + 1 nuevo. 7/7 healthchecks PASS en validación DES. 228/228 tests PASS. 2 ADRs nuevos (066, 067). 3 learnings nuevos (X06, X07, X08). 1 doc nuevo (STARTUP-CHECKLIST.md). **QAS NO fue tocado** — todo es código local.
 
 **Sesión 21 (2026-06-17)**: R2 arranca oficialmente con la rama `r2/wizard-y-version-editable`. Se cierra FASE 1 (modelos + endpoints + seed + tests). Tag no bumpeado todavía (Fase 2 + deploy QAS pendiente).
 
@@ -44,8 +49,18 @@
 
 **Sesión 31 (2026-06-18)**: **228/228 tests PASS por primera vez** — 11 fallas preexistentes RESUELTAS. 4 archivos modificados: 3 tests adaptados a schemas/enums/estados actualizados (sesiones 13, 22, 23) + 1 fix defensivo en `envio_service.py` (búsqueda tolerante `REVISION` OR `EN_REVISION` para compatibilizar test conftest con producción post-data-migration B3). Cero cambios de modelo, cero migraciones, cero regresiones. Diff: +25 / -12 líneas en 4 archivos.
 
+**Sesión 32 (2026-06-18)**: **Preparado deploy v1.1.0-qas** — 5 archivos modificados + 1 nuevo:
+- `deploy/docker-compose.qas.yml`: TZ a 5 servicios + healthchecks a 4 + fix entrypoint backend.
+- `scripts/validate-qas.sh`: alembic head + conteos actualizados (sesiones 23, 30, 31).
+- `scripts/start-stack-qas.sh`: fix header 1-8 (era 1-7 desfasado) + 7→8 seeds.
+- `docs/PR/STARTUP-CHECKLIST.md` (nuevo): 4 fases + paso POST-DEPLOY crítico (run_matriz_import.py).
+- `docs/PR/DECISIONES.md`: ADR-066 (TZ display limitación) + ADR-067 (healthchecks Alpine-safe).
+- `docs/PR/LEARNINGS-ERRORES.md`: X06 (binarios Alpine) + X07 (TZ en Go/Node) + X08 (localhost→127.0.0.1).
+- Validación: 7/7 healthchecks PASS, TZ funcional, pytest 228/228 PASS.
+- Tag `v1.1.0-qas` PENDIENTE bumpeo (responsabilidad del usuario).
+
 ## Objetivo inmediato
-**R1+R2 cerrados al 100%. 228/228 tests PASS. B7 (P0) RESUELTO. Pendiente: R3 (workflow + bandejas reales) + deploy QAS v1.1.0-qas + CSRF middleware.**
+**R1+R2 cerrados al 100%. 228/228 tests PASS. B7 (P0) RESUELTO. Deploy v1.1.0-qas LISTO (sesión 32). Pendiente: bumpear tag + ejecutar deploy + run_matriz_import.py post-deploy + R3 (workflow + bandejas reales) + CSRF middleware.**
 
 ---
 

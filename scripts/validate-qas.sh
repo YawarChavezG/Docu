@@ -111,10 +111,10 @@ heading "═══ C. MIGRACIONES ═══"
 
 # C.1 alembic head esperado
 ALEMBIC_HEAD=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c "SELECT version_num FROM alembic_version" 2>/dev/null)
-if [ "$ALEMBIC_HEAD" = "6451593bcab5" ]; then
+if [ "$ALEMBIC_HEAD" = "drop_modulos_s26" ]; then
     pass "C.1 alembic head: $ALEMBIC_HEAD"
 else
-    fail "C.1 alembic head: $ALEMBIC_HEAD (esperado 6451593bcab5)"
+    fail "C.1 alembic head: $ALEMBIC_HEAD (esperado drop_modulos_s26)"
 fi
 
 # C.2 semaforizacion_tarea existe
@@ -147,19 +147,21 @@ fi
 # ════════════════════════════════════════════════════════════════
 heading "═══ D. DATOS BD ═══"
 
-# Conteos esperados (post-deploy R1 cerrado)
+# Conteos esperados (post-deploy R1 + R2 + sesiones 20-31 cerrado)
+# Sesion 31: usuarios=761 (sync AD ya ejecutado), email_templates=11 (catalogo completo),
+# estados=12 (data-migration B3 sesion 23), configuracion_global=7 (4 redundantes removidas sesion 23 A5)
 declare -A EXPECTED_COUNTS=(
     [roles]=5
     [modulos]=11
     [gerencias]=10
     [areas]=50
-    [usuarios]=750
+    [usuarios]=761
     [tipos_documento]=13
-    [estados]=5
+    [estados]=12
     [feriados]=20
-    [email_templates]=10
+    [email_templates]=11
     [matriz_enrutamiento_eto]=10
-    [configuracion_global]=11
+    [configuracion_global]=7
     [semaforizacion_tarea]=4
 )
 for table in "${!EXPECTED_COUNTS[@]}"; do

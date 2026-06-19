@@ -3,7 +3,7 @@
 # COFAR SGD — Orquestador de stack para QAS (Debian 12 + Docker)
 #
 # Punto unico de entrada para levantar el entorno QAS en
-# sgdqas.cofar.com.bo. Hace 7 cosas en orden:
+# sgdqas.cofar.com.bo. Hace 8 cosas en orden:
 #
 #   1. Verifica prerequisitos (Docker, .env.qas, scripts/seed/).
 #   2. Provisiona el directorio storage del backend (permisos 755/644,
@@ -11,10 +11,13 @@
 #   3. Levanta la stack Docker (postgres, redis, mailhog, backend,
 #      celery-W/B, frontend, nginx) con --env-file .env.qas.
 #   4. Espera health-checks de postgres y backend.
-#   5. Aplica las 7 migraciones-seed en orden de dependencias FK.
-#   6. Ejecuta sync_ad_oficial.py si LDAP_ENABLED=true (genera CSV
+#   5. Aplica permisos correctos al /app/storage dentro del container
+#      (chown sgduser, chmod 755/644). Sin esto celery-beat no puede
+#      escribir el schedule file.
+#   6. Aplica las 8 migraciones-seed en orden de dependencias FK.
+#   7. Ejecuta sync_ad_oficial.py si LDAP_ENABLED=true (genera CSV
 #      de usuarios desde el AD de COFAR).
-#   7. Imprime resumen + URLs.
+#   8. Imprime resumen + URLs.
 #
 # Este script es la version oficial de lo que se hacia manualmente
 # en sesion 10. Es idempotente: se puede correr multiples veces.
@@ -202,7 +205,7 @@ docker restart "$C_CELERY_BEAT" >/dev/null
 sleep 3
 ok "celery-beat reiniciado."
 
-# ─── 6. Aplicar 7 seeds en orden de dependencias FK ───
+# ─── 6. Aplicar 8 seeds en orden de dependencias FK ───
 step 6 8 "Aplicando seeds (orden por dependencias FK)..."
 
 # Orden de ejecucion: las tablas sin FK primero, las con FK dependen

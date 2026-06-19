@@ -61,6 +61,8 @@ services:
     image: mailhog/mailhog:latest
     container_name: sgd-qas-mailhog
     restart: unless-stopped
+    environment:
+      TZ: ${TZ}
     networks:
       - sgd-qas-net
 
@@ -82,7 +84,7 @@ services:
         echo 'Esperando a PostgreSQL...' &&
         until nc -z postgres 5432; do sleep 1; done &&
         echo 'PostgreSQL listo. Aplicando migraciones...' &&
-        alembic upgrade head 2>&1 || echo 'ERROR en migraciones' &&
+        alembic upgrade head 2>&1 &&
         echo 'Iniciando uvicorn (sin reload)...' &&
         uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2
       "
@@ -159,6 +161,7 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/2
       SMTP_HOST: ${SMTP_HOST}
       SMTP_PORT: ${SMTP_PORT}
+      TZ: ${TZ}
     volumes:
       - ../backend:/app
     depends_on:
@@ -166,6 +169,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "celery", "-A", "app.workers.celery_app", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - sgd-qas-net
 
@@ -184,6 +193,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       CELERY_BROKER_URL: redis://redis:6379/1
       CELERY_RESULT_BACKEND: redis://redis:6379/2
+      TZ: ${TZ}
     volumes:
       - ../backend:/app
       - sgd-qas_backend_storage:/app/storage
@@ -192,6 +202,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "xargs -0 echo < /proc/1/cmdline | grep -q 'celery_app beat' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - sgd-qas-net
 
@@ -207,6 +223,13 @@ services:
     environment:
       VITE_API_URL: /api/v1
       VITE_ENV: ${ENVIRONMENT}
+      TZ: ${TZ}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:5173 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - sgd-qas-net
 
@@ -221,9 +244,17 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/ssl:/etc/nginx/ssl:ro
+    environment:
+      TZ: ${TZ}
     depends_on:
       - backend
       - frontend
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'nginx: master' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - sgd-qas-net
 
