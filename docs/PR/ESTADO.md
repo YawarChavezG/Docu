@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-18 (sesión 30 — **Fix P0 B7: 3 scripts seed rotos arreglados**)
+> **Última actualización:** 2026-06-18 (sesión 31 — **228/228 tests PASS, 11 fallas preexistentes RESUELTAS**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
@@ -42,8 +42,10 @@
 
 **Sesión 30 (2026-06-18)**: **Fix P0 B7 — 3 scripts seed rotos arreglados** (`seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py` importaban `usuario_modulos` eliminado en sesión 26). Eliminadas solo las refs a `usuario_modulos`; data de roles/usuarios/áreas/modulos intacta. Idempotencia 100% validada (3 corridas, conteos constantes). Tests pytest sin regresiones (217/228, mismas 11 fallas preexistentes). Diff: -35 / +18 líneas en 3 archivos.
 
+**Sesión 31 (2026-06-18)**: **228/228 tests PASS por primera vez** — 11 fallas preexistentes RESUELTAS. 4 archivos modificados: 3 tests adaptados a schemas/enums/estados actualizados (sesiones 13, 22, 23) + 1 fix defensivo en `envio_service.py` (búsqueda tolerante `REVISION` OR `EN_REVISION` para compatibilizar test conftest con producción post-data-migration B3). Cero cambios de modelo, cero migraciones, cero regresiones. Diff: +25 / -12 líneas en 4 archivos.
+
 ## Objetivo inmediato
-**R1+R2 cerrados al 100%. B7 (P0) RESUELTO. Pendiente: R3 (workflow + bandejas reales) + deploy QAS v1.1.0-qas + CSRF middleware.**
+**R1+R2 cerrados al 100%. 228/228 tests PASS. B7 (P0) RESUELTO. Pendiente: R3 (workflow + bandejas reales) + deploy QAS v1.1.0-qas + CSRF middleware.**
 
 ---
 
@@ -83,7 +85,7 @@
 | 19 | Sanear 4 x-html con DOMPurify | ❌ | — | (no verificado — buscar `x-html` en `frontend/src/pages/*.js`) |
 | 20 | Agregar CSP meta tag | ❌ | — | (no verificado) |
 | 21 | Rate limit con slowapi | ❌ | — | (no implementado) |
-| 22 | **TESTING R1** | ✅ | 16-jun | `backend/tests/` poblado. **217/228 tests passing en ~22s** (sesión 27). 11 fallas preexistentes NO relacionadas (refs a enum/field antiguos). |
+| 22 | **TESTING R1** | ✅ | 16-jun | `backend/tests/` poblado. **228/228 tests passing en ~27s** (sesión 31: 11 fallas preexistentes RESUELTAS). |
 | **Tareas nuevas sesión 9 (Editar Usuario + Mi Perfil)** |  |  |  |  |
 | N8 | Backend `GET /api/v1/roles` (catalogo) | ✅ | 16-jun | `backend/app/api/v1/roles.py` + `schemas/rol.py`. 5 roles con flag `requiere_delegado`. |
 | N9 | Backend `PATCH /usuarios/{id}` con `rol_codigo` y `delegado_id` | ✅ | 16-jun | Extiende `UsuarioUpdate`. Reemplaza roles via `delete + insert`. Auto-set `estado_delegacion=asignado`. |

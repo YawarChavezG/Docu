@@ -1,7 +1,7 @@
 # RADIOGRAFÍA TOTAL — COFAR SGD (2026-06-18)
 
 > **Documento único de contexto para cualquier IA o developer.** Captura el estado real de: frontend, backend, BD, Docker, scripts, tests, pendientes, y deuda técnica. Para ser leído ANTES de cualquier sesión de trabajo.
-> **Última actualización:** 2026-06-18 (sesión 30 — B7 P0 RESUELTO)
+> **Última actualización:** 2026-06-18 (sesión 31 — **228/228 tests PASS, 11 fallas preexistentes RESUELTAS**)
 
 ---
 
@@ -258,7 +258,7 @@ Red: `sgd-des_net` (bridge, DNS corporativo COFAR).
 | Archivo | Tests | Estado |
 |---|---|---|
 | `test_gerencias.py` | 21 | ✅ |
-| `test_usuarios.py` | 21 | ✅ (1 fail preexistente) |
+| `test_usuarios.py` | 21 | ✅ |
 | `test_documentos.py` | 23 | ✅ |
 | `test_areas.py` | 16 | ✅ |
 | `test_area_mapping.py` | 15 | ✅ |
@@ -272,20 +272,20 @@ Red: `sgd-des_net` (bridge, DNS corporativo COFAR).
 | `test_matriz_enrutamiento_eto.py` | 8 | ✅ |
 | `test_documentos_create.py` | 8 | ✅ |
 | `test_ausencias.py` | 7 | ✅ |
-| `test_email_templates.py` | 7 | ✅ (3 fail preexistentes) |
+| `test_email_templates.py` | 7 | ✅ |
 | `test_estados.py` | 7 | ✅ |
-| `test_tipos_documento.py` | 7 | ✅ (4 fail preexistentes) |
-| `test_documentos_enviar.py` | 6 | ✅ (3 fail preexistentes) |
+| `test_tipos_documento.py` | 7 | ✅ |
+| `test_documentos_enviar.py` | 6 | ✅ |
 | `test_documentos_archivos.py` | 4 | ✅ |
 | `test_documentos_flujo_wizard.py` | 2 | ✅ |
 | `test_tracer.py` | 4 | ✅ |
-| **Total** | **~228** | **~217 PASS, ~11 FAIL** |
+| **Total** | **228** | **228 PASS, 0 FAIL** |
 
-**Fallas preexistentes (no relacionadas con cambios recientes):**
-- `test_email_templates.py` (3): refs a `CodigoPlantilla.NUEVA_TAREA` (enum antiguo)
-- `test_tipos_documento.py` (4): refs a `codigo_doc` (campo removido en sesión 13)
-- `test_usuarios.py` (1): esperaba 403 pero retorna 200
-- `test_documentos_enviar.py` (3): necesita estado REVISION
+**Sesión 31 (2026-06-18) cerró las 11 fallas preexistentes:**
+- `test_email_templates.py` (3): `CodigoPlantilla.NUEVA_TAREA` → `ASIG_REVISION`
+- `test_tipos_documento.py` (4): `codigo_doc` (elim. sesion 13) → `codigo` int + `slug`
+- `test_usuarios.py` (1): test actualizado a 200 (reflejo la relajacion sesion 9 de `GET /usuarios`)
+- `test_documentos_enviar.py` (3): `envio_service` ahora busca `Estado.codigo IN ("REVISION", "EN_REVISION")` para compatibilizar test conftest con producción post-data-migration B3.
 
 ---
 
