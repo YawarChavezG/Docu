@@ -178,7 +178,8 @@ docker cp sgd-qas-backend:/app/storage/usuarios_sap_FINAL2026.csv \
 
 | Frecuencia | Tarea | Comando |
 |---|---|---|
-| Diaria 00:05 | Sync AD automatizado (cron celery-beat) | automatico |
+| Diaria 00:05 | Desactivar ausencias vencidas (cron celery-beat) | automatico |
+| Cada 6 horas | Sync AD desde COFAR (cron celery-beat, sesion 33) | automatico |
 | Manual | Sync AD on-demand desde UI | Parametrizacion > Usuarios > Sincronizar AD |
 | Manual | Import matriz (si se actualiza el Excel) | seccion 3.1 |
 | Bajo demanda | Restore BD al clean state | `bash /opt/sgd/scripts/restore_clean_state.sh` (TBD) |

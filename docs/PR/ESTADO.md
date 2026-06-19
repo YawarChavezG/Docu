@@ -1,17 +1,15 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-18 (sesión 32 — **Preparado para deploy v1.1.0-qas: 7/7 healthchecks PASS, 228/228 tests PASS**)
+> **Última actualización:** 2026-06-19 (sesión 33 — **DEPLOY v1.1.0-qas EXITOSO: 35/35 PASS, 228/228 tests, 8/8 contenedores healthy**)
 
 ## Versión actual
-**v1.1.0-qas (PENDIENTE bumpeo de tag)** — sesión 32 dejó el código listo para deploy. Pendiente:
-1. Bumpear tag `v1.1.0-qas` (responsabilidad del usuario, no automatizado).
-2. Ejecutar `scripts/deploy-qas.bat` o seguir `docs/PR/STARTUP-CHECKLIST.md` FASE 1.
-3. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` para asignar roles reales a 750+ usuarios (FASE 3.1 de STARTUP-CHECKLIST.md).
+**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
+1. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` (FASE 3.1 de STARTUP-CHECKLIST.md). Los 723 usuario_roles actuales son snapshot de DES; el operador debe re-asignar con la matriz oficial.
+
+**Sesión 33 (2026-06-19)**: **DEPLOY v1.1.0-qas ejecutado**: 8 archivos modificados + 3 nuevos. 2 commits atómicos (`d03aea6` y `63ffe7d`). Tag `v1.1.0-qas` force-updated. 8/8 contenedores QAS healthy. 35/35 validaciones validate-qas.sh PASS. 228/228 tests PASS en DES. 723/750 usuario_roles en QAS (6 locales del seed DES no matchean). Sync AD cada 6h activado (cron celery-beat). visitador/visitador2 eliminados de QAS via cleanup SQL.
 
 **Sesión 32 (2026-06-18)**: Preparación deploy v1.1.0-qas. 5 archivos modificados + 1 nuevo. 7/7 healthchecks PASS en validación DES. 228/228 tests PASS. 2 ADRs nuevos (066, 067). 3 learnings nuevos (X06, X07, X08). 1 doc nuevo (STARTUP-CHECKLIST.md). **QAS NO fue tocado** — todo es código local.
-
-**Sesión 21 (2026-06-17)**: R2 arranca oficialmente con la rama `r2/wizard-y-version-editable`. Se cierra FASE 1 (modelos + endpoints + seed + tests). Tag no bumpeado todavía (Fase 2 + deploy QAS pendiente).
 
 **Sesión 22 (2026-06-17)**: R2 FASE 2 cerrada al 100%. Backend: storage service (LocalStorage + SharePointStorage stub), POST/PATCH /documentos, POST /documentos/{id}/archivos con validación MIME/tamaño, POST /enviar con firma 2FA atómica, 4 endpoints /bandeja. Frontend: documentosApi.js, VersionEditable.js con autocomplete real, AprobacionDocumento.js refactor completo (catalogos del backend + codigo auto + firma 2FA). Tests: 31 nuevos (60 totales R2 verde). Validado E2E con Chrome DevTools. ADRs 042-045 formalizados.
 
@@ -60,7 +58,7 @@
 - Tag `v1.1.0-qas` PENDIENTE bumpeo (responsabilidad del usuario).
 
 ## Objetivo inmediato
-**R1+R2 cerrados al 100%. 228/228 tests PASS. B7 (P0) RESUELTO. Deploy v1.1.0-qas LISTO (sesión 32). Pendiente: bumpear tag + ejecutar deploy + run_matriz_import.py post-deploy + R3 (workflow + bandejas reales) + CSRF middleware.**
+**v1.1.0-qas DESPLEGADO (sesión 33). Pendiente: run_matriz_import.py post-deploy (FASE 3.1 STARTUP-CHECKLIST) + R3 (workflow + bandejas reales) + CSRF middleware (B2).**
 
 ---
 
@@ -246,7 +244,7 @@
 **38/38 tareas R1 + EPICA9 + Parametrizacion (100% CERRADO)** = **42/42 con sesiones 17-18** (Matriz ETO + Previsualizar + Impersonate + Refresh fix #15). Sesión 27 agrega 3 fixes puntuales sin nuevas tareas. Tests pytest 217/228.
 
 ## Progreso QAS
-**8/8 tareas QAS (100%)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 8 seeds (incluye `seed_configuracion_global.py`) + sync AD automatizado (763 usuarios) + `start-stack-qas.sh` 1-click. Tag `v1.0.0-qas` creado sesión 19. **Pendiente**: bumpear a `v1.1.0-qas` con todos los cambios de sesiones 20-27.
+**v1.1.0-qas desplegado (sesión 33)**: stack completo en https://sgdqas.cofar.com.bo + HTTPS + AD real + 9 seeds (incluye `seed_usuario_roles.py` con 723 asignaciones) + sync AD automatizado (754 usuarios) + `start-stack-qas.sh` 1-click + sync AD celery cada 6h. Tag `v1.1.0-qas` creado y force-updated. 35/35 validate-qas.sh PASS. 8/8 contenedores healthy.
 
 ## Progreso R2
 **17/21 tareas R2 completadas (FASE 1 + FASE 2 cerradas en sesiones 21+22, branch `r2/wizard-y-version-editable`)**. Plan completo + 2 fases ejecutado. 60 tests pytest R2 (33 FASE 1 + 27 FASE 2), 100% verde. 10 documentos sembrados idempotentemente. Regla "VENCIDO → APROBADO u OBSOLETO" validada. Wizard AprobacionDocumento.js refactor completo con catalogos del backend + firma 2FA real. VersionEditable.js con autocomplete real (BD). E2E validado con Chrome DevTools (aromero ve catalogos reales, codigo auto CC-1-002/00 generado correctamente).

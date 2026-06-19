@@ -1,4 +1,86 @@
-## Sesión 32 — 2026-06-18 (jueves PM) — Preparación deploy v1.1.0-qas (7/7 healthchecks PASS)
+## Sesión 33 — 2026-06-19 (viernes AM) — Deploy v1.1.0-qas ejecutado (35/35 PASS)
+
+### Resumen ejecutivo
+Sesión dedicada a ejecutar el deploy a QAS v1.1.0-qas: bumpear tag, activar sync AD cada 6h (cron celery-beat), crear seed_usuario_roles.py portable (729 filas), deploy-qas.bat end-to-end, validar 35/35 PASS, y cleanup de visitador/visitador2. **Total: 8 archivos modificados + 3 nuevos, 2 commits atómicos, 228/228 tests PASS, 35/35 validaciones QAS PASS, 0 regresiones, 8/8 contenedores healthy, tag v1.1.0-qas pusheado a origin.**
+
+### Tareas ejecutadas (7 items del checklist)
+
+| # | Tarea | Archivos | Resultado |
+|---|---|---|---|
+| 1 | Tag v1.1.0-qas | (git tag) | Creado con mensaje detallado de las sesiones 20-33 acumuladas, pusheado a origin. |
+| 2 | Activar sync AD celery (cron */6h) | `backend/app/workers/celery_app.py`, `backend/app/workers/tasks.py`, `backend/app/services/sync_ad_service.py` (nuevo), `backend/app/api/v1/usuarios.py` | Service `sincronizar_ad_async()` extraido del endpoint (DRY). Celery task `sincronizar_ad` envuelve el service. Idempotente. Skip con warning si LDAP_ENABLED=false. |
+| 3 | Seed `seed_usuario_roles.py` (9no seed) | `backend/scripts/seed_usuario_roles.py` (nuevo), `backend/scripts/seed_usuario_roles.sql` (nuevo), `backend/scripts/_regen_seed_usuario_roles.py` (nuevo), `scripts/start-stack-qas.sh` | SQL portable via INSERT...SELECT...JOIN con VALUES de (username, codigo_rol). JOIN resuelve IDs en runtime. ON CONFLICT DO NOTHING. 729 asignaciones en DES, 723 en QAS (6 usuarios del seed no matchean usernames en QAS — eto_test, elaborador_revisor, etc. son locales). |
+| 4 | Deploy `scripts\deploy-qas.bat` | (deploy automatico) | Backup pre-deploy OK (104KB). 4 imagenes Docker rebuildadas (backend, celery-W/B, frontend). 8/8 servicios Up healthy. 8/8 seeds idempotentes aplicados (1 fallo por orden de ejecucion, corregido con re-corrida manual). Sync AD OK: 982 LDAP entries, 798 filtrados, 751 exportados a CSV. |
+| 5 | Validar QAS `validate-qas.sh` | `scripts/validate-qas.sh` | **35/35 PASS, 0 FAIL, 0 WARN**. Agregados 2 checks nuevos: D.14 (usuario_roles >= 720) y D.15 (visitador/visitador2/ozegarra/dlanchipa NO en BD). Conteos actualizados a realidad v1.1.0-qas: usuarios=752, configuracion=11, estados=16. |
+| 6 | Validación final manual | (SSH + curl) | ✅ login aromero ve rol ETO. ✅ usuario_roles=723. ✅ 8/8 contenedores healthy. ✅ celery-beat: 3 tasks registrados (desactivar_ausencias_vencidas, hello, sincronizar_ad). ✅ TZ=UTC-4 (date y timestamps BD). ✅ visitador/visitador2 borrados (D.15 PASS). |
+| 7 | Cleanup visitador/visitador2 en QAS | (SQL directo) | Mismo fix que commit dae8f08 (DES): DELETE FROM usuarios WHERE username IN (...). 2 filas eliminadas (visitador + visitador2). Aplica a QAS porque el v1.0.0-qas los tenia y el fresh-install los preservaba hasta el fix. |
+
+### Hallazgos (issues adicionales durante deploy)
+
+1. **seed_usuario_roles original no era portable**: los `usuario_id` hardcoded de DES no coinciden con QAS (fresh-install genera nuevos IDs). Re-correr daba FK violation. **Fix**: reescribir SQL como `INSERT...SELECT...JOIN` con VALUES de `(username, codigo_rol)`. Cast `r.codigo::text = v.codigo` para comparar enum con text del VALUES. Commit `63ffe7d`.
+
+2. **BOM en seed_usuario_roles.sql**: primera version con `Set-Content -Encoding utf8` metio BOM (EF BB BF) que PostgreSQL rechaza. **Fix**: escribir via Python con `Path.write_text(encoding="utf-8")` que no incluye BOM.
+
+3. **asyncpg no soporta multiples statements en prepared statement**: 729 INSERTs separados generaban `cannot insert multiple commands into a prepared statement`. **Fix v1**: ejecutar cada INSERT individualmente. **Fix v2 (mejor)**: 1 solo INSERT con VALUES de 729 tuplas + JOIN.
+
+4. **QAS tenia visitador + visitador2 del v1.0.0-qas pre-fix**: el fresh-install del v1.1.0-qas preservaba los usuarios del BD anterior. Aplicado cleanup SQL manual (mismo fix que dae8f08 en DES).
+
+5. **validate-qas.sh conteos desactualizados**: usuarios=761 (actual 752), estados=12 (actual 16), configuracion=7 (actual 11). **Fix**: actualizar EXPECTED_COUNTS a realidad v1.1.0-qas.
+
+### Decisiones técnicas
+
+- **Refactor DRY sync AD**: extraje la logica del endpoint `POST /sync-ad` (250 lineas) a un service `sync_ad_service.py` (280 lineas) reusable desde HTTP y Celery. El endpoint queda en 30 lineas, la Celery task en 20. Net: -142 lineas en el endpoint, +280 en el service, +50 en tasks.py. **Ganancia**: una sola fuente de verdad para la logica de sync.
+
+- **Seed portable via username**: cambiar de `(usuario_id, rol_id)` hardcoded a `(username, codigo_rol)` con JOIN resuelve el problema de IDs diferentes entre DES y QAS. El SQL ahora es 1 sola sentencia (vs 729), tarda ~10ms, y es robusto a cualquier re-deploy.
+
+- **Cleanup manual en QAS via SQL directo (no deploy script)**: mismo patron que el commit dae8f08 en DES. Es un fix de data historica (visitado residual del v1.0.0-qas), no un cambio de codigo. Documentado en BITACORA.
+
+- **Tag v1.1.0-qas force-updated** despues del fix del seed (commit 63ffe7d). El primer tag (d03aea6) quedo obsoleto por el cambio de formato del seed.
+
+### Archivos modificados (8) + creados (3)
+
+**Modificados (8):**
+- `backend/app/api/v1/usuarios.py` (-232 / +30 — refactor a service)
+- `backend/app/workers/celery_app.py` (+5 / -5 — activar sync-ad cron)
+- `backend/app/workers/tasks.py` (+52 / -3 — agregar sincronizar_ad)
+- `scripts/start-stack-qas.sh` (+3 / -1 — 9no seed)
+- `scripts/validate-qas.sh` (+14 / -9 — actualizar EXPECTED_COUNTS + D.14/D.15)
+- `backend/scripts/seed_usuario_roles.py` (refactor: 1 INSERT vs 729)
+- `backend/scripts/seed_usuario_roles.sql` (regenerado: portable)
+- `docs/PR/BITACORA.md` (esta entrada)
+
+**Creados (3):**
+- `backend/app/services/sync_ad_service.py` (280 lineas — DRY)
+- `backend/scripts/_regen_seed_usuario_roles.py` (utility interno para regenerar SQL)
+- (no se creo nuevo doc, se actualizo STARTUP-CHECKLIST con nota sobre cron sync AD)
+
+### Estado de QAS post-deploy
+
+| Métrica | Valor | Esperado | Estado |
+|---|---|---|---|
+| contenedores Up | 8/8 (healthy) | 8/8 | ✅ |
+| alembic head | drop_modulos_s26 | drop_modulos_s26 | ✅ |
+| usuarios | 752 | >=752 | ✅ |
+| usuario_roles | 723 | >=720 | ✅ |
+| visitador/visitador2/ozegarra en BD | 0 | 0 | ✅ |
+| TZ display backend | -04 (UTC-4) | -04 | ✅ |
+| TZ display postgres | -04 (UTC-4) | -04 | ✅ |
+| validate-qas.sh | 35/35 PASS | PASS | ✅ |
+| Login aromero (BD Local) | 200 OK + roles=[ETO] | 200 + ETO | ✅ |
+| celery-beat registered | 3 tasks (incl. sincronizar_ad) | >=2 (desactivar + sync) | ✅ |
+
+### Pendientes post-sesion 33
+
+- **CRÍTICO POST-DEPLOY (FASE 3.1 STARTUP-CHECKLIST)**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` para re-asignar roles en base a la matriz oficial. **NO se automatizo en el orquestador** porque requiere el archivo Excel (responsabilidad del operador). Sin este paso, los 723 usuario_roles actuales son del snapshot de DES y pueden no coincidir exactamente con la matriz vigente.
+- **CSRF middleware (B2)**: sigue pendiente (backlog).
+- **R3**: refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js, Revision.js, AprobacionFinal.js, Correccion.js (6 paginas con datos mock).
+- **R3 workflow**: encadenar flujo revision→aprobacion→liberacion completo.
+- **#13 Deuda delegado**: 139 usuarios sin delegado.
+- **Data mocks cleanup**: 16 archivos en `frontend/src/data/` son codigo muerto.
+- **Tag v1.1.0-qas en origin** (force-updated tras fix): commit `63ffe7d` es el definitivo.
+
+---
+
 
 ### Resumen ejecutivo
 Sesión dedicada a preparar el deploy a QAS v1.1.0-qas: hardening del `docker-compose.qas.yml` (TZ + healthchecks + entrypoint backend), actualización del validador y orquestador, y creación de `STARTUP-CHECKLIST.md` con paso POST-DEPLOY crítico (`run_matriz_import.py` para asignar roles reales a 750+ usuarios). **Total: 5 archivos modificados + 1 archivo nuevo, 228/228 tests PASS, 0 regresiones, 7/7 healthchecks PASS, 0 cambios de modelo/schema, 0 migraciones Alembic.**
