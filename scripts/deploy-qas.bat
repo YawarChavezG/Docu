@@ -133,7 +133,7 @@ echo.
 
 REM ─── 4. Rebuild imagenes si hay cambios ───
 echo [4/6] Rebuild imagenes Docker (si hay cambios)...
-ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --pull --no-cache backend celery-worker celery-beat frontend 2>&1 | tail -10"
+ssh %QAS_USER%@%QAS_HOST% "cd /opt/sgd && docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --pull backend celery-worker celery-beat frontend 2>&1 | tail -10"
 if errorlevel 1 (
     echo [WARN] Rebuild con warnings. Continuando.
 )
