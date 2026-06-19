@@ -41,10 +41,10 @@ class Area(Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Si requiere un jefe_id (futuro - para fallback chain de reasignación)
-    jefe_id: Mapped[int | None] = mapped_column(
-        ForeignKey("usuarios.id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    # NOTA: NO lleva ForeignKey porque crea un ciclo con usuarios.area_id -> areas.id
+    # que SQLAlchemy no puede ordenar en SQLite (tests). Cuando se implemente la
+    # funcionalidad, agregar FK con use_alter=True en el constraint.
+    jefe_id: Mapped[int | None] = mapped_column(nullable=True)
 
     # Orden para mostrar en UI
     orden: Mapped[int] = mapped_column(default=0, nullable=False)
