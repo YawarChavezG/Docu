@@ -108,6 +108,8 @@ REQUIRED_FILES=(
     "${SCRIPTS_DIR}/seed_email_templates.py"
     "${SCRIPTS_DIR}/seed_matriz_eto.py"
     "${SCRIPTS_DIR}/seed_configuracion_global.py"
+    "${SCRIPTS_DIR}/seed_usuario_roles.py"
+    "${SCRIPTS_DIR}/seed_usuario_roles.sql"
     "${SCRIPTS_DIR}/sync_ad_oficial.py"
 )
 MISSING=()
@@ -205,7 +207,7 @@ docker restart "$C_CELERY_BEAT" >/dev/null
 sleep 3
 ok "celery-beat reiniciado."
 
-# ─── 6. Aplicar 8 seeds en orden de dependencias FK ───
+# ─── 6. Aplicar 9 seeds en orden de dependencias FK ───
 step 6 8 "Aplicando seeds (orden por dependencias FK)..."
 
 # Orden de ejecucion: las tablas sin FK primero, las con FK dependen
@@ -220,6 +222,7 @@ SEEDS=(
     "seed_email_templates.py:6 plantillas de notificacion (US-9.04)"
     "seed_matriz_eto.py:10 filas matriz ETO + usuario cecEspinoza"
     "seed_configuracion_global.py:11 parametros US-9.01+9.02 (VIGENCIA, SEMAFORO, ARCHIVOS, DESCARGAS)"
+    "seed_usuario_roles.py:729 asignaciones snapshot (idempotente, sesion 33)"
 )
 SEED_FAILED=0
 for entry in "${SEEDS[@]}"; do
@@ -236,7 +239,7 @@ done
 if [ "$SEED_FAILED" -gt 0 ]; then
     warn "${SEED_FAILED} seed(s) fallaron. Verificar manualmente: docker exec ${C_BACKEND} python scripts/seed_*.py"
 else
-    ok "8/8 seeds aplicados correctamente."
+    ok "9/9 seeds aplicados correctamente."
 fi
 
 # ─── 7. Sync AD (opcional, solo si LDAP_ENABLED=true) ───

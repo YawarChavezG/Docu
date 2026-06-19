@@ -39,8 +39,7 @@ from app.core.permissions import require_eto_or_admin, require_eto_admin_o_rol_d
 from app.models.usuario import Usuario, EstadoUsuario, EstadoDelegacion
 from app.models.rol import Rol, CodigoRol
 from app.models.area import Area
-from app.services import ad_service
-from app.services.area_mapping import match_area_por_ad_info
+from app.services.sync_ad_service import sincronizar_ad_async
 
 logger = logging.getLogger(__name__)
 # Prefix = "/usuarios" para que las rutas declaradas ("", "/sync-ad", etc.)
@@ -338,6 +337,10 @@ async def sync_ad(
     codigo SAP (ad_postal_code) y que NO aparecen en el AD (porque la
     cuenta fue deshabilitada o eliminada del AD). NUNCA se eliminan
     fisicamente (preservar audit_log y referencias historicas).
+
+    Sesion 33 (deploy v1.1.0-qas): la logica vive en
+    `app.services.sync_ad_service.sincronizar_ad_async` para ser reutilizada
+    por la Celery task `app.workers.tasks.sincronizar_ad` (cron cada 6h).
     """
     await _require_admin(request, db)
     if not settings.ldap_enabled:
@@ -346,233 +349,31 @@ async def sync_ad(
             detail="LDAP deshabilitado. Setea LDAP_ENABLED=true en .env y reinicia el backend."
         )
 
-    t0 = datetime.utcnow()
-    result = ad_service.ldap_search_users(query=None, page=1, page_size=payload.max_results)
-    ad_users = result["items"]
-    excluded_count = payload.max_results - len(ad_users)
-    warnings = result.get("warnings", [])
+    user_actor = await _get_current_user(request, db)
 
-    # Set de sAMAccountNames que SI estan en el AD (despues de filtros de n8n)
-    sams_en_ad = set()
-    for ad_user in ad_users:
-        sam = ad_user.get("sAMAccountName")
-        if sam and not sam.endswith("$"):
-            sams_en_ad.add(sam.lower())
-
-    # Importar la helper de iniciales del auth.py
-    from app.api.v1.auth import _calcular_iniciales
-
-    def _truncar(s, max_len):
-        """Truncar string a max_len chars, cuidando None."""
-        if s is None:
-            return None
-        s = str(s).strip()
-        if not s:
-            return None
-        if len(s) > max_len:
-            logger.warning(f"Truncando campo de {len(s)} a {max_len} chars: {s[:60]}...")
-            return s[:max_len]
-        return s
-
-    # Limites REALES del modelo Usuario (ver app/models/usuario.py).
-    # Si el AD trae algo mas largo, se trunca a estos limites.
-    LIMITS = {
-        "username": 50,
-        "azure_oid": 100,
-        "email": 150,
-        "nombre_completo": 200,
-        "iniciales": 5,
-        "cargo": 100,
-        "ad_info": 2000,
-        "ad_postal_code": 50,
-    }
-
-    creados = 0
-    actualizados = 0
-    sin_cambios = 0
-    errores = 0
-    excluidos_por_filtro = 0
-    for ad_user in ad_users:
-        try:
-            sam = ad_user.get("sAMAccountName")
-            if not sam:
-                errores += 1
-                continue
-
-            # ─── Filtros adicionales (los de n8n) ───
-            # 1) Saltar cuentas de equipo (terminan en $)
-            if sam.endswith("$"):
-                excluidos_por_filtro += 1
-                continue
-            # 2) Saltar cuentas con objectClass sin 'user' (equipos, grupos, etc.)
-            oc = ad_user.get("objectClass")
-            if oc:
-                if isinstance(oc, list):
-                    oc = " ".join(oc).lower()
-                else:
-                    oc = str(oc).lower()
-                if "user" not in oc or "person" not in oc:
-                    excluidos_por_filtro += 1
-                    continue
-            # 3) sAMAccountType: solo SAM_NORMAL_USER_ACCOUNT (805306368 = 0x30000000)
-            sam_type = ad_user.get("sAMAccountType")
-            if sam_type is not None:
-                if isinstance(sam_type, list):
-                    sam_type = sam_type[0] if sam_type else None
-                if str(sam_type) != "805306368":
-                    excluidos_por_filtro += 1
-                    continue
-
-            existing = (await db.execute(
-                select(Usuario).where(Usuario.username == sam)
-            )).scalar_one_or_none()
-
-            # Truncar campos al limite REAL del modelo (varchar(N))
-            nc = _truncar(ad_user.get("nombre_completo") or sam.title(), LIMITS["nombre_completo"])
-            cargo = _truncar(ad_user.get("title") or "(sin cargo)", LIMITS["cargo"])
-            email = _truncar(ad_user.get("mail") or f"{sam}@cofar.com", LIMITS["email"])
-            ad_info = _truncar(ad_user.get("department"), LIMITS["ad_info"])
-            # NO usamos azure_oid: el "sAMAccountName" (que guardamos en
-            # username) es el identificador unico natural de AD. El campo
-            # azure_oid en la BD queda None y se puede llenar despues si
-            # se necesita mapear a Azure AD/Microsoft Graph.
-            postal = _truncar(ad_user.get("postalCode"), LIMITS["ad_postal_code"])
-            given = ad_user.get("givenName") or ""
-            sn = ad_user.get("sn") or ""
-            iniciales = _truncar(_calcular_iniciales(given, sn), LIMITS["iniciales"])
-            sam_trunc = _truncar(sam, LIMITS["username"])
-
-            if existing is None:
-                # Issue 4.4: si el AD trae department, intentar mapear a area_id
-                area_id_mapeado = None
-                if ad_info:
-                    try:
-                        area_id_mapeado = await match_area_por_ad_info(db, ad_info)
-                    except Exception as e_map:
-                        logger.warning(f"area_mapping fallo para {sam}: {e_map}")
-
-                user = Usuario(
-                    username=sam_trunc,
-                    email=email,
-                    nombre_completo=nc or sam_trunc,
-                    iniciales=iniciales or "?",
-                    cargo=cargo or "(sin cargo)",
-                    azure_oid=None,  # sAMAccountName es el ID unico
-                    ad_info=ad_info,
-                    ad_postal_code=postal,
-                    ad_last_synced_at=datetime.utcnow(),
-                    area_id=area_id_mapeado,  # Issue 4.4: mapping automatico
-                    estado=EstadoUsuario.ACTIVO,
-                    estado_delegacion=EstadoDelegacion.NA,
-                    es_usuario_ad=True,  # Sesion 23 / Bloque C2
-                )
-                db.add(user)
-                creados += 1
-            else:
-                # Sesion 23 / Bloque C1: si el usuario estaba DESVINCULADO
-                # y vuelve a aparecer en el AD, reactivarlo.
-                if existing.estado == EstadoUsuario.DESVINCULADO:
-                    existing.estado = EstadoUsuario.ACTIVO
-                changed = False
-                if email and existing.email != email:
-                    existing.email = email; changed = True
-                if nc and existing.nombre_completo != nc:
-                    existing.nombre_completo = nc; changed = True
-                if cargo and existing.cargo != cargo:
-                    existing.cargo = cargo; changed = True
-                if iniciales and existing.iniciales != iniciales:
-                    existing.iniciales = iniciales; changed = True
-                if postal and existing.ad_postal_code != postal:
-                    existing.ad_postal_code = postal; changed = True
-                if ad_info and existing.ad_info != ad_info:
-                    existing.ad_info = ad_info; changed = True
-                    # Issue 4.4: si el department del AD cambio,
-                    # reintentar el mapping a area_id.
-                    try:
-                        nueva_area = await match_area_por_ad_info(db, ad_info)
-                        if nueva_area and nueva_area != existing.area_id:
-                            existing.area_id = nueva_area
-                            changed = True
-                            logger.info(
-                                f"area_id actualizado por cambio de department: "
-                                f"{sam} {existing.area_id} -> {nueva_area}"
-                            )
-                    except Exception as e_map:
-                        logger.warning(f"area_mapping fallo para {sam}: {e_map}")
-                if changed:
-                    existing.ad_last_synced_at = datetime.utcnow()
-                    actualizados += 1
-                else:
-                    sin_cambios += 1
-
-            # Flush por usuario: si uno falla por longitud/unique/etc,
-            # hace rollback SOLO de ese y sigue con el siguiente.
-            # Asi no se cae toda la transaccion.
-            try:
-                await db.flush()
-            except Exception as e_flush:
-                await db.rollback()
-                logger.warning(
-                    f"Error insertando/actualizando {sam}: {str(e_flush)[:200]}. "
-                    f"Continuando con el siguiente."
-                )
-                errores += 1
-                # Restar el contador que ya se sumo (creados/actualizados)
-                # El rollback ya revirtio el cambio en la sesion.
-                if existing is None:
-                    creados -= 1
-                elif changed:
-                    actualizados -= 1
-                else:
-                    sin_cambios -= 1
-                continue
-        except Exception as e:
-            sam_log = ad_user.get("sAMAccountName", "?")
-            logger.warning(f"Error procesando usuario AD {sam_log}: {e}")
-            errores += 1
-            await db.rollback()
-
-    # ─── Sesion 23 / Bloque C1: marcar como desvinculados a los que NO
-    # aparecen en el AD pero SI estaban en la BD con codigo SAP.
-    # Solo se marcan usuarios que:
-    #   - Tienen codigo SAP (ad_postal_code IS NOT NULL, usuarios de AD)
-    #   - Su username (sAMAccountName) NO esta en el set de AD ahora
-    #   - Actualmente estan en estado 'activo' o 'inactivo' (no desvinculado ya)
-    # NUNCA se eliminan fisicamente.
-    desvinculados = 0
-    bd_con_sap = (await db.execute(
-        select(Usuario).where(
-            Usuario.ad_postal_code.isnot(None),
-            Usuario.estado.in_([EstadoUsuario.ACTIVO, EstadoUsuario.INACTIVO]),
+    async def _audit(**kwargs):
+        await write_audit(
+            db, request, user_actor,
+            accion=kwargs["accion"],
+            recurso=kwargs["recurso"],
+            recurso_id=kwargs.get("recurso_id"),
+            detalles=kwargs.get("detalles"),
         )
-    )).scalars().all()
-    for u in bd_con_sap:
-        if u.username.lower() not in sams_en_ad:
-            u.estado = EstadoUsuario.DESVINCULADO
-            u.ad_last_synced_at = datetime.utcnow()
-            desvinculados += 1
-            logger.info(
-                f"Sync AD: usuario {u.username} (id={u.id}, SAP={u.ad_postal_code}) "
-                f"marcado como DESVINCULADO (no aparece en AD actual)"
-            )
 
-    await db.commit()
-    duracion = (datetime.utcnow() - t0).total_seconds()
-    logger.info(
-        f"Sync AD: {len(ad_users)} del AD, {creados} creados, {actualizados} actualizados, "
-        f"{sin_cambios} sin cambios, {excluidos_por_filtro} excluidos por filtro, "
-        f"{errores} errores, {desvinculados} desvinculados, {duracion:.1f}s"
+    result = await sincronizar_ad_async(
+        db, max_results=payload.max_results, write_audit_callback=_audit
     )
+
     return SyncAdResponse(
-        total_ad=len(ad_users),
-        creados=creados,
-        actualizados=actualizados,
-        sin_cambios=sin_cambios,
-        excluidos=excluded_count,
-        errores=errores,
-        desvinculados=desvinculados,
-        duracion_seg=duracion,
-        warnings=warnings,
+        total_ad=result["total_ad"],
+        creados=result["creados"],
+        actualizados=result["actualizados"],
+        sin_cambios=result["sin_cambios"],
+        excluidos=result["excluidos"],
+        errores=result["errores"],
+        desvinculados=result["desvinculados"],
+        duracion_seg=result["duracion_seg"],
+        warnings=result["warnings"],
     )
 
 

@@ -5,10 +5,15 @@ Sesion 23 / Bloque B2: agregar `desactivar_ausencias_vencidas` (cron 00:05).
 Recorre todas las ausencias con fecha_hasta < hoy y activo=true, las marca
 como activo=false y setea usuarios.ausente=false para esos usuarios.
 
-Las tareas reales se completarán en R1:
+Sesion 33 (deploy v1.1.0-qas): agregar `sincronizar_ad` (cron cada 6h).
+Wrapper de `app.services.sync_ad_service.sincronizar_ad_async`. Replica
+el comportamiento del endpoint POST /api/v1/usuarios/sync-ad pero
+sin requerir rol ADMIN ni sesion HTTP. La logica de negocio vive en
+el service (DRY) y la task solo la invoca.
+
+Tareas planificadas (no implementadas):
 - reasignar_tareas_vencidas (cron 23:59)
 - actualizar_vigencia_vencida (cron 23:59)
-- sincronizar_ad (cada 6h)
 - enviar_email_bienvenida
 - generar_pdf_caratula
 """
@@ -79,3 +84,50 @@ async def _desactivar_ausencias_async() -> dict:
     msg = f"desactivar_ausencias_vencidas: {desactivadas} ausencias desactivadas, {len(usuarios_actualizados)} usuarios actualizados"
     logger.info(msg)
     return {"ok": True, "desactivadas": desactivadas, "usuarios_actualizados": len(usuarios_actualizados)}
+
+
+@celery_app.task(name="app.workers.tasks.sincronizar_ad")
+def sincronizar_ad() -> dict:
+    """
+    Sincroniza usuarios desde el AD real de COFAR a la BD local.
+    Cron: cada 6 horas (ver celery_app.py beat_schedule).
+
+    Wrapper async sobre `sincronizar_ad_async` del service. Replica el
+    endpoint POST /api/v1/usuarios/sync-ad sin requerir sesion HTTP.
+
+    Idempotente: re-correr la task multiples veces produce los mismos
+    resultados en BD (creados, actualizados, sin_cambios, desvinculados).
+
+    Si LDAP_ENABLED=false, NO aborta: retorna warning. Asi no rompe el
+    beat schedule en DES donde el LDAP esta deshabilitado.
+    """
+    return asyncio.run(_sincronizar_ad_async())
+
+
+async def _sincronizar_ad_async() -> dict:
+    from app.core.config import settings
+    from app.core.database import AsyncSessionLocal
+    from app.services.sync_ad_service import sincronizar_ad_async
+
+    if not settings.ldap_enabled:
+        msg = "sincronizar_ad: LDAP deshabilitado, skip"
+        logger.warning(msg)
+        return {
+            "ok": False,
+            "skipped": True,
+            "reason": "LDAP_ENABLED=false",
+            "message": msg,
+        }
+
+    try:
+        async with AsyncSessionLocal() as db:
+            result = await sincronizar_ad_async(db, max_results=5000)
+        logger.info(
+            f"sincronizar_ad (cron): {result['total_ad']} AD, "
+            f"{result['creados']} creados, {result['actualizados']} actualizados, "
+            f"{result['desvinculados']} desvinculados, {result['duracion_seg']:.1f}s"
+        )
+        return {"ok": True, "skipped": False, **result}
+    except Exception as e:
+        logger.exception(f"Error en sincronizar_ad (cron): {e}")
+        return {"ok": False, "skipped": False, "error": str(e)}

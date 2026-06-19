@@ -47,8 +47,10 @@ celery_app.conf.beat_schedule = {
     #     "task": "app.workers.tasks.actualizar_vigencia_vencida",
     #     "schedule": crontab(hour=23, minute=59),
     # },
-    # "sync-ad": {
-    #     "task": "app.workers.tasks.sincronizar_ad",
-    #     "schedule": crontab(hour="*/6"),  # cada 6 horas
-    # },
+    # Sesion 33 (deploy v1.1.0-qas): activar sync AD cada 6 horas.
+    # Si LDAP_ENABLED=false, la task skip con warning (no rompe el beat).
+    "sync-ad": {
+        "task": "app.workers.tasks.sincronizar_ad",
+        "schedule": crontab(hour="*/6"),  # cada 6 horas
+    },
 }
