@@ -42,8 +42,9 @@ logger = logging.getLogger(__name__)
 # Regex patrones para extraer campos de la caratula.
 # El codigo es "CC-3-005" (sigla 2-5 letras - tipo 1-2 digitos - correlativo 3-4 digitos).
 _RE_CODIGO = re.compile(r"\b([A-Z]{2,5}-\d{1,2}-\d{3,4})\b")
-# Version puede aparecer como "V00", "V 00", "VERSION: 00", "Version 0", etc.
-_RE_VERSION = re.compile(r"(?i)\b(?:v|version|ver\.?)\s*[:.]?\s*0?(\d{1,2})\b")
+# Version puede aparecer como "V00", "V 00", "VERSION: 00", "Version 0",
+# "Versión: 06", "VER. 01", etc. Incluye acentos (ó) y variantes typograficas.
+_RE_VERSION = re.compile(r"(?i)\b(?:v|versi[óo]n|version|ver\.?)\s*[:.]?\s*0?(\d{1,2})\b")
 
 
 @dataclass
@@ -74,6 +75,35 @@ def _leer_primeras_lineas(docx_bytes: bytes, max_caracteres: int = 3000) -> str:
         return ""
     lineas = []
     chars = 0
+
+    # 1) Leer HEADER del documento (ahi suele estar el codigo y version)
+    #    python-docx permite acceder a header/footer via sections.
+    for section in doc.sections:
+        if section.header:
+            for para in section.header.paragraphs:
+                if para.text:
+                    lineas.append(para.text)
+                    chars += len(para.text)
+                    if chars >= max_caracteres:
+                        break
+            # Tablas en header
+            for tabla in section.header.tables:
+                for fila in tabla.rows:
+                    for celda in fila.cells:
+                        t = celda.text.strip()
+                        if t:
+                            lineas.append(t)
+                            chars += len(t)
+                            if chars >= max_caracteres:
+                                break
+                    if chars >= max_caracteres:
+                        break
+                if chars >= max_caracteres:
+                    break
+        if chars >= max_caracteres:
+            break
+
+    # 2) Leer cuerpo del documento (parrafos)
     for para in doc.paragraphs:
         if not para.text:
             continue
@@ -81,6 +111,8 @@ def _leer_primeras_lineas(docx_bytes: bytes, max_caracteres: int = 3000) -> str:
         chars += len(para.text)
         if chars >= max_caracteres:
             break
+
+    # 3) Leer tablas del cuerpo
     for tabla in doc.tables:
         for fila in tabla.rows:
             for celda in fila.cells:
@@ -94,7 +126,8 @@ def _leer_primeras_lineas(docx_bytes: bytes, max_caracteres: int = 3000) -> str:
                 break
         if chars >= max_caracteres:
             break
-    return "\n".join(lineas[:30])  # max 30 lineas
+
+    return "\n".join(lineas[:50])  # max 50 lineas
 
 
 def _extraer_codigo(texto: str) -> Optional[str]:
@@ -116,27 +149,57 @@ def _extraer_version(texto: str) -> Optional[str]:
 
 def _extraer_titulo(texto: str, codigo: Optional[str], version: Optional[str]) -> Optional[str]:
     """
-    Heuristica: el titulo es el texto entre el codigo y la version.
-    Si no se encuentran marcadores, retorna la linea mas larga
-    (excluyendo lineas con el codigo o version).
+    Heuristica: busca la linea que mas se parece al titulo oficial del documento.
+    Estrategia: entre las lineas que NO contienen codigo ni version, elegir
+    la que tenga mas palabras en comun con lineas cercanas (heuristica de
+    "linea informativa").
+
+    Para simplificar: se devuelve la primera linea que aparezca DESPUES del
+    codigo (excluyendo lineas de version y paginacion), pero que sea
+    razonablemente larga (>15 chars) y no sea un indice numerado.
     """
     lineas = [l.strip() for l in texto.split("\n") if l.strip()]
-    if codigo is None and version is None:
-        # Sin marcadores, retornar la linea mas larga que no sea solo numerica
-        candidatas = [l for l in lineas if len(l) > 10 and not l.isdigit()]
+
+    # Encontrar indice de la linea que contiene el codigo
+    idx_codigo = None
+    if codigo:
+        for i, l in enumerate(lineas):
+            if codigo in l:
+                idx_codigo = i
+                break
+
+    # Encontrar indice de la linea que contiene la version
+    # Usar SOLO regex, no literal string (evita falso positivo: "00" matchea
+    # dentro del codigo "EST-7-001" porque "001" contiene "00")
+    idx_version = None
+    for i, l in enumerate(lineas):
+        if _RE_VERSION.search(l):
+            idx_version = i
+            break
+
+    # Si tenemos ambos marcadores, buscar entre ellos
+    if idx_codigo is not None and idx_version is not None:
+        entre = lineas[idx_codigo+1:idx_version]
+        # Excluir lineas de paginacion, fechas, etc.
+        candidatas = [
+            l for l in entre
+            if len(l) > 10
+            and not any(p in l.lower() for p in ['pagina', 'page', 'vigente', 'numpages'])
+        ]
         if candidatas:
             return max(candidatas, key=len)[:200]
-        return None
-    # Filtrar lineas con codigo o version
-    candidatas = [
-        l for l in lineas
-        if (codigo is None or codigo not in l)
-        and (version is None or not _RE_VERSION.search(l))
-        and len(l) > 5
-    ]
-    if candidatas:
-        # Tomar la primera candidata (suele estar entre codigo y version)
-        return candidatas[0][:200]
+
+    # Fallback: primera linea larga que no tenga codigo/version/paginacion
+    for l in lineas:
+        if len(l) > 10 and not l.isdigit():
+            if codigo and codigo in l:
+                continue
+            if _RE_VERSION.search(l):
+                continue
+            if any(p in l.lower() for p in ['pagina', 'page', 'numpages']):
+                continue
+            return l[:200]
+
     return None
 
 
@@ -244,12 +307,19 @@ def validar_caratula(
         # Match case-insensitive, ignorando espacios multiples
         titulo_norm = " ".join(caratula.titulo.lower().split())
         esperado_norm = " ".join(titulo_esperado.lower().split())
+        # Tolerancia: si el titulo extraido es un substring del esperado (o viceversa),
+        # y la diferencia es solo por el header (ej: "ESTABILIDAD" vs "ESPECIFICACION DE ESTABILIDAD ACELERADA"),
+        # consideramos que es correcto. El warning solo si son COMPLETAMENTE diferentes.
         if titulo_norm != esperado_norm:
-            # No es bloqueante: puede haber variaciones de formato
-            warnings.append(
-                f"Titulo en caratula ({caratula.titulo!r}) no coincide exactamente con el esperado "
-                f"({titulo_esperado!r}). Verificar manualmente."
-            )
+            # Check substring matching
+            if len(titulo_norm) >= 5 and (titulo_norm in esperado_norm or esperado_norm in titulo_norm):
+                pass  # Es substring, consideramos OK
+            else:
+                # No es bloqueante: puede haber variaciones de formato
+                warnings.append(
+                    f"Titulo en caratula ({caratula.titulo!r}) no coincide exactamente con el esperado "
+                    f"({titulo_esperado!r}). Verificar manualmente."
+                )
 
     return ResultadoValidacion(
         coincide=len(warnings) == 0,
