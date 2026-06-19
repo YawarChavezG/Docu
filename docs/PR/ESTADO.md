@@ -1,10 +1,10 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-19 (sesión 37 — **R3 FASE 1 CERRADA: 7 tablas nuevas + 2 valores enum + 51 tests, 300/300 tests PASS**)
+> **Última actualización:** 2026-06-19 (sesión 37 — **R3 FASE 1 CERRADA + sub-fix semaforo: 7 tablas nuevas + 2 valores enum + 51 tests, 300/300 tests PASS**)
 
 ## Versión actual
-**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). Sesión 35 cerró 3 items de deuda técnica (B3 vite manualChunks + B1 gerencia cascade + CSRF middleware), 228/228 tests PASS. Sesión 36 cerró la FASE 0 de R3 (6 items: 0.5 vigencia + 0.1 nombre_completo + 0.6 LIBERACION_ETO + 0.2 actualizacion + 0.4 formularios -F01 + 0.3 validacion caratula .docx), **249/249 tests PASS** (21 nuevos). **Sesión 37 cierra la FASE 1 de R3** (7 tablas nuevas + enum extendido + semaforo actualizado + 51 tests), **300/300 tests PASS**. QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
+**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). Sesión 35 cerró 3 items de deuda técnica (B3 vite manualChunks + B1 gerencia cascade + CSRF middleware), 228/228 tests PASS. Sesión 36 cerró la FASE 0 de R3 (6 items: 0.5 vigencia + 0.1 nombre_completo + 0.6 LIBERACION_ETO + 0.2 actualizacion + 0.4 formularios -F01 + 0.3 validacion caratula .docx), **249/249 tests PASS** (21 nuevos). **Sesión 37 cierra la FASE 1 de R3** (7 tablas nuevas + enum extendido + semaforo actualizado + 51 tests, **sub-fix**: corrección de valores semaforo a 7/12/15 días naturales, LIBERACION=999), **300/300 tests PASS**. QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
 1. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` (FASE 3.1 de STARTUP-CHECKLIST.md). Los 723 usuario_roles actuales son snapshot de DES; el operador debe re-asignar con la matriz oficial.
 2. **Restore script + nginx restart** (low): agregar `docker restart sgd-qas-nginx` al final de `restore_clean_state_qas.sh` para automatizar el fix del 502.
 3. **Deploy a QAS v1.1.1-qas** (Fase 0 + CSRF + Fase 1): acumula los cambios de sesiones 35, 36 y 37. Pendiente bumpear tag.

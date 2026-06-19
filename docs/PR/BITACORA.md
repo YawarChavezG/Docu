@@ -65,18 +65,38 @@ Sesión dedicada a la Fase 1 de R3: crear las 7 tablas del workflow de revisión
 - `backend/tests/test_tarea_observacion.py` (7 tests)
 - `backend/tests/test_proceso.py` (7 tests)
 
+### Sub-fix: Corrección de valores de semaforización (post-Fase 1)
+
+La data migration de la Fase 1 cambió los valores históricos 7/12/15 (días naturales) a 4/7/10 (días hábiles) para REVISION/APROBACION, basándose en la propuesta técnica de PROPUESTA-R3-TABLAS.md. Sin embargo, el cliente confirmó que **los valores correctos para DES son los días naturales (7/12/15)**, que equivalen aproximadamente a 10 días hábiles. El flag `usa_dias_habiles=FALSE` refleja que son días calendario.
+
+**Fix aplicado (migración `r3_fase1_fix_semaforo_s37`):**
+- REVISION: 7/12/15, usa_dias_habiles=FALSE
+- APROBACION: 7/12/15, usa_dias_habiles=FALSE
+- CONTROL_LECTURA: 14/24/30 (mantiene), usa_dias_habiles=FALSE
+- EVALUACION: 5/11/15 (mantiene), usa_dias_habiles=FALSE
+- LIBERACION: 999/999/999 — ETO no tiene plazo (US-1.05)
+- CORRECCION: 7/12/15 — mismo SLA que REVISION (US-3.04)
+- Columna `usa_dias_habiles`: server_default cambiado de `true` a `false`
+
+**Archivos modificados:**
+- `backend/app/models/semaforizacion_tarea.py` (default=True → False)
+- `backend/tests/conftest.py` (seed actualizado a valores correctos)
+- `backend/alembic/versions/2026_06_19_1400-r3_fase1_fix_semaforo_s37_corregir_valores.py` (NEW)
+
+**300/300 tests PASS** post-fix. Sin regresiones.
+
 ### Estado al cierre de sesion 37
 
 | Métrica | Valor | Estado |
 |---|---|---|
 | pytest | **300/300 PASS** (de 249) | ✅ |
 | Tests nuevos sesion 37 | 51 (10+7+7+7+6+7+7) | ✅ |
-| Migraciones Alembic | 1 nueva (aplicada a DES via docker exec) | ✅ |
+| Migraciones Alembic | 2 (r3_fase1_s37 + r3_fase1_fix_semaforo_s37) | ✅ |
 | Tablas nuevas en BD | 7 (tareas, bitacora_timeline, notificaciones, documento_reemplazos, documento_alcance_difusion, tarea_observaciones, procesos) | ✅ |
 | Enum TipoTarea | 6 valores (REVISION, APROBACION, CONTROL_LECTURA, EVALUACION, LIBERACION, CORRECCION) | ✅ |
-| Semaforo actualizado | 4/7/10 con usa_dias_habiles=TRUE para REVISION/APROBACION | ✅ |
+| Semaforo (prod) | 7/12/15, usa_dias_habiles=FALSE, LIBERACION=999, CORRECCION=7/12/15 | ✅ |
 | Rama | `r3/workflow-revision-aprobacion` | ✅ |
-| Pendiente commit | 16 archivos (atomic commit) | ⏳ |
+| Pendiente commit | 18 archivos (atomic commit) | ⏳ |
 | QAS | SIN TOCAR (cambios solo DES) | — |
 
 ### Pendientes para Fase 2

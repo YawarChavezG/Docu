@@ -74,12 +74,13 @@ class SemaforizacionTarea(Base):
     # Plazo maximo de la tarea en dias naturales (normalmente 15).
     plazo_maximo_dias: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
 
-    # R3 Fase 1: US-3.01 exige calculo en dias HABILES (no naturales).
-    # True = el plazo_maximo_dias y los dias_verde/amarillo/rojo se
-    # cuentan excluyendo fines de semana + feriados (tabla `feriados`).
-    # False = legado R1/R2 (dias naturales). Default TRUE.
+    # R3 Fase 1: columna para distinguir dias habiles vs naturales.
+    # True = el plazo se cuenta en dias HABILES (excluye fines de semana
+    #        + feriados via tabla `feriados`).
+    # False = dias NATURALES/calendario (comportamiento legado R1/R2).
+    # Los valores actuales (7/12/15) son dias naturales ≈ 10 habiles.
     usa_dias_habiles: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False,
+        Boolean, default=False, nullable=False,
     )
 
     descripcion: Mapped[str | None] = mapped_column(String(500), nullable=True)

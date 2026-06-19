@@ -66,7 +66,7 @@
 - [x] Crear tabla `procesos` (catálogo, seed con 10 valores genéricos)
 - [x] Extender enum `TipoTarea`: agregar LIBERACION, CORRECCION
 - [x] Agregar columna `usa_dias_habiles` a `semaforizacion_tarea`
-- [x] Actualizar valores de semáforo: verde=4, amarillo=7, rojo=10
+- [x] Valores de semáforo: REVISION/APROBACION=7/12/15 (días naturales ≈ 10 hábiles), LIBERACION=999 (ETO sin plazo), CORRECCION=7/12/15
 - [x] Migración Alembic (autogenerate + revisión manual)
 - [x] Tests: 5-6 tests de cada nuevo modelo (creación, índices, constraints) — **51 tests nuevos**
 

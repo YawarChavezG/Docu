@@ -235,26 +235,25 @@ async def seed_catalogos(db_session: AsyncSession):
         estados_catalogo[codigo] = est
     await db_session.flush()
 
-    # R3 Fase 1 (sesion 37): seed de semaforizacion_tarea con los 6 tipos
-    # + valores actualizados (verde=4, amarillo=7, rojo=10, plazo=10 para
-    # REVISION/APROBACION segun US-3.01). CONTROL_LECTURA y EVALUACION
-    # mantienen los valores legacy de produccion (sesion 13, US-6.03).
-    # LIBERACION: igual REVISION (US-1.05, ETO no tiene plazo estricto).
-    # CORRECCION: mismo SLA que REVISION (elaborador corrige rapido).
+    # R3 Fase 1 (sesion 37): seed de semaforizacion_tarea con los 6 tipos.
+    # Los valores legacy (REVISION=7/12/15, APROBACION=7/12/15) son
+    # dias NATURALES/calendario (usa_dias_habiles=FALSE).
+    # 15 dias naturales ≈ 10 dias habiles.
+    # LIBERACION: ETO no tiene plazo (US-1.05) → 999.
+    # CORRECCION: mismo SLA que REVISION (7/12/15).
     semaforo_data = [
-        # (tipo_tarea, dias_verde, dias_amarillo, dias_rojo, plazo_maximo, usa_dias_habiles, descripcion)
-        (TipoTarea.REVISION, 4, 7, 10, 10, True,
-         "R3 Fase 1: US-3.01 - verde 0-4 habiles, amarillo 5-7, rojo 8-10"),
-        (TipoTarea.APROBACION, 4, 7, 10, 10, True,
-         "R3 Fase 1: US-3.01 - mismo SLA que REVISION"),
+        (TipoTarea.REVISION, 7, 12, 15, 15, False,
+         "Legacy: 7/12/15 dias naturales ≈ 10 habiles"),
+        (TipoTarea.APROBACION, 7, 12, 15, 15, False,
+         "Legacy: 7/12/15 dias naturales ≈ 10 habiles"),
         (TipoTarea.CONTROL_LECTURA, 14, 24, 30, 30, False,
-         "Legacy R1: 14/24/30 dias naturales (US-6.03)"),
+         "Legacy: 14/24/30 dias naturales (US-6.03)"),
         (TipoTarea.EVALUACION, 5, 11, 15, 15, False,
-         "Legacy R1: 5/11/15 dias naturales"),
-        (TipoTarea.LIBERACION, 4, 7, 10, 10, True,
-         "R3 Fase 1: US-1.05 - ETO no tiene plazo estricto, igual REVISION"),
-        (TipoTarea.CORRECCION, 4, 7, 10, 10, True,
-         "R3 Fase 1: US-3.04 - elaborador corrige, mismo SLA que REVISION"),
+         "Legacy: 5/11/15 dias naturales"),
+        (TipoTarea.LIBERACION, 999, 999, 999, 999, False,
+         "R3 US-1.05: ETO sin plazo (indefinido)"),
+        (TipoTarea.CORRECCION, 7, 12, 15, 15, False,
+         "R3 US-3.04: mismo SLA que REVISION (7/12/15)"),
     ]
     semaforo_catalogo = {}
     for tipo, verde, amarillo, rojo, plazo, habiles, desc in semaforo_data:
