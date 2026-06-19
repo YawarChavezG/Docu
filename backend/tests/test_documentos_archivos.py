@@ -156,3 +156,134 @@ async def test_upload_archivo_doc_inexistente_404(client: AsyncClient, seed_cata
     assert resp.status_code == 404
 
     reset_storage_for_tests()
+
+
+# ════════════════════════════════════════════════════════════════
+#  R3 item 0.4: Codigo de formularios -F01, -F02, etc.
+#  Sesion 36 R3 - FASE 0
+# ════════════════════════════════════════════════════════════════
+
+
+@pytest.mark.asyncio
+async def test_upload_formulario_genera_codigo_F01(
+    client: AsyncClient, seed_catalogos, db_session, tmp_path, monkeypatch,
+):
+    """R3 item 0.4: subir un FORMULARIO genera codigo -F01 automatico."""
+    from app.models.documento_formulario import DocumentoFormulario
+    from app.services.storage import reset_storage_for_tests
+
+    monkeypatch.setenv("STORAGE_ROOT", str(tmp_path))
+    reset_storage_for_tests()
+
+    tipo = await _crear_tipo_test(db_session, codigo=3, slug="POLITICA", nombre="Politica Test")
+    area = seed_catalogos["area"]
+    eto = seed_catalogos["eto"]
+    cookies = {"user_id": str(eto.id), "session": "x"}
+    doc_id = await _crear_doc(client, cookies, area.gerencia_id, area.id, tipo.id)
+
+    file_bytes = b"%PDF-1.4\nform1"
+    files = {"archivo": ("form1.pdf", io.BytesIO(file_bytes), "application/pdf")}
+
+    resp = await client.post(
+        f"/api/v1/documentos/{doc_id}/archivos",
+        files=files, cookies=cookies,
+        data={"tipo_adjunto": "FORMULARIO"},
+    )
+    assert resp.status_code == 201, resp.text
+    data = resp.json()
+    assert data["formulario"] is not None
+    # El codigo debe ser CC-3-001-F01 (sigla CC + tipo 3 + correlativo 1 + F01)
+    assert data["formulario"]["codigo_formulario"] == "CC-3-001-F01"
+    assert data["formulario"]["correlativo_formulario"] == 1
+
+    # Verificar en BD
+    f = await db_session.execute(
+        select(DocumentoFormulario).where(DocumentoFormulario.id == data["formulario"]["id"])
+    )
+    formulario_db = f.scalar_one()
+    assert formulario_db.codigo_formulario == "CC-3-001-F01"
+    assert formulario_db.activo is True
+
+    reset_storage_for_tests()
+
+
+@pytest.mark.asyncio
+async def test_upload_multiples_formularios_correlativo_incrementa(
+    client: AsyncClient, seed_catalogos, db_session, tmp_path, monkeypatch,
+):
+    """R3 item 0.4: 2do formulario del mismo doc debe ser -F02 (correlativo+1)."""
+    from app.services.storage import reset_storage_for_tests
+
+    monkeypatch.setenv("STORAGE_ROOT", str(tmp_path))
+    reset_storage_for_tests()
+
+    tipo = await _crear_tipo_test(db_session, codigo=3, slug="POLITICA", nombre="Politica Test")
+    area = seed_catalogos["area"]
+    eto = seed_catalogos["eto"]
+    cookies = {"user_id": str(eto.id), "session": "x"}
+    doc_id = await _crear_doc(client, cookies, area.gerencia_id, area.id, tipo.id)
+
+    # Subir primer formulario
+    file_bytes_1 = b"%PDF-1.4\nform1"
+    files_1 = {"archivo": ("f1.pdf", io.BytesIO(file_bytes_1), "application/pdf")}
+    r1 = await client.post(
+        f"/api/v1/documentos/{doc_id}/archivos",
+        files=files_1, cookies=cookies, data={"tipo_adjunto": "FORMULARIO"},
+    )
+    assert r1.status_code == 201
+    assert r1.json()["formulario"]["codigo_formulario"] == "CC-3-001-F01"
+
+    # Subir segundo formulario
+    file_bytes_2 = b"%PDF-1.4\nform2"
+    files_2 = {"archivo": ("f2.pdf", io.BytesIO(file_bytes_2), "application/pdf")}
+    r2 = await client.post(
+        f"/api/v1/documentos/{doc_id}/archivos",
+        files=files_2, cookies=cookies, data={"tipo_adjunto": "FORMULARIO"},
+    )
+    assert r2.status_code == 201
+    assert r2.json()["formulario"]["codigo_formulario"] == "CC-3-001-F02"
+    assert r2.json()["formulario"]["correlativo_formulario"] == 2
+
+    # Subir tercer formulario
+    file_bytes_3 = b"%PDF-1.4\nform3"
+    files_3 = {"archivo": ("f3.pdf", io.BytesIO(file_bytes_3), "application/pdf")}
+    r3 = await client.post(
+        f"/api/v1/documentos/{doc_id}/archivos",
+        files=files_3, cookies=cookies, data={"tipo_adjunto": "FORMULARIO"},
+    )
+    assert r3.status_code == 201
+    assert r3.json()["formulario"]["codigo_formulario"] == "CC-3-001-F03"
+
+    reset_storage_for_tests()
+
+
+@pytest.mark.asyncio
+async def test_upload_principal_no_genera_formulario(
+    client: AsyncClient, seed_catalogos, db_session, tmp_path, monkeypatch,
+):
+    """Subir un PRINCIPAL no crea formulario (el campo `formulario` es null)."""
+    from app.services.storage import reset_storage_for_tests
+
+    monkeypatch.setenv("STORAGE_ROOT", str(tmp_path))
+    reset_storage_for_tests()
+
+    tipo = await _crear_tipo_test(db_session, codigo=3, slug="POLITICA", nombre="Politica Test")
+    area = seed_catalogos["area"]
+    eto = seed_catalogos["eto"]
+    cookies = {"user_id": str(eto.id), "session": "x"}
+    doc_id = await _crear_doc(client, cookies, area.gerencia_id, area.id, tipo.id)
+
+    file_bytes = b"%PDF-1.4\nmain"
+    files = {"archivo": ("main.pdf", io.BytesIO(file_bytes), "application/pdf")}
+
+    resp = await client.post(
+        f"/api/v1/documentos/{doc_id}/archivos",
+        files=files, cookies=cookies, data={"tipo_adjunto": "PRINCIPAL"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    # PRINCIPAL no genera codigo_formulario
+    assert data["formulario"] is None
+    assert data["archivo"]["tipo_adjunto"] == "PRINCIPAL"
+
+    reset_storage_for_tests()

@@ -16,9 +16,10 @@ Endpoints (todos requieren autenticacion):
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
+from pydantic import BaseModel, Field
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -48,6 +49,7 @@ from app.schemas.documento import (
     DocumentoCreate,
     DocumentoCreateResponse,
     DocumentoFlujoBasico,
+    DocumentoFormularioOut,
     DocumentoGerenciaRef,
     DocumentoListItem,
     DocumentoListResponse,
@@ -62,9 +64,10 @@ from app.schemas.documento import (
 from app.services.correlativo_service import (
     formatear_codigo,
     formatear_codigo_completo,
+    generar_nombre_completo,
     siguiente_correlativo_advisory,
 )
-from app.services.envio_service import enviar_a_liberacion
+from app.services.envio_service import enviar_a_liberacion, liberar_documento
 from app.services.storage import get_storage
 
 logger = logging.getLogger(__name__)
@@ -130,6 +133,7 @@ async def buscar_documentos(
             codigo_completo=d.codigo_completo,
             version=d.version,
             titulo=d.titulo,
+            nombre_completo=generar_nombre_completo(d.codigo, d.titulo, d.version),
             tipo=DocumentoTipoRef(
                 id=d.tipo_documento.id,
                 codigo=d.tipo_documento.codigo,
@@ -246,6 +250,81 @@ async def preview_codigo(
 
 
 # ════════════════════════════════════════════════════════════════
+#  GET /documentos/actualizables  (R3 item 0.2)
+#  Lista documentos existentes que se pueden actualizar
+#  (filtrados por area_id + tipo_documento_id, solo APROBADO/VIGENTE).
+#  El wizard paso 1 lo consume cuando tipo_solicitud=ACTUALIZACION.
+# ════════════════════════════════════════════════════════════════
+
+
+@router.get("/actualizables", response_model=List[DocumentoListItem],
+             summary="Documentos actualizables (R3 item 0.2). Filtra por area+tipo, solo vigentes.")
+async def listar_documentos_actualizables(
+    request: Request,
+    area_id: int = Query(..., gt=0),
+    tipo_documento_id: int = Query(..., gt=0),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Lista los documentos que se pueden actualizar segun (area, tipo).
+
+    Criterios:
+    - Mismo (area_id, tipo_documento_id).
+    - Activos (no borrados logicamente).
+    - estatus APROBADO o VIGENTE (no se pueden actualizar obsoletos/eliminados).
+    - Ordenados por codigo ASC, version DESC (mas recientes primero).
+    """
+    await require_authenticated(request, db)
+
+    rows = (await db.execute(
+        select(
+            Documento.id,
+            Documento.codigo,
+            Documento.version,
+            Documento.titulo,
+            TipoDocumento.codigo.label("tipo_codigo"),
+            TipoDocumento.nombre.label("tipo_nombre"),
+            Gerencia.sigla.label("gerencia_sigla"),
+            Area.sigla.label("area_sigla"),
+            Documento.vigencia,
+            Documento.estatus,
+            Documento.aprobacion_at,
+            Documento.expira_at,
+            Documento.activo,
+        )
+        .join(TipoDocumento, TipoDocumento.id == Documento.tipo_documento_id)
+        .join(Area, Area.id == Documento.area_id)
+        .join(Gerencia, Gerencia.id == Documento.gerencia_id)
+        .where(Documento.area_id == area_id)
+        .where(Documento.tipo_documento_id == tipo_documento_id)
+        .where(Documento.activo == True)
+        .where(Documento.estatus == EstatusDocumento.APROBADO)
+        .order_by(Documento.codigo.asc(), Documento.version.desc())
+    )).all()
+
+    return [
+        DocumentoListItem(
+            id=r.id,
+            codigo=r.codigo,
+            codigo_completo=f"{r.codigo}/{r.version}",
+            version=r.version,
+            titulo=r.titulo,
+            nombre_completo=generar_nombre_completo(r.codigo, r.titulo, r.version),
+            tipo_codigo=r.tipo_codigo,
+            tipo_nombre=r.tipo_nombre,
+            gerencia_sigla=r.gerencia_sigla,
+            area_sigla=r.area_sigla,
+            vigencia=r.vigencia.value if hasattr(r.vigencia, "value") else str(r.vigencia),
+            estatus=r.estatus.value if hasattr(r.estatus, "value") else str(r.estatus),
+            aprobacion_at=r.aprobacion_at,
+            expira_at=r.expira_at,
+            activo=r.activo,
+        )
+        for r in rows
+    ]
+
+
+# ════════════════════════════════════════════════════════════════
 #  GET /documentos/{id}  (detalle completo)
 # ════════════════════════════════════════════════════════════════
 
@@ -298,6 +377,7 @@ async def get_documento(
         codigo_completo=doc.codigo_completo,
         version=doc.version,
         titulo=doc.titulo,
+        nombre_completo=generar_nombre_completo(doc.codigo, doc.titulo, doc.version),
         aprobacion_at=doc.aprobacion_at,
         expira_at=doc.expira_at,
         vigencia=doc.vigencia.value if hasattr(doc.vigencia, "value") else str(doc.vigencia),
@@ -425,6 +505,7 @@ async def list_documentos(
             codigo_completo=f"{r.codigo}/{r.version}",
             version=r.version,
             titulo=r.titulo,
+            nombre_completo=generar_nombre_completo(r.codigo, r.titulo, r.version),
             tipo_codigo=r.tipo_codigo,
             tipo_nombre=r.tipo_nombre,
             gerencia_sigla=r.gerencia_sigla,
@@ -648,6 +729,7 @@ async def crear_documento(
             codigo_completo=doc_full.codigo_completo,
             version=doc_full.version,
             titulo=doc_full.titulo,
+            nombre_completo=generar_nombre_completo(doc_full.codigo, doc_full.titulo, doc_full.version),
             aprobacion_at=doc_full.aprobacion_at,
             expira_at=doc_full.expira_at,
             vigencia=doc_full.vigencia.value,
@@ -768,6 +850,7 @@ async def update_documento(
         codigo_completo=doc.codigo_completo,
         version=doc.version,
         titulo=doc.titulo,
+        nombre_completo=generar_nombre_completo(doc.codigo, doc.titulo, doc.version),
         aprobacion_at=doc.aprobacion_at,
         expira_at=doc.expira_at,
         vigencia=doc.vigencia.value,
@@ -857,6 +940,31 @@ async def upload_archivo(
     file_bytes = await archivo.read()
     tamano = len(file_bytes)
 
+    # 4b. R3 item 0.3: si es PRINCIPAL y es .docx, validar la caratula
+    # (warning only, NO bloqueante). Solo para .docx (los .pdf y otros
+    # tipos no tienen "caratula" en el sentido tradicional).
+    caratula_validacion = None
+    if tipo_adjunto_enum == TipoAdjunto.PRINCIPAL and mime in (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+    ):
+        try:
+            from app.services.caratula_service import validar_caratula
+            caratula_validacion = validar_caratula(
+                docx_bytes=file_bytes,
+                codigo_esperado=doc.codigo,
+                version_esperada=doc.version,
+                titulo_esperado=doc.titulo,
+            )
+            if caratula_validacion.warnings:
+                logger.warning(
+                    "Caratula .docx no coincide para doc %s: %s",
+                    doc.codigo_completo, caratula_validacion.warnings,
+                )
+        except Exception as e:
+            logger.warning(f"Error al validar caratula: {e}")
+            caratula_validacion = None
+
     # Leer max_tamano_archivo_mb de configuracion_global (default 20MB)
     max_mb_row = (await db.execute(
         select(ConfiguracionGlobal).where(
@@ -916,6 +1024,42 @@ async def upload_archivo(
     db.add(adj)
     await db.flush()
 
+    # 7b. R3 item 0.4: si es FORMULARIO, crear tambien DocumentoFormulario
+    # con codigo_formulario auto-generado. Los formularios tienen correlativo
+    # y codigo propio (formato: CC-6-032-F01).
+    formulario_creado = None
+    if tipo_adjunto_enum == TipoAdjunto.FORMULARIO:
+        from app.models.documento_formulario import DocumentoFormulario
+        from app.services.correlativo_service import (
+            formatear_codigo_formulario,
+            siguiente_correlativo_formulario,
+        )
+        # Buscar el flujo activo del documento
+        flujo = (await db.execute(
+            select(DocumentoFlujo)
+            .where(DocumentoFlujo.documento_id == documento_id)
+            .where(DocumentoFlujo.activo == True)
+            .order_by(DocumentoFlujo.id.desc())
+            .limit(1)
+        )).scalar_one_or_none()
+        if flujo is not None:
+            corr = await siguiente_correlativo_formulario(db, flujo.id)
+            cod_form = formatear_codigo_formulario(doc.codigo, corr)
+            formulario_creado = DocumentoFormulario(
+                documento_flujo_id=flujo.id,
+                usuario_id=user.id,
+                correlativo_formulario=corr,
+                codigo_formulario=cod_form,
+                nombre_original=adj.nombre_original,
+                nombre_storage=adj.nombre_storage,
+                mime_type=adj.mime_type,
+                tamano_bytes=adj.tamano_bytes,
+                storage_backend=adj.storage_backend.value,
+                storage_path=adj.storage_path,
+            )
+            db.add(formulario_creado)
+            await db.flush()
+
     # 8. Audit + commit
     await write_audit(
         db, request, user,
@@ -929,6 +1073,7 @@ async def upload_archivo(
             "tamano_bytes": tamano,
             "tipo_adjunto": tipo_adjunto,
             "storage_backend": storage_backend_enum.value,
+            "formulario_codigo": formulario_creado.codigo_formulario if formulario_creado else None,
         },
     )
     await db.commit()
@@ -946,6 +1091,14 @@ async def upload_archivo(
             storage_backend=adj.storage_backend.value,
             storage_path=adj.storage_path,
             created_at=adj.created_at,
+        ),
+        formulario=(
+            DocumentoFormularioOut.model_validate(formulario_creado)
+            if formulario_creado is not None
+            else None
+        ),
+        caratula_validacion=(
+            caratula_validacion.to_dict() if caratula_validacion is not None else None
         ),
     )
 
@@ -991,11 +1144,62 @@ async def enviar_documento_a_liberacion(
         alcance_difusion_ids=body.alcance_difusion_ids,
         reemplaza_documento_ids=body.reemplaza_documento_ids,
         justificacion=body.justificacion,
+        documento_actualizado_id=body.documento_actualizado_id,
     )
 
     return EnviarResponse(
         ok=True,
         documento_id=doc.id,
         flujo_id=flujo.id,
+        estatus=doc.estatus.value,
+    )
+
+
+# ════════════════════════════════════════════════════════════════
+#  POST /documentos/{id}/liberar  (R3 item 0.6)
+#  Sesion 36 R3 - FASE 0 (stub). ETO transiciona LIBERACION_ETO -> EN_REVISION.
+#  En R3 Fase 1 este endpoint ademas creara las tareas para los revisores
+#  (tabla `tareas` que se crea en Fase 1). Por ahora solo transiciona el estatus.
+# ════════════════════════════════════════════════════════════════
+
+
+class LiberarRequest(BaseModel):
+    """Body del endpoint /documentos/{id}/liberar (firma 2FA del ETO)."""
+    password: str = Field(..., min_length=1, description="Password del ETO para firma 2FA")
+
+
+class LiberarResponse(BaseModel):
+    """Respuesta del POST /documentos/{id}/liberar."""
+    ok: bool
+    documento_id: int
+    estatus: str
+    message: str = "Documento liberado a revision"
+
+
+@router.post("/{documento_id}/liberar", response_model=LiberarResponse,
+             summary="ETO libera documento (LIBERACION_ETO -> EN_REVISION). R3 item 0.6.")
+async def liberar_documento_endpoint(
+    documento_id: int,
+    body: LiberarRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    ETO libera un documento que esta en la cola de Liberacion Pendientes.
+
+    Transiciona LIBERACION_ETO -> EN_REVISION. En R3 Fase 1, ademas creara
+    las tareas en la tabla `tareas` para cada revisor (Fase 2: tarea_service).
+    """
+    user = await require_authenticated(request, db)
+    doc = await liberar_documento(
+        db=db,
+        request=request,
+        user=user,
+        documento_id=documento_id,
+        password=body.password,
+    )
+    return LiberarResponse(
+        ok=True,
+        documento_id=doc.id,
         estatus=doc.estatus.value,
     )

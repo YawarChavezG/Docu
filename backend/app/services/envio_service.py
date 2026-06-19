@@ -79,16 +79,23 @@ async def enviar_a_liberacion(
     alcance_difusion_ids: Optional[list[int]] = None,
     reemplaza_documento_ids: Optional[list[int]] = None,
     justificacion: Optional[str] = None,
+    documento_actualizado_id: Optional[int] = None,
 ) -> tuple[Documento, DocumentoFlujo]:
     """
-    Envia un documento a liberacion (estatus EN_ELABORACION -> EN_REVISION).
+    Envia un documento a la cola de ETO (estatus EN_ELABORACION -> LIBERACION_ETO).
+
+    R3 item 0.6: tras firmar el wizard, el documento NO va directo a EN_REVISION
+    (revisores). Va a LIBERACION_ETO, donde espera que el ETO asignado segun
+    la matriz_enrutamiento_eto lo libere. Solo cuando ETO libera (futuro
+    endpoint POST /documentos/{id}/liberar, R3 Fase 1) el documento pasa a
+    EN_REVISION y se crean las tareas para los revisores.
 
     Flujo atomico:
     1. Validar password (2FA) - si falla, raise 401, NO persiste nada
     2. Re-leer documento con FOR UPDATE
     3. Validar que esta en EN_ELABORACION
     4. Actualizar DocumentoFlujo con revisores/aprobadores/difusion
-    5. Transicionar Documento.estatus a EN_REVISION
+    5. Transicionar Documento.estatus a LIBERACION_ETO
     6. Setear metadata de firma (firma_at, firma_ip, firma_user_agent)
     7. write_audit
     8. Commit - si algo falla despues del password, rollback total
@@ -168,17 +175,16 @@ async def enviar_a_liberacion(
             detail="Debe especificar al menos 1 aprobador",
         )
 
-    # ─── 5. Buscar estado REVISION (nuevo, Bloque B3 sesion 23) ───
-    # El antiguo REVISION_PARALELA esta inactivo (data-migration B3).
-    # Sesion 31: fallback tolerante. Produccion usa "REVISION" (post data-migration B3).
-    # Tests usan "EN_REVISION" (seed conftest pre-B3). Buscamos ambos.
-    estado_rev = (await db.execute(
-        select(Estado).where(Estado.codigo.in_(["REVISION", "EN_REVISION"]))
+    # ─── 5. Buscar estado LIBERACION_ETO (R3 item 0.6) ───
+    # En R2 este paso buscaba REVISION/EN_REVISION directamente. Ahora
+    # vamos a LIBERACION_ETO primero, y ETO nos lleva a REVISION.
+    estado_lib = (await db.execute(
+        select(Estado).where(Estado.codigo == "LIBERACION_ETO")
     )).scalars().first()
-    if not estado_rev:
+    if not estado_lib:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Estado REVISION no encontrado en catalogo",
+            detail="Estado LIBERACION_ETO no encontrado en catalogo (ejecutar seed_estados.py?)",
         )
 
     # ─── 6. Cargar el DocumentoFlujo mas reciente del documento ───
@@ -198,7 +204,7 @@ async def enviar_a_liberacion(
         )
 
     # ─── 7. Actualizar el flujo con los datos del wizard ───
-    flujo.estado_actual_id = estado_rev.id
+    flujo.estado_actual_id = estado_lib.id
     flujo.revisor_ids = list(revisor_ids)
     flujo.aprobador_ids = list(aprobador_ids)
     flujo.requiere_evaluacion = requiere_evaluacion
@@ -206,6 +212,21 @@ async def enviar_a_liberacion(
     flujo.alcance_difusion_ids = list(alcance_difusion_ids or [])
     flujo.reemplaza_documento_ids = list(reemplaza_documento_ids) if reemplaza_documento_ids else None
     flujo.justificacion = justificacion
+    # R3 item 0.2: registrar el documento original cuando es actualizacion.
+    # Validamos que el doc actualizado exista (si viene) y que sea distinto del nuevo.
+    if documento_actualizado_id is not None:
+        if documento_actualizado_id == documento_id:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="documento_actualizado_id no puede ser el mismo que el documento nuevo",
+            )
+        doc_anterior = await db.get(Documento, documento_actualizado_id)
+        if not doc_anterior:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Documento a actualizar {documento_actualizado_id} no existe",
+            )
+        flujo.documento_actualizado_id = documento_actualizado_id
     # Metadata de firma (sobreescribimos la firma inicial del POST /documentos
     # con la firma "real" del wizard)
     flujo.firma_usuario_id = user.id
@@ -214,10 +235,11 @@ async def enviar_a_liberacion(
     flujo.firma_user_agent = (request.headers.get("user-agent", "")[:500] or None)
 
     # ─── 8. Transicionar estatus del Documento ───
-    # Sesion 23: el modelo Documento.EstatusDocumento.EN_REVISION sigue
-    # usando el codigo antiguo del modelo, pero el estado catalogo al que
-    # apunta ahora es REVISION. El flujo_id sigue siendo el mismo.
-    doc.estatus = EstatusDocumento.EN_REVISION
+    # R3 item 0.6: el documento va a LIBERACION_ETO (no a EN_REVISION todavia).
+    # El ETO tiene una cola de "Liberaciones Pendientes" en su bandeja.
+    # Solo cuando ETO libere (futuro endpoint R3 Fase 1), pasara a EN_REVISION
+    # y se crearan las tareas para los revisores.
+    doc.estatus = EstatusDocumento.LIBERACION_ETO
     doc.updated_by_id = user.id
     doc.updated_at = datetime.now(timezone.utc)
 
@@ -228,7 +250,7 @@ async def enviar_a_liberacion(
         recurso="documento",
         recurso_id=doc.id,
         descripcion=(
-            f"Documento {doc.codigo_completo} enviado a liberacion "
+            f"Documento {doc.codigo_completo} enviado a cola de Liberacion ETO "
             f"(revisores={len(revisor_ids)}, aprobadores={len(aprobador_ids)})"
         ),
         detalles={
@@ -239,7 +261,7 @@ async def enviar_a_liberacion(
             "requiere_control_lectura": requiere_control_lectura,
             "alcance_difusion_count": len(alcance_difusion_ids or []),
             "estatus_anterior": "EN_ELABORACION",
-            "estatus_nuevo": "EN_REVISION",
+            "estatus_nuevo": "LIBERACION_ETO",
         },
     )
 
@@ -266,7 +288,138 @@ async def enviar_a_liberacion(
     await db.refresh(flujo)
 
     logger.info(
-        "Documento %s enviado a liberacion por user=%s (flujo_id=%s)",
+        "Documento %s enviado a cola de Liberacion ETO por user=%s (flujo_id=%s)",
         doc.codigo_completo, user.username, flujo.id,
     )
     return doc, flujo
+
+
+async def liberar_documento(
+    db: AsyncSession,
+    request: Request,
+    user: Usuario,
+    documento_id: int,
+    *,
+    password: str,
+) -> Documento:
+    """
+    R3 item 0.6 (stub Fase 0): transiciona LIBERACION_ETO -> EN_REVISION.
+    ETO llama este endpoint desde su bandeja cuando esta conforme con la
+    documentacion. En R3 Fase 1 este servicio ademas creara las tareas
+    para los revisores (tabla `tareas` que se crea en Fase 1).
+
+    Por ahora (Fase 0) solo transiciona el estatus y registra audit/firma.
+    Las tareas para revisores se crearan en el paso de R3 Fase 1.
+
+    Args:
+        password: password del ETO para firma 2FA (auditoria forense).
+
+    Returns:
+        Documento actualizado.
+
+    Raises:
+        HTTPException 401 si password invalida.
+        HTTPException 404 si documento no existe.
+        HTTPException 409 si documento no esta en LIBERACION_ETO.
+    """
+    if not await validar_password_usuario(db, user, password):
+        try:
+            firma_fallida = FirmaDigital(
+                usuario_id=user.id,
+                accion="liberar_documento",
+                recurso_tipo="documento",
+                recurso_id=documento_id,
+                ip=request.client.host if request.client else "",
+                user_agent=(request.headers.get("user-agent", "")[:500] or None),
+                resultado_exito=False,
+                motivo_fallo="password_invalida",
+            )
+            db.add(firma_fallida)
+            await db.commit()
+        except Exception as e:
+            logger.warning(f"No se pudo registrar firma fallida: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Password invalida. La firma 2FA no se realizo.",
+        )
+
+    doc_q = (
+        select(Documento)
+        .where(Documento.id == documento_id)
+        .with_for_update()
+    )
+    doc = (await db.execute(doc_q)).scalar_one_or_none()
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Documento {documento_id} no encontrado",
+        )
+    if doc.estatus != EstatusDocumento.LIBERACION_ETO:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Solo se pueden liberar documentos en LIBERACION_ETO "
+                f"(actual: {doc.estatus.value})"
+            ),
+        )
+
+    # Buscar estado REVISION (catalog, no enum del modelo)
+    estado_rev = (await db.execute(
+        select(Estado).where(Estado.codigo.in_(["REVISION", "EN_REVISION"]))
+    )).scalars().first()
+    if not estado_rev:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Estado REVISION no encontrado en catalogo",
+        )
+
+    # Actualizar DocumentoFlujo.estado_actual_id al estado REVISION
+    flujo_q = (
+        select(DocumentoFlujo)
+        .where(DocumentoFlujo.documento_id == documento_id)
+        .where(DocumentoFlujo.activo == True)
+        .order_by(DocumentoFlujo.id.desc())
+        .limit(1)
+    )
+    flujo = (await db.execute(flujo_q)).scalar_one_or_none()
+    if flujo is not None:
+        flujo.estado_actual_id = estado_rev.id
+
+    doc.estatus = EstatusDocumento.EN_REVISION
+    doc.updated_by_id = user.id
+    doc.updated_at = datetime.now(timezone.utc)
+
+    await write_audit(
+        db, request, user,
+        accion="LIBERAR_DOCUMENTO",
+        recurso="documento",
+        recurso_id=doc.id,
+        descripcion=f"Documento {doc.codigo_completo} liberado por ETO (pasa a revision)",
+        detalles={
+            "flujo_id": flujo.id if flujo else None,
+            "estatus_anterior": "LIBERACION_ETO",
+            "estatus_nuevo": "EN_REVISION",
+            "revisor_ids_pendientes_crear_tarea": flujo.revisor_ids if flujo else None,
+        },
+    )
+
+    firma_ok = FirmaDigital(
+        usuario_id=user.id,
+        accion="liberar_documento",
+        recurso_tipo="documento",
+        recurso_id=doc.id,
+        ip=request.client.host if request.client else "",
+        user_agent=(request.headers.get("user-agent", "")[:500] or None),
+        resultado_exito=True,
+        motivo_fallo=None,
+    )
+    db.add(firma_ok)
+
+    await db.commit()
+    await db.refresh(doc)
+
+    logger.info(
+        "Documento %s liberado por ETO user=%s (estatus=%s)",
+        doc.codigo_completo, user.username, doc.estatus.value,
+    )
+    return doc

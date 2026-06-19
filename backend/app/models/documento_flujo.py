@@ -72,6 +72,14 @@ class DocumentoFlujo(Base):
         nullable=False,
         index=True,
     )
+    # R3 item 0.2: si tipo_solicitud=ACTUALIZACION, apunta al Documento
+    # que se esta actualizando. La version del nuevo flujo = version del
+    # doc anterior + 1 (calculado en preview_codigo / envio_service).
+    documento_actualizado_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("documentos.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     # Snapshots organizacionales (no se actualizan si el area se renombra).
     gerencia_id: Mapped[int] = mapped_column(
         ForeignKey("gerencias.id", ondelete="RESTRICT"),
@@ -155,7 +163,16 @@ class DocumentoFlujo(Base):
     )
 
     # ─── Relaciones ───
-    documento: Mapped["Documento"] = relationship("Documento", back_populates="flujos")
+    # R3 item 0.2: ahora hay 2 FKs desde documento_flujo hacia documentos
+    # (documento_id y documento_actualizado_id). Hay que especificar explicitamente
+    # cual usar para esta relacion. La otra (documento_actualizado_id) se
+    # accede via .documento_actualizado mas abajo.
+    documento: Mapped["Documento"] = relationship(
+        "Documento", back_populates="flujos", foreign_keys=[documento_id],
+    )
+    documento_actualizado: Mapped[Optional["Documento"]] = relationship(
+        "Documento", foreign_keys=[documento_actualizado_id],
+    )
     estado_actual: Mapped["Estado"] = relationship("Estado")
     gerencia: Mapped["Gerencia"] = relationship("Gerencia")
     area: Mapped["Area"] = relationship("Area")

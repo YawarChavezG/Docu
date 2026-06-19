@@ -13,43 +13,43 @@
 > **6-8h / 1-2 sesiones. Backend + Frontend.**
 
 ### 0.1 Código completo del documento
-- [ ] Helper `generar_nombre_completo(codigo, titulo, version)` en backend
-- [ ] Actualizar display en wizard: `CC-7-005 PROCEDIMIENTO DE MUESTREO V00`
-- [ ] Actualizar display en Bandeja, Lista Maestra, Consultas
-- [ ] Tests del helper (2-3 tests)
+- [x] Helper `generar_nombre_completo(codigo, titulo, version)` en backend
+- [x] Actualizar display en wizard: `CC-7-005 PROCEDIMIENTO DE MUESTREO V00`
+- [x] Actualizar display en Bandeja, Lista Maestra, Consultas
+- [x] Tests del helper (5 tests en test_correlativo_service.py)
 
 ### 0.2 Actualización documental
-- [ ] Backend: agregar `documento_flujo.documento_actualizado_id` (FK)
-- [ ] Frontend: wizard paso 1 — si `tipo_solicitud=ACTUALIZACION`, mostrar selector de documentos existentes filtrados por (área, tipo_documento)
-- [ ] Frontend: al seleccionar documento, autocompletar código, título, versión anterior
-- [ ] Backend: calcular `version_snapshot = version_anterior + 1`
-- [ ] Tests: 3-4 tests de actualización (crear, versionar, validar)
+- [x] Backend: agregar `documento_flujo.documento_actualizado_id` (FK)
+- [x] Frontend: wizard paso 1 — si `tipo_solicitud=ACTUALIZACION`, mostrar selector de documentos existentes filtrados por (área, tipo_documento)
+- [x] Frontend: al seleccionar documento, autocompletar código, título, versión anterior
+- [x] Backend: calcular `version_snapshot = version_anterior + 1`
+- [x] Tests: 4 tests en test_documentos_enviar.py
 
 ### 0.3 Validación de carátula (lectura de .docx)
-- [ ] Backend: instalar `python-docx` o usar `pymupdf` para leer metadatos del .docx
-- [ ] Backend: al subir archivo en actualización, leer página 1 del .docx
-- [ ] Backend: extraer título, código, versión de la carátula
-- [ ] Backend: comparar con BD → advertencia si no coincide
-- [ ] Frontend: mostrar toast de advertencia sin bloquear
-- [ ] Tests: 3-4 tests de validación
+- [x] Backend: instalar `python-docx` para leer metadatos del .docx
+- [x] Backend: al subir archivo PRINCIPAL, leer página 1 del .docx
+- [x] Backend: extraer título, código, versión de la carátula
+- [x] Backend: comparar con BD → advertencia si no coincide
+- [x] Frontend: mostrar toast de advertencia sin bloquear
+- [x] Tests: 6 tests en test_caratula_service.py
 
 ### 0.4 Código de formularios (-F01)
-- [ ] Backend: crear tabla `documento_formularios`
-- [ ] Backend: migración Alembic
-- [ ] Backend: `correlativo_formulario_service.py` o extender `correlativo_service`
-- [ ] Frontend: al subir formularios en wizard, generar código `-F01`, `-F02`...
-- [ ] Tests: 2-3 tests de formularios
+- [x] Backend: crear tabla `documento_formularios`
+- [x] Backend: `formatear_codigo_formulario` y `siguiente_correlativo_formulario` en correlativo_service
+- [x] Frontend: al subir formularios en wizard, generar código `-F01`, `-F02`...
+- [x] Tests: 3 tests en test_documentos_archivos.py
 
 ### 0.5 Fix vigencia del wizard
-- [ ] Frontend: `AprobacionDocumento.js` init() — leer `tipos_documento.periodo_vigencia` al seleccionar tipo
-- [ ] Frontend: mostrar `periodo_vigencia` real o "Indefinido"
-- [ ] Verificar con Chrome MCP: crear documento con tipo indefinido → debe mostrar "Indefinido"
+- [x] Frontend: `AprobacionDocumento.js` init() — leer `tipos_documento.periodo_vigencia` al seleccionar tipo
+- [x] Frontend: mostrar `periodo_vigencia` real o "Indefinido"
+- [x] Verificar con Chrome MCP: crear documento con tipo indefinido → debe mostrar "Indefinido" (validado con MANUAL_FUNCIONES id=2)
 
 ### 0.6 Flujo post-wizard: va a ETO primero
-- [ ] Backend: `envio_service.py` — al firmar, crear tarea de LIBERACION para ETO (matriz_enrutamiento_eto)
-- [ ] Backend: no pasar directo a EN_REVISION, sino a estado LIBERACION_ETO
-- [ ] Agregar estado `LIBERACION_ETO` al enum `EstatusDocumento` (o usar tabla `estados`)
-- [ ] Tests: 2-3 tests de flujo
+- [x] Backend: `envio_service.py` — al firmar, transiciona a LIBERACION_ETO (no directo a EN_REVISION)
+- [x] Backend: nuevo endpoint `POST /documentos/{id}/liberar` (ETO lo llama para pasar a EN_REVISION)
+- [x] Agregar estado `LIBERACION_ETO` al enum `EstatusDocumento` (migración Alembic r3_liberacion_eto_s36)
+- [x] Tests: 3 tests en test_documentos_enviar.py
+- [ ] Pendiente Fase 1: crear tareas reales para ETO segun `matriz_enrutamiento_eto` (no en alcance de Fase 0)
 
 ---
 

@@ -38,6 +38,10 @@ export const page = {
       tipoSolicitud: '',
       titulo: '',
       justificacion: '',
+      // R3 item 0.2: actualizacion documental
+      docActualizar: '',          // id del Documento existente que se actualiza
+      docsActualizables: [],      // lista de docs filtrados por (area, tipo)
+      cargandoDocsActualizables: false,
       // Issue 11.1: el cliente decidio quitar el campo "Analista ETO asignado"
       // del wizard paso 1. analistasEtoList se mantiene porque el paso 3
       // incluye ETOs como posibles revisores/aprobadores.
@@ -62,7 +66,7 @@ export const page = {
       showTree: false,
       // Arbol de difusion (gerencias con sus areas) - se construye desde BD
       arbol: [],
-      tiempoVigenciaAnos: 4,  // se carga del tipo de documento
+      tiempoVigenciaAnos: null,  // se carga del tipo de documento (null = Indefinido)
 
       // ─── Paso 3: Firmas ───
       revisores: [],   // {id, username, nombre_completo}
@@ -178,6 +182,26 @@ export const page = {
         return this.tiposList.find(t => String(t.id) === String(this.tipodoc))
       },
 
+      get tiempoVigenciaLabel() {
+        if (this.tiempoVigenciaAnos === null || this.tiempoVigenciaAnos === undefined) {
+          return 'Indefinido'
+        }
+        return `${this.tiempoVigenciaAnos} anos`
+      },
+
+      // R3 item 0.1: nombre completo del documento
+      // Formato: {codigo} {TITULO EN MAYUSCULAS} V{version}
+      get nombreCompletoAuto() {
+        if (!this.codigoAuto || this.codigoAuto === '---' || this.codigoAuto === 'Error al calcular') {
+          return ''
+        }
+        const codigo = (this.codigoAuto || '').split('/')[0]
+        const titulo = (this.titulo || '').trim().toUpperCase()
+        const version = this.versionAuto || '00'
+        if (!titulo) return `${codigo} V${version}`
+        return `${codigo} ${titulo} V${version}`
+      },
+
       // Issue 11.1: analistaEtoSeleccionadoAusente removido (ya no hay
       // campo Analista ETO en paso 1).
 
@@ -195,7 +219,11 @@ export const page = {
             this.versionAuto = res.data.version
             // Leer tiempo_vigencia del tipo
             if (this.tipoSeleccionado) {
-              this.tiempoVigenciaAnos = this.tipoSeleccionado.periodo_vigencia || 4
+              if (this.tipoSeleccionado.indefinido) {
+                this.tiempoVigenciaAnos = null
+              } else {
+                this.tiempoVigenciaAnos = this.tipoSeleccionado.periodo_vigencia
+              }
             }
           } else {
             this.codigoAuto = 'Error al calcular'
@@ -208,11 +236,66 @@ export const page = {
         }
       },
 
+      // R3 item 0.2: cargar docs actualizables (filtrados por area+tipo)
+      async _cargarDocsActualizables() {
+        this.docsActualizables = []
+        this.docActualizar = ''
+        if (this.tipoSolicitud !== 'ACTUALIZACION' || !this.tipodoc || !this.area) return
+        this.cargandoDocsActualizables = true
+        try {
+          const res = await documentos.listActualizables(this.area, this.tipodoc)
+          if (res.ok) {
+            this.docsActualizables = res.data || []
+            if (this.docsActualizables.length === 0) {
+              window.toast?.('No hay documentos APROBADOS previos para actualizar de este (area, tipo)', 'warn')
+            }
+          } else {
+            window.toast?.('No se pudieron cargar los documentos actualizables', 'error')
+          }
+        } catch (e) {
+          window.toast?.('Error: ' + (e?.message || e), 'error')
+        } finally {
+          this.cargandoDocsActualizables = false
+        }
+      },
+
+      // R3 item 0.2: al seleccionar un doc a actualizar, autocompletar campos
+      onDocActualizarChange() {
+        const d = this.docsActualizables.find(x => String(x.id) === String(this.docActualizar))
+        if (d) {
+          this.titulo = d.titulo
+          // Reutilizar el codigo y version del doc anterior (version_anterior)
+          // El backend calcula la version nueva = version_anterior + 1 al firmar.
+          this.codigoAuto = d.codigo_completo
+          this.versionAuto = this._incrementarVersion(d.version)
+        }
+      },
+
+      _incrementarVersion(v) {
+        const n = parseInt(v || '0', 10)
+        if (isNaN(n)) return '01'
+        return String(n + 1).padStart(2, '0')
+      },
+
       // ─── Watchers implicitos via metodos ───
       // (Llamados desde el template con @change)
-      onTipodocChange() { this._recalcularCodigo() },
-      onAreaChange() { this._recalcularCodigo() },
-      onTipoSolicitudChange() { this._recalcularCodigo() },
+      async onTipodocChange() {
+        await this._recalcularCodigo()
+        await this._cargarDocsActualizables()
+      },
+      async onAreaChange() {
+        await this._recalcularCodigo()
+        await this._cargarDocsActualizables()
+      },
+      async onTipoSolicitudChange() {
+        await this._recalcularCodigo()
+        if (this.tipoSolicitud === 'ACTUALIZACION') {
+          await this._cargarDocsActualizables()
+        } else {
+          this.docsActualizables = []
+          this.docActualizar = ''
+        }
+      },
 
       // ─── Paso 1: drag&drop de archivos ───
       agregarFormularios(files) {
@@ -351,10 +434,25 @@ export const page = {
                 this.flujoId = resCreate.data.flujo_id
                 // Subir archivos despues de crear
                 if (this.archivoPrincipal) {
-                  await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
+                  // R3 item 0.3: el backend valida la caratula del .docx.
+                  // Si hay warning, lo mostramos como toast (NO bloqueante).
+                  const upRes = await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
+                  if (upRes.ok && upRes.data?.caratula_validacion) {
+                    const cv = upRes.data.caratula_validacion
+                    if (!cv.coincide && cv.warnings && cv.warnings.length > 0) {
+                      window.toast?.(
+                        '⚠️ Caratula del .docx no coincide: ' + cv.warnings.join(' | '),
+                        'warn',
+                      )
+                    }
+                  }
                 }
                 for (const f of this.formulariosAsociados) {
-                  await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
+                  const upRes = await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
+                  // R3 item 0.4: si el backend devuelve codigo_formulario, mostrarlo
+                  if (upRes.ok && upRes.data?.formulario?.codigo_formulario) {
+                    window.toast?.('✅ Formulario subido: ' + upRes.data.formulario.codigo_formulario, 'success')
+                  }
                 }
               }
               // 2) Enviar a liberacion con firma 2FA
@@ -367,6 +465,9 @@ export const page = {
                 alcance_difusion_ids: this.chipsDifusion.map(c => c.id),
                 reemplaza_documento_ids: this.chipsReemplazo.length ? this.chipsReemplazo : null,
                 justificacion: this.justificacion || null,
+                documento_actualizado_id: this.tipoSolicitud === 'ACTUALIZACION' && this.docActualizar
+                  ? Number(this.docActualizar)
+                  : null,
               })
               this.submitting = false
               if (res.ok) {
@@ -466,6 +567,26 @@ export const page = {
           <option value="ACTUALIZACION">Actualizacion de documento</option>
         </select>
       </div>
+      <!-- R3 item 0.2: selector de documento a actualizar -->
+      <div class="sm:col-span-2" x-show="tipoSolicitud === 'ACTUALIZACION'">
+        <label class="form-label">Documento a actualizar *</label>
+        <select class="form-input text-xs" x-model="docActualizar" @change="onDocActualizarChange()"
+                :disabled="!tipodoc || !area || cargandoDocsActualizables">
+          <option value="">
+            <span x-show="!cargandoDocsActualizables && (!tipodoc || !area)">Seleccione tipo y area primero...</span>
+            <span x-show="cargandoDocsActualizables">Cargando documentos...</span>
+            <span x-show="!cargandoDocsActualizables && tipodoc && area && docsActualizables.length === 0">No hay documentos APROBADOS de este (area, tipo)</span>
+            <span x-show="!cargandoDocsActualizables && tipodoc && area && docsActualizables.length > 0">Seleccionar documento a actualizar...</span>
+          </option>
+          <template x-for="d in docsActualizables" :key="d.id">
+            <option :value="d.id" x-text="d.codigo_completo + ' — ' + d.titulo"></option>
+          </template>
+        </select>
+        <span class="form-hint" x-show="docActualizar">
+          La version nueva sera <span class="font-mono" x-text="(docsActualizables.find(x => String(x.id) === String(docActualizar))?.version || '00')"></span> + 1.
+          El codigo y titulo se completaron automaticamente.
+        </span>
+      </div>
       <div>
         <label class="form-label">Codigo (automatico)</label>
         <input type="text" :value="codigoAuto" class="form-input bg-slate-50 text-slate-400 font-mono text-xs" readonly>
@@ -473,6 +594,11 @@ export const page = {
       <div>
         <label class="form-label">Version (automatico)</label>
         <input type="text" :value="versionAuto" class="form-input bg-slate-50 text-slate-400 text-xs" readonly>
+      </div>
+      <div class="sm:col-span-2" x-show="codigoAuto && codigoAuto !== '---' && codigoAuto !== 'Error al calcular' && titulo.trim()">
+        <label class="form-label">Nombre completo del documento</label>
+        <input type="text" :value="nombreCompletoAuto" class="form-input bg-slate-50 text-slate-700 text-xs font-semibold" readonly>
+        <span class="form-hint">Formato: <span class="font-mono">CODIGO TITULO VXX</span> — usado como nombre del archivo .docx y en bandejas/listas.</span>
       </div>
       <div class="sm:col-span-2">
         <label class="form-label">Titulo del documento *</label>
@@ -568,7 +694,7 @@ export const page = {
     <div class="form-grid-2 mb-5">
       <div>
         <label class="form-label">Tiempo de vigencia</label>
-        <input type="text" :value="tiempoVigenciaAnos + ' anos'" class="form-input bg-slate-50 text-slate-400 text-xs" readonly>
+        <input type="text" :value="tiempoVigenciaLabel" class="form-input bg-slate-50 text-slate-400 text-xs" readonly>
       </div>
       <div>
         <label class="form-label">Requiere evaluacion</label>

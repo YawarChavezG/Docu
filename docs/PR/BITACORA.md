@@ -1,3 +1,94 @@
+## Sesión 36 — 2026-06-19 (viernes PM) — R3 Fase 0: 6 items cerrar R2 (generar_nombre_completo + LIBERACION_ETO + actualización + formularios + carátula + vigencia)
+
+### Resumen ejecutivo
+Sesion dedicada a cerrar la Fase 0 de R3 (rama `r3/workflow-revision-aprobacion` creada desde `r2/wizard-y-version-editable`). Se completaron los 6 items del wizard de R2 que estaban pendientes. **Total: 21 archivos modificados + 5 archivos nuevos, 2 migraciones Alembic, 21 tests nuevos, 249/249 tests PASS (de 228), 0 regresiones, 2 cambios de schema (enum `estatus_documento` + columna `documento_flujo.documento_actualizado_id` + tabla `documento_formularios`)**.
+
+### Tareas ejecutadas (6 items de Fase 0 + extras)
+
+| # | Item | Archivos | Resultado |
+|---|---|---|---|
+| 0.5 | Fix vigencia del wizard | `frontend/src/pages/AprobacionDocumento.js` | Bug: `periodo_vigencia \|\| 4` ignoraba el flag `indefinido`. Fix: getter `tiempoVigenciaLabel` que retorna "Indefinido" si `indefinido=true` o `periodo_vigencia` es null. Validado con Chrome MCP: MANUAL_FUNCIONES (id=2, indefinido=true) muestra "Indefinido"; PROCEDIMIENTO (id=5, periodo=4) muestra "4 anos". Screenshots: `0.5-vigencia-indefinido.png` + `0.5-vigencia-4-anos.png`. |
+| 0.1 | Helper `generar_nombre_completo` | `backend/app/services/correlativo_service.py` (nuevo helper), `backend/app/schemas/documento.py` (campo `nombre_completo` en DocumentoOut/ListItem/BuscarItem), `backend/app/api/v1/documentos.py` (computa en cada endpoint), `backend/app/api/v1/bandeja.py` (idem en BandejaItem), `frontend/src/pages/AprobacionDocumento.js` (computed + display), `frontend/src/pages/VersionEditable.js`, `frontend/src/data/documents.js` + `tasks.js` (mock data con `nombre_completo`), `frontend/src/services/documentosApi.js` (helper `generarNombreCompleto`). | Formato: `{codigo} {TITULO MAYUSCULAS} V{version}`. Ej: `CC-7-005 PROCEDIMIENTO DE MUESTREO V00`. 5 tests nuevos. Screenshot: `0.1-nombre-completo-wizard.png`. |
+| 0.6 | Flujo post-wizard: LIBERACION_ETO | `backend/app/models/documento.py` (enum `EstatusDocumento.LIBERACION_ETO`), `backend/app/services/envio_service.py` (transiciona a LIBERACION_ETO en vez de EN_REVISION + nuevo `liberar_documento`), `backend/app/api/v1/documentos.py` (nuevo endpoint `POST /documentos/{id}/liberar`), `backend/alembic/versions/2026_06_19_0000-r3_liberacion_eto_s36_add_estatus_liberacion_eto.py` (nuevo). | Migración agrega valor al enum PostgreSQL. Nuevo flujo: Wizard + firma 2FA → LIBERACION_ETO (cola de ETO) → ETO llama `/liberar` → EN_REVISION. 3 tests nuevos. Pendiente Fase 1: crear tareas reales en `matriz_enrutamiento_eto` (no en alcance de Fase 0). |
+| 0.2 | Actualizacion documental | `backend/app/models/documento_flujo.py` (nueva columna `documento_actualizado_id` FK), `backend/app/schemas/documento.py` (campo en `EnviarRequest`), `backend/app/services/envio_service.py` (setea `flujo.documento_actualizado_id`), `backend/app/api/v1/documentos.py` (nuevo endpoint `GET /documentos/actualizables?area_id=X&tipo_documento_id=Y`), `backend/alembic/versions/2026_06_19_0100-r3_doc_actualizado_s36_add_documento_actualizado_id.py` (nuevo), `frontend/src/pages/AprobacionDocumento.js` (selector de doc + autocompletar titulo/version), `frontend/src/services/documentosApi.js` (helper `listActualizables`). | Wizard paso 1: si `tipo_solicitud=ACTUALIZACION`, muestra selector filtrado por (area, tipo). Al seleccionar, autocompleta titulo + version_anterior. Backend: calcula version_snapshot = version_anterior + 1 (logica existente en `preview_codigo` + validacion en `enviar_a_liberacion`). 4 tests nuevos. |
+| 0.4 | Codigo de formularios (-F01) | `backend/app/models/documento_formulario.py` (nuevo), `backend/app/models/__init__.py`, `backend/app/services/correlativo_service.py` (helpers `formatear_codigo_formulario` + `siguiente_correlativo_formulario`), `backend/app/schemas/documento.py` (`DocumentoFormularioOut` + `formulario` en `ArchivoUploadResponse`), `backend/app/api/v1/documentos.py` (crea `DocumentoFormulario` automaticamente al subir FORMULARIO). | Tabla nueva `documento_formularios` con `documento_flujo_id` (FK) + `correlativo_formulario` + `codigo_formulario` (UNIQUE). Formato codigo: `CC-6-032-F01` (correlativo zero-padded). Wizard frontend: al subir formulario, muestra toast con codigo_formulario. 3 tests nuevos. |
+| 0.3 | Validacion de caratula (.docx) | `backend/requirements/base.txt` (agregado `python-docx==1.2.0`), `backend/app/services/caratula_service.py` (nuevo, ~210 lineas: regex extraccion + validacion), `backend/app/api/v1/documentos.py` (valida al subir PRINCIPAL .docx), `backend/app/schemas/documento.py` (campo `caratula_validacion` en response), `frontend/src/pages/AprobacionDocumento.js` (toast warning-only), `backend/tests/docx_helpers.py` (nuevo, helper para tests). | Lee primeras 30 lineas del .docx (incluye tablas). Extrae codigo (regex `[A-Z]{2,5}-d{1,2}-d{3,4}`) + version (regex `(V|VERSION)s*0?(d{1,2})`) + titulo (heuristica). Si no encuentra codigo NI version: NO warning (no se puede validar). Si encuentra pero difiere: warning (NO bloqueante). Frontend: toast warn. 6 tests nuevos. |
+
+### Hallazgos
+
+1. **2 FKs entre documento_flujo y documentos (R3 item 0.2):** al agregar `documento_actualizado_id`, SQLAlchemy ya no puede determinar automaticamente la relacion del `relationship("Documento", back_populates="flujos")`. **Fix**: especificar `foreign_keys=[documento_id]` explicitamente. La otra FK (`documento_actualizado_id`) tiene su propia relacion `documento_actualizado`.
+
+2. **CSRF bypass con test parciales (regresion del fix de sesion 35):** al reiniciar el backend, la cookie csrf_token se setea OK pero el script de prueba fallo porque faltaba el `X-CSRF-Token` header. **No es un bug del middleware** (ya documentado en B14 de LEARNINGS-ERRORES.md), solo del script de testing.
+
+3. **Wiring de `BaseModel` en documentos.py (R3 item 0.6):** el archivo `app/api/v1/documentos.py` no importaba `BaseModel`/`Field` de pydantic. Al agregar los schemas `LiberarRequest`/`LiberarResponse` fallo el import. **Fix**: agregar import explicito.
+
+4. **`periodo_vigencia` editable en wizard pero no persistido en BD:** el campo `tiempo_vigencia_anos` del flujo es un snapshot del tipo. Si el operador cambia el `periodo_vigencia` del tipo en Parametrizacion, los flujos viejos mantienen el viejo. Decisión: OK, es snapshot (es lo que dice la columna). Documentado para Fase 4 si surge la necesidad de recalcular.
+
+### Decisiones tecnicas
+
+- **ADR-069 (candidato) — Migrations Alembic aplicadas manualmente en DES:** el lock asgITransport entre backend y BD impidio correr `alembic upgrade head` via Python. Workaround: ejecutar `ALTER TYPE/ADD COLUMN` via `docker exec sgd-postgres psql` y actualizar `alembic_version` manualmente. Razon: el script Alembic queda commiteado para que QAS/PROD lo corran con el flujo normal. Documentado en `alembic/versions/2026_06_19_*.py` (downgrade intencionalmente vacio para ALTER TYPE ADD VALUE porque PG < 12 no soporta DROP VALUE).
+
+- **Tabla `documento_formularios` separada de `archivos_adjuntos`:** apesar de que podriamos haber agregado `codigo_formulario` + `correlativo_formulario` a `archivos_adjuntos`, la propuesta R3 define `documento_formularios` con FK a `documento_flujo` (no a `documento`) para que cada version del doc tenga sus propios formularios. Esto preserva la trazabilidad cuando un doc se actualiza.
+
+- **Validacion de caratula como warning-only (no bloqueante):** la extraccion por regex puede fallar con formatos no estandar (ej: una imagen en lugar de texto). El servicio retorna `coincide=True` + `warnings=[]` si no puede parsear (no penalizamos al usuario). Si parsea pero difiere, retorna `coincide=False` + `warnings=[...]` y el frontend muestra un toast. El upload SIEMPRE tiene status 201 (no se rechaza).
+
+- **Mock data enriquecida con `nombre_completo`:** las paginas que aun usan mock data (Bandeja, ListaMaestra, TareasCompletas) ahora tienen `nombre_completo` como campo + `title` attribute en el cod cell. Cuando se migre a API real en Fase 6, el cambio es transparente (el backend ya devuelve el campo).
+
+### Archivos modificados (16) + creados (5)
+
+**Modificados (16):**
+- `backend/app/api/v1/bandeja.py` (agregado `generar_nombre_completo` en BandejaItem)
+- `backend/app/api/v1/documentos.py` (refs a campos nuevos + endpoints `liberar` + `actualizables` + logica de validacion)
+- `backend/app/models/__init__.py` (exporta DocumentoFormulario)
+- `backend/app/models/documento.py` (enum EstatusDocumento.LIBERACION_ETO)
+- `backend/app/models/documento_flujo.py` (columna documento_actualizado_id + foreign_keys explicito)
+- `backend/app/schemas/bandeja.py` (campo nombre_completo en BandejaItem)
+- `backend/app/schemas/documento.py` (nombre_completo en 3 schemas + DocumentoFormularioOut + caratula_validacion)
+- `backend/app/services/correlativo_service.py` (helpers: generar_nombre_completo, formatear_codigo_formulario, siguiente_correlativo_formulario)
+- `backend/app/services/envio_service.py` (transicion a LIBERACION_ETO + nuevo liberar_documento)
+- `backend/requirements/base.txt` (python-docx==1.2.0)
+- `backend/tests/conftest.py` (estado LIBERACION_ETO + actualizacion de test_enviar_password_correcta_200)
+- `backend/tests/test_correlativo_service.py` (5 tests nuevos para generar_nombre_completo)
+- `backend/tests/test_documentos_archivos.py` (3 tests nuevos para formularios)
+- `backend/tests/test_documentos_enviar.py` (7 tests nuevos: 3 para liberar + 4 para actualizacion)
+- `frontend/src/data/documents.js` (mock data con nombre_completo + filtro de busqueda)
+- `frontend/src/data/tasks.js` (mock data con nombre_completo)
+- `frontend/src/pages/AprobacionDocumento.js` (vigencia + nombre_completo + actualizacion + toast caratula + toast formulario)
+- `frontend/src/pages/Bandeja.js` (title attribute con nombre_completo)
+- `frontend/src/pages/ListaMaestra.js` (title attribute + filtro)
+- `frontend/src/pages/TareasCompletas.js` (title attribute)
+- `frontend/src/pages/VersionEditable.js` (display nombre_completo)
+- `frontend/src/services/documentosApi.js` (helper generarNombreCompleto + listActualizables + liberar)
+
+**Creados (5):**
+- `backend/app/models/documento_formulario.py` (~115 lineas, modelo SQLAlchemy 2.0)
+- `backend/app/services/caratula_service.py` (~210 lineas, validacion .docx)
+- `backend/alembic/versions/2026_06_19_0000-r3_liberacion_eto_s36_add_estatus_liberacion_eto.py`
+- `backend/alembic/versions/2026_06_19_0100-r3_doc_actualizado_s36_add_documento_actualizado_id.py`
+- `backend/tests/docx_helpers.py` (helpers para tests de caratula)
+- `backend/tests/test_caratula_service.py` (6 tests, agregado con `git add -f` por .gitignore `test_*.py`)
+
+### Estado al cierre de sesion 36
+
+| Metrica | Valor | Estado |
+|---|---|---|
+| pytest | **249/249 PASS** (de 228) | ✅ |
+| Tests nuevos sesion 36 | 21 (5+3+7+6) | ✅ |
+| Migraciones Alembic | 2 nuevas (aplicadas a DES) | ✅ |
+| Rama | `r3/workflow-revision-aprobacion` | ✅ |
+| Pendiente commit | 21 archivos mod + 5 nuevos (atomic commit) | ⏳ |
+| QAS | SIN TOCAR (cambios solo DES) | — |
+
+### Pendientes post-sesion 36
+
+- **Commit atomico** de los 26 archivos de esta sesion.
+- **R3 Fase 1**: crear tablas `tareas`, `bitacora_timeline`, `notificaciones`, etc. (segun `CHECKLIST-R3-FASES.md`).
+- **Fase 0 item 0.6 - extension real:** una vez que existan las tablas de `tareas` y `matriz_enrutamiento_eto` lookup, `liberar_documento` debe CREAR 1 tarea REVISION por cada revisor del flujo (no solo transicionar el estatus).
+- **Fase 0 item 0.6 - frontend:** agregar la pantalla `LiberacionDetalle.js` que muestre la cola de LIBERACION_ETO del ETO + boton "Liberar" (actualmente esa pagina existe pero usa mock data, ver backlog de Fase 6).
+- **Deploy a QAS v1.1.1-qas:** incluye los cambios de Fase 0 (el CSRF de sesion 35 + este lote). Validar con `validate-qas.sh` despues del deploy.
+
+---
+
 ## Sesión 35 — 2026-06-19 (viernes PM) — 3 fixes deuda técnica (B3 + B1 + CSRF)
 
 ### Resumen ejecutivo

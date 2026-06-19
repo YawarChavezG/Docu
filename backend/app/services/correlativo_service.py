@@ -136,3 +136,76 @@ def formatear_codigo_completo(codigo: str, version: str) -> str:
         formatear_codigo_completo("CC-3-005", "01") -> "CC-3-005/01"
     """
     return f"{codigo}/{version}"
+
+
+def generar_nombre_completo(codigo: str, titulo: str, version: str) -> str:
+    """
+    Genera el nombre completo del documento (codigo + titulo + version).
+    Segun R3 item 0.1 y PROPUESTA-R3-TABLAS.md §1.5.1.
+
+    Formato: {codigo} {TITULO EN MAYUSCULAS} V{version}
+
+    Ejemplos:
+        generar_nombre_completo("CC-7-005", "Procedimiento de Muestreo", "00")
+        -> "CC-7-005 PROCEDIMIENTO DE MUESTREO V00"
+        generar_nombre_completo("CAL-5-001", "manual de calidad", "01")
+        -> "CAL-5-001 MANUAL DE CALIDAD V01"
+
+    Args:
+        codigo: codigo corto del documento (sin version), ej: "CC-7-005".
+        titulo: titulo legible del documento. Se normaliza a MAYUSCULAS.
+        version: version del documento en formato zero-padded ("00", "01", ...).
+
+    Returns:
+        Nombre completo listo para mostrar al usuario.
+    """
+    titulo_norm = (titulo or "").strip().upper()
+    if not titulo_norm:
+        return f"{codigo} V{version}"
+    return f"{codigo} {titulo_norm} V{version}"
+
+
+# ════════════════════════════════════════════════════════════════
+#  R3 item 0.4: codigo de formularios (-F01, -F02, etc.)
+#  PROPUESTA-R3-TABLAS.md §1.5.3
+# ════════════════════════════════════════════════════════════════
+
+
+def formatear_codigo_formulario(codigo_documento: str, correlativo_formulario: int) -> str:
+    """
+    Genera el codigo de un formulario.
+    Formato: {codigo_documento}-F{correlativo:02d}
+
+    Ejemplos:
+        formatear_codigo_formulario("CC-6-032", 1) -> "CC-6-032-F01"
+        formatear_codigo_formulario("CC-6-032", 2) -> "CC-6-032-F02"
+        formatear_codigo_formulario("CC-6-032", 15) -> "CC-6-032-F15"
+    """
+    return f"{codigo_documento}-F{correlativo_formulario:02d}"
+
+
+async def siguiente_correlativo_formulario(
+    db: AsyncSession,
+    documento_flujo_id: int,
+) -> int:
+    """
+    Calcula el siguiente correlativo de formulario disponible para el flujo.
+
+    Returns:
+        Siguiente correlativo (1, 2, 3, ...).
+
+    Raises:
+        RuntimeError: si la consulta falla.
+
+    IMPORTANTE: debe ejecutarse dentro de una transaccion activa
+    (async with db.begin()) para garantizar consistencia.
+    """
+    from app.models.documento_formulario import DocumentoFormulario
+
+    result = await db.execute(
+        select(func.coalesce(func.max(DocumentoFormulario.correlativo_formulario), 0))
+        .where(DocumentoFormulario.documento_flujo_id == documento_flujo_id)
+        .where(DocumentoFormulario.activo == True)
+    )
+    max_corr = result.scalar_one() or 0
+    return max_corr + 1

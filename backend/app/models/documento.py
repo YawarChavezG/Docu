@@ -55,6 +55,7 @@ class VigenciaDocumento(str, enum.Enum):
 class EstatusDocumento(str, enum.Enum):
     """Estado del documento dentro del workflow documental."""
     EN_ELABORACION = "EN_ELABORACION"
+    LIBERACION_ETO = "LIBERACION_ETO"   # R3 item 0.6: nuevo estado entre EN_ELABORACION y EN_REVISION
     EN_REVISION = "EN_REVISION"
     APROBADO = "APROBADO"
     OBSOLETO = "OBSOLETO"
@@ -165,6 +166,7 @@ class Documento(Base):
 
     flujos: Mapped[List["DocumentoFlujo"]] = relationship(
         "DocumentoFlujo", back_populates="documento", cascade="all, delete-orphan",
+        foreign_keys="DocumentoFlujo.documento_id",
     )
     archivos: Mapped[List["ArchivoAdjunto"]] = relationship(
         "ArchivoAdjunto", back_populates="documento", cascade="all, delete-orphan",

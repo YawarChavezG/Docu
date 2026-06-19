@@ -98,8 +98,8 @@ export const page = {
             <tr style="border-bottom:1px solid #f1f5f9;transition:background 100ms" @mouseenter="$el.style.background='rgba(239,246,255,0.5)'" @mouseleave="$el.style.background=''">
               <td style="padding:9px 12px;font-family:monospace;font-weight:600;color:#64748b;font-size:11px" x-text="t.id"></td>
               <td style="padding:9px 12px"><span class="badge" :class="tipoCls(t.tipoBadge)" x-text="t.tipo"></span></td>
-              <td style="padding:9px 12px;font-family:monospace;font-size:11px;color:#1a5fb4" x-text="t.cod"></td>
-              <td style="padding:9px 12px;font-size:11.5px" x-text="t.nombre"></td>
+              <td style="padding:9px 12px;font-family:monospace;font-size:11px;color:#1a5fb4" :title="t.nombre_completo || ''" x-text="t.cod"></td>
+              <td style="padding:9px 12px;font-size:11.5px" :title="t.nombre_completo || ''" x-text="t.nombre"></td>
               <td style="padding:9px 12px;font-size:11px;color:#64748b" x-text="t.remitente"></td>
               <td style="padding:9px 12px;font-size:11px;color:#64748b" x-text="t.fecha"></td>
               <td style="padding:9px 12px">

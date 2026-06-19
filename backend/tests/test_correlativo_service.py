@@ -7,6 +7,7 @@ import pytest
 from app.services.correlativo_service import (
     formatear_codigo,
     formatear_codigo_completo,
+    generar_nombre_completo,
     siguiente_correlativo_advisory,
 )
 
@@ -52,6 +53,49 @@ def test_formatear_codigo_completo_v99():
 def test_formatear_codigo_completo_con_guion():
     """Codigos con guiones tambien funcionan."""
     assert formatear_codigo_completo("PROM29402-5-001", "01") == "PROM29402-5-001/01"
+
+
+# ════════════════════════════════════════════════════════════════
+#  generar_nombre_completo (R3 item 0.1)
+#  Formato: {codigo} {TITULO EN MAYUSCULAS} V{version}
+# ════════════════════════════════════════════════════════════════
+
+def test_generar_nombre_completo_basico():
+    """Formato canonico segun PROPUESTA-R3-TABLAS.md §1.5.1."""
+    assert (
+        generar_nombre_completo("CC-7-005", "Procedimiento de Muestreo", "00")
+        == "CC-7-005 PROCEDIMIENTO DE MUESTREO V00"
+    )
+
+
+def test_generar_nombre_completo_normaliza_mayusculas():
+    """El titulo se normaliza a MAYUSCULAS independientemente del case original."""
+    assert (
+        generar_nombre_completo("CAL-5-001", "manual de calidad", "01")
+        == "CAL-5-001 MANUAL DE CALIDAD V01"
+    )
+
+
+def test_generar_nombre_completo_con_acentos():
+    """Los acentos del titulo se preservan tras subir a MAYUSCULAS."""
+    assert (
+        generar_nombre_completo("CC-3-005", "Política de Gestión", "02")
+        == "CC-3-005 POLÍTICA DE GESTIÓN V02"
+    )
+
+
+def test_generar_nombre_completo_titulo_vacio():
+    """Sin titulo, devuelve solo el codigo + version (no rompe la UI)."""
+    assert generar_nombre_completo("CC-3-005", "", "00") == "CC-3-005 V00"
+    assert generar_nombre_completo("CC-3-005", None, "00") == "CC-3-005 V00"
+
+
+def test_generar_nombre_completo_titulo_strip():
+    """Whitespace al inicio/final del titulo se trimea antes de formatear."""
+    assert (
+        generar_nombre_completo("CC-3-005", "  Procedimiento X  ", "00")
+        == "CC-3-005 PROCEDIMIENTO X V00"
+    )
 
 
 # ════════════════════════════════════════════════════════════════

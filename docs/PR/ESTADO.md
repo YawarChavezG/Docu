@@ -1,13 +1,14 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-19 (sesión 35 — **3 FIXES DEUDA TÉCNICA: B3 vite manualChunks + B1 gerencia cascade + CSRF middleware, 228/228 tests PASS**)
+> **Última actualización:** 2026-06-19 (sesión 36 — **R3 FASE 0 CERRADA: 6 items completados, 21 tests nuevos, 249/249 tests PASS**)
 
 ## Versión actual
-**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). Sesión 35 cerró 3 items de deuda técnica (B3 vite manualChunks + B1 gerencia cascade + CSRF middleware), 228/228 tests PASS. QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
+**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). Sesión 35 cerró 3 items de deuda técnica (B3 vite manualChunks + B1 gerencia cascade + CSRF middleware), 228/228 tests PASS. **Sesión 36 cierra la FASE 0 de R3** (6 items: 0.5 vigencia + 0.1 nombre_completo + 0.6 LIBERACION_ETO + 0.2 actualizacion + 0.4 formularios -F01 + 0.3 validacion caratula .docx), **249/249 tests PASS** (21 nuevos). QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
 1. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` (FASE 3.1 de STARTUP-CHECKLIST.md). Los 723 usuario_roles actuales son snapshot de DES; el operador debe re-asignar con la matriz oficial.
 2. **Restore script + nginx restart** (low): agregar `docker restart sgd-qas-nginx` al final de `restore_clean_state_qas.sh` para automatizar el fix del 502.
-3. **CSRF middleware en QAS**: el cambio de sesión 35 está solo en DES. El próximo deploy a QAS (v1.1.1-qas) debe incluir `backend/app/middleware/csrf.py` + registro en main.py + `_auth_cookies` del conftest (que NO afecta QAS, solo tests).
+3. **Deploy a QAS v1.1.1-qas** (Fase 0 + CSRF): acumula los cambios de sesiones 35 y 36. Pendiente bumpear tag.
+4. **R3 Fase 1**: crear tablas `tareas`, `bitacora_timeline`, `notificaciones`, `documento_reemplazos`, `documento_alcance_difusion`, `tarea_observaciones`, `procesos`. Extender enum `TipoTarea` con LIBERACION + CORRECCION. Migración Alembic.
 
 **Sesión 34 (2026-06-19)**: **Cierre 6 fixes pendientes post-deploy v1.1.0-qas**. 3 archivos modificados (deploy-qas.bat OpenSSL 3.x + start-stack-qas.sh seed_documentos + BITACORA.md) + 1 nuevo (`scripts/restore_clean_state_qas.sh`, 81 lineas, untracked, ya en QAS via scp). 0 commits aún (pendiente cierre de sesión). QAS 35/35 PASS. 10 documentos en BD (seed_documentos.py primera corrida). Restore script validado (audit_log=0, gerencias=10, usuarios=754, documentos=0 pre-seed). Nginx 502 post-restore resuelto con `docker restart sgd-qas-nginx` (trampa conocida sesión 33). 3 queries adicionales OK: excluidos AD=0, documentos=10, usuario_roles=723.
 

@@ -224,7 +224,7 @@ export const page = {
                  @mouseenter="$el.style.background='#f0f9ff'"
                  @mouseleave="$el.style.background='transparent'">
               <div style="min-width:0;flex:1">
-                <div style="font-size:11.5px;font-weight:700;color:#1e293b;font-family:monospace" x-text="r.codigo_completo"></div>
+                <div style="font-size:11.5px;font-weight:700;color:#1e293b;font-family:monospace" x-text="r.nombre_completo || (r.codigo_completo + ' ' + (r.titulo||'').toUpperCase() + ' V' + r.version)"></div>
                 <div style="font-size:10.5px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" x-text="r.titulo"></div>
               </div>
               <div style="display:flex;gap:4px;align-items:center;flex-shrink:0">

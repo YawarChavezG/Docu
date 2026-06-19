@@ -62,6 +62,7 @@ class DocumentoBuscarItem(BaseModel):
     codigo_completo: str     # "CC-3-005/00" (con version)
     version: str
     titulo: str
+    nombre_completo: str     # "CC-3-005 PROCEDIMIENTO DE MUESTREO V00" (R3 item 0.1)
     tipo: DocumentoTipoRef
     area: DocumentoAreaRef
     gerencia: DocumentoGerenciaRef
@@ -102,6 +103,7 @@ class DocumentoOut(BaseModel):
     codigo_completo: str
     version: str
     titulo: str
+    nombre_completo: str     # R3 item 0.1
     aprobacion_at: Optional[datetime] = None
     expira_at: Optional[datetime] = None
     vigencia: str
@@ -125,6 +127,7 @@ class DocumentoListItem(BaseModel):
     codigo_completo: str
     version: str
     titulo: str
+    nombre_completo: str     # R3 item 0.1: "CC-3-005 PROCEDIMIENTO DE MUESTREO V00"
     tipo_codigo: int
     tipo_nombre: str
     gerencia_sigla: str
@@ -218,6 +221,9 @@ class EnviarRequest(BaseModel):
     alcance_difusion_ids: list[int] = Field(default_factory=list)
     reemplaza_documento_ids: Optional[list[str]] = None  # Sesion 25 / Issue 11.2: codigos, no IDs
     justificacion: Optional[str] = Field(None, max_length=1000)
+    # R3 item 0.2: solo si tipo_solicitud=ACTUALIZACION. Apunta al Documento
+    # que se esta actualizando (sirve para trazabilidad + version_anterior+1).
+    documento_actualizado_id: Optional[int] = Field(None, gt=0)
 
 
 class EnviarResponse(BaseModel):
@@ -251,4 +257,34 @@ class ArchivoAdjuntoOut(BaseModel):
 class ArchivoUploadResponse(BaseModel):
     """Respuesta del upload con metadata completa."""
     archivo: ArchivoAdjuntoOut
+    # R3 item 0.4: si el archivo es un formulario, devuelve tambien el codigo_formulario.
+    # None si es PRINCIPAL.
+    formulario: Optional["DocumentoFormularioOut"] = None
+    # R3 item 0.3: warning-only validacion de caratula del .docx.
+    # None si no es PRINCIPAL .docx o si no se pudo parsear.
+    # Si `coincide=False`, el frontend muestra un toast de advertencia.
+    caratula_validacion: Optional[dict] = None
     message: str = "Archivo subido exitosamente"
+
+
+class DocumentoFormularioOut(BaseModel):
+    """Schema de salida para DocumentoFormulario (R3 item 0.4)."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    documento_flujo_id: int
+    correlativo_formulario: int
+    codigo_formulario: str  # "CC-6-032-F01"
+    nombre_original: str
+    nombre_storage: str
+    mime_type: str
+    tamano_bytes: int
+    storage_backend: str
+    storage_path: str
+    descripcion: Optional[str] = None
+    activo: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+# Rebuild the forward reference now that DocumentoFormularioOut is defined
+ArchivoUploadResponse.model_rebuild()

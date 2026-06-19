@@ -60,6 +60,9 @@ from app.models.archivo_adjunto import (  # noqa: F401
     TipoAdjunto,
     StorageBackend,
 )
+from app.models.documento_formulario import (  # noqa: F401
+    DocumentoFormulario,
+)
 
 
 __all__ = [
@@ -103,4 +106,5 @@ __all__ = [
     "ArchivoAdjunto",
     "TipoAdjunto",
     "StorageBackend",
+    "DocumentoFormulario",
 ]

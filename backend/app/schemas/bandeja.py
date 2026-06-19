@@ -15,6 +15,7 @@ class BandejaItem(BaseModel):
     codigo_completo: str
     version: str
     titulo: str
+    nombre_completo: str     # R3 item 0.1: "CC-3-005 PROCEDIMIENTO DE MUESTREO V00"
     tipo_codigo: int
     tipo_nombre: str
     gerencia_sigla: str

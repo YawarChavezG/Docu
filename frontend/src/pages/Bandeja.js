@@ -14,8 +14,8 @@ const tareasRows = tareasBandejaDB.map(t => `
   <tr>
     <td style="padding:9px 12px;font-family:monospace;font-weight:600;color:#64748b;font-size:11px">${t.id}</td>
     <td style="padding:9px 12px"><span class="badge ${t.tipoBadge}">${t.tipo}</span></td>
-    <td style="padding:9px 12px;font-family:monospace;font-size:11px;color:#1a5fb4">${t.cod}</td>
-    <td style="padding:9px 12px;font-size:11.5px;max-width:200px">${t.nombre}</td>
+    <td style="padding:9px 12px;font-family:monospace;font-size:11px;color:#1a5fb4" title="${t.nombre_completo || (t.cod + ' ' + (t.nombre||'').toUpperCase())}">${t.cod}</td>
+    <td style="padding:9px 12px;font-size:11.5px;max-width:200px" title="${t.nombre_completo || ''}">${t.nombre}</td>
     <td style="padding:9px 12px;font-size:11px;color:#64748b">${t.remitente}</td>
     <td style="padding:9px 12px;font-size:11px;color:#64748b">${t.fecha}</td>
     <td style="padding:9px 12px"><span class="badge ${t.slaBadge}">${t.sla}</span></td>
@@ -25,8 +25,8 @@ const tareasRows = tareasBandejaDB.map(t => `
 const evalRows = evaluacionesPendientesDB.map(e => `
   <tr>
     <td style="padding:9px 12px;font-size:11.5px">${e.tipo}</td>
-    <td style="padding:9px 12px;font-family:monospace;font-size:11px">${e.cod}</td>
-    <td style="padding:9px 12px;font-size:11.5px">${e.nombre}</td>
+    <td style="padding:9px 12px;font-family:monospace;font-size:11px" title="${e.nombre_completo || ''}">${e.cod}</td>
+    <td style="padding:9px 12px;font-size:11.5px" title="${e.nombre_completo || ''}">${e.nombre}</td>
     <td style="padding:9px 12px;font-size:11.5px">${e.fechaInicio}</td>
     <td style="padding:9px 12px;font-size:11px;font-weight:600;color:${e.urgente ? '#dc2626' : '#d97706'}">${e.fechaLimite}</td>
     <td style="padding:9px 12px"><a href="#${e.ruta}" class="btn ${e.btnClass} btn-sm">${e.btnLabel}</a></td>
@@ -35,8 +35,8 @@ const evalRows = evaluacionesPendientesDB.map(e => `
 const lecturaRows = controlesLecturaDB.map(c => `
   <tr>
     <td style="padding:9px 12px;font-size:11.5px">${c.tipo}</td>
-    <td style="padding:9px 12px;font-family:monospace;font-size:11px">${c.cod}</td>
-    <td style="padding:9px 12px;font-size:11.5px">${c.nombre}</td>
+    <td style="padding:9px 12px;font-family:monospace;font-size:11px" title="${c.nombre_completo || ''}">${c.cod}</td>
+    <td style="padding:9px 12px;font-size:11.5px" title="${c.nombre_completo || ''}">${c.nombre}</td>
     <td style="padding:9px 12px;font-size:11.5px">${c.fechaInicio}</td>
     <td style="padding:9px 12px;font-size:11px;color:#64748b">${c.fechaFin}</td>
     <td style="padding:9px 12px"><a href="#${c.ruta}" class="btn btn-primary btn-sm">${c.btnLabel}</a></td>

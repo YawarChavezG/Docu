@@ -53,6 +53,16 @@ export const documentos = {
     return apiPost(`/documentos/${id}/archivos`, formData)
   },
   enviar: (id, body) => apiPost(`/documentos/${id}/enviar`, body),
+  // R3 item 0.6
+  liberar: (id, body) => apiPost(`/documentos/${id}/liberar`, body),
+  // R3 item 0.2
+  listActualizables: (areaId, tipoDocumentoId) => {
+    const params = new URLSearchParams({
+      area_id: String(areaId),
+      tipo_documento_id: String(tipoDocumentoId),
+    })
+    return apiGet(`/documentos/actualizables?${params.toString()}`)
+  },
 }
 
 // ─── Bandejas ───
@@ -65,6 +75,16 @@ export const bandejas = {
     apiGet(`/bandeja?tipo=aprobacion&page=${page}&page_size=${pageSize}`),
   liberacion: (page = 1, pageSize = 10) =>
     apiGet(`/bandeja?tipo=liberacion&page=${page}&page_size=${pageSize}`),
+}
+
+// ─── Helpers (R3 item 0.1) ───
+export function generarNombreCompleto(codigo, titulo, version) {
+  if (!codigo) return ''
+  const cod = String(codigo).split('/')[0]
+  const tit = (titulo || '').trim().toUpperCase()
+  const ver = version || '00'
+  if (!tit) return `${cod} V${ver}`
+  return `${cod} ${tit} V${ver}`
 }
 
 export default documentos

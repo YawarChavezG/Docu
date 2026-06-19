@@ -3,25 +3,29 @@
  * Extraído 1:1 de Mi Bandeja y Lista Completa de Tareas del HTML original
  */
 
+function _nc(cod, tit, ver) {
+  return `${cod} ${(tit || '').toUpperCase()} V${ver || '00'}`
+}
+
 // ─── Tareas Pendientes (Flujo) — Mini tabla en Bandeja ───────────────────────
 export const tareasBandejaDB = [
   {
     id: '243', tipo: 'Corregir Observaciones', tipoBadge: 'badge-amber',
-    cod: 'PRO-CAL-045', nombre: 'Procedimiento de Muestreo',
+    cod: 'PRO-CAL-045', nombre: 'Procedimiento de Muestreo', nombre_completo: _nc('PRO-CAL-045', 'Procedimiento de Muestreo', '03'),
     remitente: 'Aracely Romero (ETO)', fecha: '10/01/2026',
     sla: '🔴 6 días', slaBadge: 'badge-red',
     ruta: '/correccion',
   },
   {
     id: '244', tipo: 'Revisar Documento', tipoBadge: 'badge-blue',
-    cod: 'INS-PRO-012', nombre: 'Instructivo de Limpieza',
+    cod: 'INS-PRO-012', nombre: 'Instructivo de Limpieza', nombre_completo: _nc('INS-PRO-012', 'Instructivo de Limpieza', '03'),
     remitente: 'Carlos Flores', fecha: '14/01/2026',
     sla: '🟡 2 días', slaBadge: 'badge-amber',
     ruta: '/revision',
   },
   {
     id: '245', tipo: 'Aprobar Documento', tipoBadge: 'badge-gray',
-    cod: 'MAN-LOG-003', nombre: 'Manual de Logística',
+    cod: 'MAN-LOG-003', nombre: 'Manual de Logística', nombre_completo: _nc('MAN-LOG-003', 'Manual de Logística', '01'),
     remitente: 'Lucía Castro', fecha: '15/01/2026 (Hoy)',
     sla: '🟢 0 días', slaBadge: 'badge-green',
     ruta: '/aprobacion-final',
@@ -30,29 +34,29 @@ export const tareasBandejaDB = [
 
 // ─── Tareas Completas (Lista Completa de Tareas Pendientes) ──────────────────
 export const tareasCompletasDB = [
-  { id: '243', tipo: 'Corregir Observaciones', tipoBadge: 'badge-amber', cod: 'PRO-CAL-045', nombre: 'Procedimiento de Muestreo',      remitente: 'Aracely Romero (ETO)', fecha: '10/01/2026', sla: '🔴 6 días', slaBadge: 'badge-red',   ruta: '/correccion'         },
-  { id: '244', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'INS-PRO-012', nombre: 'Instructivo de Limpieza',        remitente: 'Carlos Flores',        fecha: '14/01/2026', sla: '🟡 2 días', slaBadge: 'badge-amber', ruta: '/revision'           },
-  { id: '245', tipo: 'Aprobar Documento',       tipoBadge: 'badge-gray',  cod: 'MAN-LOG-003', nombre: 'Manual de Logística',            remitente: 'Lucía Castro',         fecha: '15/01/2026', sla: '🟢 0 días', slaBadge: 'badge-green', ruta: '/aprobacion-final'           },
-  { id: '246', tipo: 'Liberación ETO',          tipoBadge: 'badge-amber', cod: 'MET-CAL-002', nombre: 'Metodología HPLC v3',            remitente: 'Juan Perez',           fecha: '13/01/2026', sla: '🟡 3 días', slaBadge: 'badge-amber', ruta: '/liberacion-detalle' },
-  { id: '247', tipo: 'Liberación ETO',          tipoBadge: 'badge-amber', cod: 'PRO-LOG-018', nombre: 'Procedimiento de Despacho',      remitente: 'Carlos Flores',        fecha: '12/01/2026', sla: '🔴 4 días', slaBadge: 'badge-red',   ruta: '/liberacion-detalle' },
-  { id: '248', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'FOR-RRHH-008',nombre: 'Formulario de Vacaciones',       remitente: 'María Condori',        fecha: '16/01/2026', sla: '🟢 0 días', slaBadge: 'badge-green', ruta: '/revision'           },
-  { id: '249', tipo: 'Aprobar Documento',       tipoBadge: 'badge-gray',  cod: 'INS-CAL-003', nombre: 'Instructivo de Calibración',     remitente: 'Jasiel Sanjinés',      fecha: '11/01/2026', sla: '🟡 5 días', slaBadge: 'badge-amber', ruta: '/aprobacion-final'           },
-  { id: '250', tipo: 'Corregir Observaciones', tipoBadge: 'badge-amber', cod: 'PRO-PRO-019', nombre: 'Procedimiento de Empaque',        remitente: 'Aracely Romero (ETO)', fecha: '09/01/2026', sla: '🔴 7 días', slaBadge: 'badge-red',   ruta: '/correccion'         },
-  { id: '251', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'MAN-CAL-001', nombre: 'Manual de Calidad General',      remitente: 'Lucía Terán',          fecha: '15/01/2026', sla: '🟢 1 día',  slaBadge: 'badge-green', ruta: '/revision'           },
-  { id: '252', tipo: 'Liberación ETO',          tipoBadge: 'badge-amber', cod: 'FOR-PRO-022', nombre: 'Registro de Temperatura',        remitente: 'Luis Mamani',          fecha: '16/01/2026', sla: '🟢 0 días', slaBadge: 'badge-green', ruta: '/liberacion-detalle' },
-  { id: '253', tipo: 'Aprobar Documento',       tipoBadge: 'badge-gray',  cod: 'POL-GER-003', nombre: 'Política de Seguridad Interna',  remitente: 'Aracely Romero (ETO)', fecha: '08/01/2026', sla: '🔴 8 días', slaBadge: 'badge-red',   ruta: '/aprobacion-final'           },
-  { id: '254', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'INS-LOG-005', nombre: 'Instructivo de Despacho Urgente',remitente: 'Carlos Flores',        fecha: '14/01/2026', sla: '🟡 2 días', slaBadge: 'badge-amber', ruta: '/revision'           },
+  { id: '243', tipo: 'Corregir Observaciones', tipoBadge: 'badge-amber', cod: 'PRO-CAL-045', nombre: 'Procedimiento de Muestreo', nombre_completo: _nc('PRO-CAL-045', 'Procedimiento de Muestreo', '03'),      remitente: 'Aracely Romero (ETO)', fecha: '10/01/2026', sla: '🔴 6 días', slaBadge: 'badge-red',   ruta: '/correccion'         },
+  { id: '244', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'INS-PRO-012', nombre: 'Instructivo de Limpieza',   nombre_completo: _nc('INS-PRO-012', 'Instructivo de Limpieza', '03'),        remitente: 'Carlos Flores',        fecha: '14/01/2026', sla: '🟡 2 días', slaBadge: 'badge-amber', ruta: '/revision'           },
+  { id: '245', tipo: 'Aprobar Documento',       tipoBadge: 'badge-gray',  cod: 'MAN-LOG-003', nombre: 'Manual de Logística',       nombre_completo: _nc('MAN-LOG-003', 'Manual de Logística', '01'),            remitente: 'Lucía Castro',         fecha: '15/01/2026', sla: '🟢 0 días', slaBadge: 'badge-green', ruta: '/aprobacion-final'           },
+  { id: '246', tipo: 'Liberación ETO',          tipoBadge: 'badge-amber', cod: 'MET-CAL-002', nombre: 'Metodología HPLC v3',       nombre_completo: _nc('MET-CAL-002', 'Metodología HPLC v3', '02'),            remitente: 'Juan Perez',           fecha: '13/01/2026', sla: '🟡 3 días', slaBadge: 'badge-amber', ruta: '/liberacion-detalle' },
+  { id: '247', tipo: 'Liberación ETO',          tipoBadge: 'badge-amber', cod: 'PRO-LOG-018', nombre: 'Procedimiento de Despacho', nombre_completo: _nc('PRO-LOG-018', 'Procedimiento de Despacho', '04'),      remitente: 'Carlos Flores',        fecha: '12/01/2026', sla: '🔴 4 días', slaBadge: 'badge-red',   ruta: '/liberacion-detalle' },
+  { id: '248', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'FOR-RRHH-008',nombre: 'Formulario de Vacaciones',  nombre_completo: _nc('FOR-RRHH-008', 'Formulario de Vacaciones', '01'),       remitente: 'María Condori',        fecha: '16/01/2026', sla: '🟢 0 días', slaBadge: 'badge-green', ruta: '/revision'           },
+  { id: '249', tipo: 'Aprobar Documento',       tipoBadge: 'badge-gray',  cod: 'INS-CAL-003', nombre: 'Instructivo de Calibración',nombre_completo: _nc('INS-CAL-003', 'Instructivo de Calibración', '02'),     remitente: 'Jasiel Sanjinés',      fecha: '11/01/2026', sla: '🟡 5 días', slaBadge: 'badge-amber', ruta: '/aprobacion-final'           },
+  { id: '250', tipo: 'Corregir Observaciones', tipoBadge: 'badge-amber', cod: 'PRO-PRO-019', nombre: 'Procedimiento de Empaque',  nombre_completo: _nc('PRO-PRO-019', 'Procedimiento de Empaque', '01'),        remitente: 'Aracely Romero (ETO)', fecha: '09/01/2026', sla: '🔴 7 días', slaBadge: 'badge-red',   ruta: '/correccion'         },
+  { id: '251', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'MAN-CAL-001', nombre: 'Manual de Calidad General', nombre_completo: _nc('MAN-CAL-001', 'Manual de Calidad General', '02'),      remitente: 'Lucía Terán',          fecha: '15/01/2026', sla: '🟢 1 día',  slaBadge: 'badge-green', ruta: '/revision'           },
+  { id: '252', tipo: 'Liberación ETO',          tipoBadge: 'badge-amber', cod: 'FOR-PRO-022', nombre: 'Registro de Temperatura',   nombre_completo: _nc('FOR-PRO-022', 'Registro de Temperatura', '01'),        remitente: 'Luis Mamani',          fecha: '16/01/2026', sla: '🟢 0 días', slaBadge: 'badge-green', ruta: '/liberacion-detalle' },
+  { id: '253', tipo: 'Aprobar Documento',       tipoBadge: 'badge-gray',  cod: 'POL-GER-003', nombre: 'Política de Seguridad Interna', nombre_completo: _nc('POL-GER-003', 'Política de Seguridad Interna', '01'),  remitente: 'Aracely Romero (ETO)', fecha: '08/01/2026', sla: '🔴 8 días', slaBadge: 'badge-red',   ruta: '/aprobacion-final'           },
+  { id: '254', tipo: 'Revisar Documento',       tipoBadge: 'badge-blue',  cod: 'INS-LOG-005', nombre: 'Instructivo de Despacho Urgente', nombre_completo: _nc('INS-LOG-005', 'Instructivo de Despacho Urgente', '02'),remitente: 'Carlos Flores',        fecha: '14/01/2026', sla: '🟡 2 días', slaBadge: 'badge-amber', ruta: '/revision'           },
 ]
 
 // ─── Evaluaciones Pendientes (bandeja) ────────────────────────────────────────
 export const evaluacionesPendientesDB = [
   {
-    tipo: 'Evaluación de conocimiento', cod: 'PRO-RRHH-001', nombre: 'Política de Asistencia',
+    tipo: 'Evaluación de conocimiento', cod: 'PRO-RRHH-001', nombre: 'Política de Asistencia', nombre_completo: _nc('PRO-RRHH-001', 'Política de Asistencia', '06'),
     fechaInicio: '11/01/2026', fechaLimite: '🔴 Hoy (15/01/2026)', urgente: true, ruta: '/pre-eval',
     btnLabel: 'Iniciar Examen', btnClass: 'btn-primary',
   },
   {
-    tipo: 'Evaluación de actualización', cod: 'MET-CAL-005', nombre: 'Metodología HPLC',
+    tipo: 'Evaluación de actualización', cod: 'MET-CAL-005', nombre: 'Metodología HPLC', nombre_completo: _nc('MET-CAL-005', 'Metodología HPLC', '02'),
     fechaInicio: '11/01/2026', fechaLimite: '🟡 17/01/2026', urgente: false, ruta: '/pre-eval',
     btnLabel: 'Iniciar Examen', btnClass: '',
   },
@@ -61,7 +65,7 @@ export const evaluacionesPendientesDB = [
 // ─── Controles de Lectura (bandeja) ───────────────────────────────────────────
 export const controlesLecturaDB = [
   {
-    tipo: 'Confirmar Lectura', cod: 'POL-GER-002', nombre: 'Política de Seguridad M.A.',
+    tipo: 'Confirmar Lectura', cod: 'POL-GER-002', nombre: 'Política de Seguridad M.A.', nombre_completo: _nc('POL-GER-002', 'Política de Seguridad M.A.', '01'),
     fechaInicio: '10/01/2026', fechaFin: '10/02/2026', ruta: '/tomar-lectura', btnLabel: 'Leer y Confirmar',
   },
 ]

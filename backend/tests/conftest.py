@@ -212,6 +212,7 @@ async def seed_catalogos(db_session: AsyncSession):
     await db_session.flush()
 
     # Estados del workflow (Sesion 22 R2 FASE 2 - necesario para POST /documentos)
+    # Sesion 36 (R3 item 0.6): agregar LIBERACION_ETO para el flujo nuevo
     estados_data = [
         (1, "ELABORACION", "Documento en elaboracion por el usuario"),
         (2, "EN_REVISION", "Documento enviado a revisores"),
@@ -219,6 +220,7 @@ async def seed_catalogos(db_session: AsyncSession):
         (4, "APROBADO", "Documento aprobado y vigente"),
         (5, "OBSOLETO", "Documento marcado como obsoleto"),
         (6, "RECHAZADO", "Documento rechazado en revision/aprobacion"),
+        (7, "LIBERACION_ETO", "R3 item 0.6: documento en cola de ETO para liberacion"),
     ]
     estados_catalogo = {}
     for ord_id, codigo, descripcion in estados_data:

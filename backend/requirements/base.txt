@@ -41,6 +41,9 @@ weasyprint==63.1
 pymupdf==1.25.1
 pikepdf==9.4.0
 
+# ─── DOCX (R3 item 0.3: validacion de caratula) ───
+python-docx==1.2.0
+
 # ─── Export XLSX profesional (Sesion B - tarea #9e) ───
 openpyxl==3.1.5
 
