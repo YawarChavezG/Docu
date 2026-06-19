@@ -60,7 +60,7 @@ from app.models.archivo_adjunto import (  # noqa: E402
     TipoAdjunto,
     StorageBackend as StorageBackendAdjunto,
 )
-from app.models.semaforizacion_tarea import SemaforizacionTarea  # noqa: E402
+from app.models.semaforizacion_tarea import SemaforizacionTarea, TipoTarea  # noqa: E402
 
 from app.core.database import Base  # noqa: E402
 from app.core import database as db_module  # noqa: E402
@@ -100,9 +100,15 @@ from sqlalchemy import event
 
 @event.listens_for(test_engine.sync_engine, "connect")
 def _register_sqlite_functions(dbapi_conn, connection_record):
-    """Registra hashtext y pg_try_advisory_xact_lock como funciones SQLite."""
+    """Registra hashtext y pg_try_advisory_xact_lock como funciones SQLite.
+
+    Tambien habilita PRAGMA foreign_keys=ON para que SQLite enforze
+    las FK constraints (por default las ignora). Sin esto, los tests
+    que esperan IntegrityError en FK invalida pasan sin error.
+    """
     dbapi_conn.create_function("hashtext", 1, _sqlite_hashtext)
     dbapi_conn.create_function("pg_try_advisory_xact_lock", 1, _sqlite_pg_try_advisory_xact_lock)
+    dbapi_conn.execute("PRAGMA foreign_keys = ON")
 TestSessionLocal = async_sessionmaker(
     test_engine,
     class_=AsyncSession,
@@ -229,6 +235,43 @@ async def seed_catalogos(db_session: AsyncSession):
         estados_catalogo[codigo] = est
     await db_session.flush()
 
+    # R3 Fase 1 (sesion 37): seed de semaforizacion_tarea con los 6 tipos
+    # + valores actualizados (verde=4, amarillo=7, rojo=10, plazo=10 para
+    # REVISION/APROBACION segun US-3.01). CONTROL_LECTURA y EVALUACION
+    # mantienen los valores legacy de produccion (sesion 13, US-6.03).
+    # LIBERACION: igual REVISION (US-1.05, ETO no tiene plazo estricto).
+    # CORRECCION: mismo SLA que REVISION (elaborador corrige rapido).
+    semaforo_data = [
+        # (tipo_tarea, dias_verde, dias_amarillo, dias_rojo, plazo_maximo, usa_dias_habiles, descripcion)
+        (TipoTarea.REVISION, 4, 7, 10, 10, True,
+         "R3 Fase 1: US-3.01 - verde 0-4 habiles, amarillo 5-7, rojo 8-10"),
+        (TipoTarea.APROBACION, 4, 7, 10, 10, True,
+         "R3 Fase 1: US-3.01 - mismo SLA que REVISION"),
+        (TipoTarea.CONTROL_LECTURA, 14, 24, 30, 30, False,
+         "Legacy R1: 14/24/30 dias naturales (US-6.03)"),
+        (TipoTarea.EVALUACION, 5, 11, 15, 15, False,
+         "Legacy R1: 5/11/15 dias naturales"),
+        (TipoTarea.LIBERACION, 4, 7, 10, 10, True,
+         "R3 Fase 1: US-1.05 - ETO no tiene plazo estricto, igual REVISION"),
+        (TipoTarea.CORRECCION, 4, 7, 10, 10, True,
+         "R3 Fase 1: US-3.04 - elaborador corrige, mismo SLA que REVISION"),
+    ]
+    semaforo_catalogo = {}
+    for tipo, verde, amarillo, rojo, plazo, habiles, desc in semaforo_data:
+        st = SemaforizacionTarea(
+            tipo_tarea=tipo,
+            dias_verde=verde,
+            dias_amarillo=amarillo,
+            dias_rojo=rojo,
+            plazo_maximo_dias=plazo,
+            usa_dias_habiles=habiles,
+            descripcion=desc,
+            activo=True,
+        )
+        db_session.add(st)
+        semaforo_catalogo[tipo] = st
+    await db_session.flush()
+
     # 1 admin y 1 ETO
     admin = Usuario(
         username="admin",
@@ -284,6 +327,7 @@ async def seed_catalogos(db_session: AsyncSession):
         "gerencia": ger,
         "area": area,
         "estados": estados_catalogo,
+        "semaforo": semaforo_catalogo,
         "admin": admin,
         "eto": eto,
         "sin_rol": sin_rol,

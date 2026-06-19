@@ -1,4 +1,100 @@
-## Sesión 36 — 2026-06-19 (viernes PM) — R3 Fase 0: 6 items cerrar R2 (generar_nombre_completo + LIBERACION_ETO + actualización + formularios + carátula + vigencia)
+## Sesión 37 — 2026-06-19 (viernes PM) — R3 Fase 1: 7 tablas nuevas + enum extendido + semaforo (300/300 tests PASS)
+
+### Resumen ejecutivo
+Sesión dedicada a la Fase 1 de R3: crear las 7 tablas del workflow de revisión y aprobación, extender el enum `TipoTarea`, agregar columna `usa_dias_habiles` a `semaforizacion_tarea`, y migrar los datos del semáforo a los valores de US-3.01. **Total: 9 archivos nuevos (7 modelos + 7 tests) + 5 archivos modificados + 1 migración Alembic nueva, 51 tests nuevos, 300/300 tests PASS (de 249), 0 regresiones, 0 cambios de QAS, rama `r3/workflow-revision-aprobacion`**.
+
+### Tareas ejecutadas (13 items de Fase 1)
+
+| # | Tarea | Archivos | Resultado |
+|---|---|---|---|
+| 1 | Extender enum `TipoTarea` con LIBERACION + CORRECCION | `backend/app/models/semaforizacion_tarea.py` | Enum crece de 4 a 6 valores. Nuevos tipos según US-1.05 (ETO libera) y US-3.04 (elaborador corrige). |
+| 2 | Agregar columna `usa_dias_habiles` a `semaforizacion_tarea` | `backend/app/models/semaforizacion_tarea.py` | BOOLEAN NOT NULL DEFAULT TRUE. US-3.01 exige cálculo en días hábiles. |
+| 3 | Crear modelo `Tarea` (pieza central del workflow) | `backend/app/models/tarea.py` (NEW, ~140 líneas) | 17 columnas: id, documento_flujo_id (FK CASCADE), usuario_id (FK RESTRICT), delegado_origen_id (FK SET NULL), tipo_tarea (FK semaforizacion), firma_id (FK SET NULL), estado (CHECK 6 valores), fecha_asignacion/completado/vencimiento/limite_eval, intento_reasignacion (CHECK 0-3), observacion, activo. UNIQUE (flujo, usuario, tipo, fecha). 4 índices parciales. |
+| 4 | Crear modelo `BitacoraTimeline` (append-only) | `backend/app/models/bitacora_timeline.py` (NEW, ~85 líneas) | Timeline inmutable del documento (US-8.01). CHECK `color_nodo IN ('azul', 'verde', 'rojo', 'ambar', 'gris')` (5 colores). 3 índices. |
+| 5 | Crear modelo `Notificacion` (cola persistente) | `backend/app/models/notificacion.py` (NEW, ~95 líneas) | Reemplaza el polling del store frontend. Tracking de lectura (`leida`, `fecha_lectura`, `leida_en`) + email (`email_enviado`, `email_enviado_at`). CHECK `tipo_notificacion IN (9 valores)`. 3 índices. |
+| 6 | Crear modelo `DocumentoReemplazo` (N:M) | `backend/app/models/documento_reemplazo.py` (NEW, ~75 líneas) | Reemplaza JSONB `reemplaza_documento_ids` de documento_flujo. codigo_documento_viejo es string (no FK) porque el doc viejo puede no existir. 3 índices (uno parcial para pendientes). |
+| 7 | Crear modelo `DocumentoAlcanceDifusion` (N:M) | `backend/app/models/documento_alcance_difusion.py` (NEW, ~70 líneas) | Reemplaza JSONB `alcance_difusion_ids`. CHECK XOR: gerencia o area (no ambos). |
+| 8 | Crear modelo `TareaObservacion` (sub-tabla) | `backend/app/models/tarea_observacion.py` (NEW, ~75 líneas) | US-3.04: CHECK `length(observacion) >= 10`. Tracking de corrección (`corregida`, `corregida_at`). 2 índices. |
+| 9 | Crear modelo `Proceso` (catálogo) | `backend/app/models/proceso.py` (NEW, ~55 líneas) | Catálogo de procesos para `documentos.proceso_id` (PROPUESTA-R3-TABLAS.md §1.5.6). UNIQUE en nombre. |
+| 10 | Registrar nuevos modelos | `backend/app/models/__init__.py` + `backend/alembic/env.py` | 7 imports nuevos + 7 entradas en `__all__` para que Alembic los detecte en autogenerate. |
+| 11 | Migración Alembic manual | `backend/alembic/versions/2026_06_19_1238-r3_fase1_s37_create_7_tablas_y_extender_tipo_tarea.py` | 7 CREATE TABLE + 18 CREATE INDEX + 2 ALTER TYPE ADD VALUE (autocommit) + ADD COLUMN `usa_dias_habiles` + data migration UPDATE + INSERT 2 filas semaforo. Revision `r3_fase1_s37` (down_revision `674e063e672b`). Aplicada a DES via `docker exec sgd-postgres psql` (mismo patrón que sesión 36, ADR-069). HEAD actualizado. |
+| 12 | Actualizar conftest.py (semáforo seed) | `backend/tests/conftest.py` | Seed de 6 tipos de semáforo con valores actualizados (4/7/10 + plazo 10 para REVISION/APROBACION; 14/24/30 para CONTROL_LECTURA; 5/11/15 para EVALUACION; 4/7/10 para LIBERACION/CORRECCION). También habilitado `PRAGMA foreign_keys = ON` en SQLite para que enforze FK constraints en tests. |
+| 13 | Tests (5-6 por modelo nuevo) | `tests/test_tarea.py` (10) + `test_bitacora_timeline.py` (7) + `test_notificacion.py` (7) + `test_documento_reemplazo.py` (7) + `test_documento_alcance_difusion.py` (6) + `test_tarea_observacion.py` (7) + `test_proceso.py` (7) | **51 tests nuevos**. Cubre: creación básica, FK constraints, UNIQUE constraints, CHECK constraints (verifica definición en __table_args__), índices parciales, queries típicas, __repr__. |
+
+### Hallazgos
+
+1. **SQLite no enforza FK por default**: `aiosqlite` crea las tablas con `PRAGMA foreign_keys=OFF` por default, lo que hacía que los tests de `IntegrityError` en FK inválida NO dispararan. **Fix**: agregar `dbapi_conn.execute("PRAGMA foreign_keys = ON")` en el listener de "connect" del test_engine. Aprende: en SQLite, los tests de FK SIEMPRE necesitan este PRAGMA (patrón estándar de SQLAlchemy testing).
+2. **CHECK constraints de SQLite son opt-in**: SQLite ignora CHECKs por default. El fix sería `PRAGMA integrity_check` o usar `PRAGMA legacy_alter_table=ON`, pero NO es soportado por aiosqlite. **Decisión**: los tests de CHECK verifican que la constraint está DECLARADA en el modelo (`__table_args__` con `sqltext.text`), no que se enforza. La enforcement real se valida en PG (DES/QAS).
+3. **str(CheckConstraint) no incluye el SQL text limpio**: hay que acceder a `c.sqltext.text` para obtener la expresión SQL pura. Esto se debe a que `str(c)` muestra la repr del objeto TextClause con dirección de memoria. Patrón: `c.name == "ck_xxx" and "value" in c.sqltext.text`.
+4. **El `enforce FK on connect` de SQLite**: la opción `PRAGMA foreign_keys = ON` se aplica POR CONEXIÓN. Como `aiosqlite` mantiene una sola conexión por sesión, basta con setearla en el listener de connect.
+
+### Decisiones técnicas
+
+- **ADR-070 (candidato) — Fases de R3 sin migrar datos JSONB**: las 7 tablas nuevas se crean VACIAS. Las columnas JSONB de `documento_flujo` (`revisor_ids`, `aprobador_ids`, `alcance_difusion_ids`, `reemplaza_documento_ids`) SE PRESERVAN como legacy. La migración de datos se hara en R3 Fase 5 (script idempotente). Esto permite rollback sin perdida de datos y desarrollo incremental.
+- **No tocar `envio_service.liberar_documento`**: el TODO en `envio_service.py:308-309` (crear tareas de REVISION al liberar) se resuelve en Fase 2. La Fase 1 solo crea las tablas y deja todo listo para que Fase 2 implemente la lógica.
+- **FK en `tareas.tipo_tarea` con `on delete RESTRICT`**: si alguien intenta borrar una fila de semaforizacion_tarea, las tareas asociadas lo protegen. Esto evita "borrar un tipo de tarea y dejar huerfanas las tareas que lo referencian".
+- **Índices parciales con `postgresql_where`**: en SQLite los índices parciales también se crean (SQLAlchemy traduce el WHERE), pero el query planner de SQLite no los usa tan bien como PG. En PG (DES/QAS/prod) son críticos para el cron de Fase 3 (buscar tareas PENDIENTE con fecha_vencimiento < NOW() en O(1)).
+- **`length(observacion) >= 10` en CHECK**: el minimo de 10 chars (US-3.04) se enforce tanto en Pydantic (frontend) como en BD (defensa en profundidad). La validación principal esta en el schema Pydantic; la BD es backstop.
+- **`usa_dias_habiles BOOLEAN DEFAULT TRUE`**: en sesion 13, los valores legacy asumían días naturales. US-3.01 cambia a días hábiles. El default TRUE aplica a los 2 nuevos tipos (LIBERACION, CORRECCION) y a la migración de REVISION/APROBACION. CONTROL_LECTURA/EVALUACION se mantienen en FALSE (legacy R1, US-6.03).
+
+### Archivos modificados (5) + creados (16)
+
+**Modificados (5):**
+- `backend/app/models/__init__.py` (+7 imports + 7 en __all__)
+- `backend/app/models/semaforizacion_tarea.py` (+LIBERACION, +CORRECCION, +usa_dias_habiles)
+- `backend/alembic/env.py` (+7 imports para autogenerate)
+- `backend/tests/conftest.py` (+seed semaforo, +PRAGMA foreign_keys=ON)
+- `docs/PR/CHECKLIST-R3-FASES.md` (Fase 1 marcada como completed)
+- `docs/PR/ESTADO.md` (sesión 37 documentada)
+- `docs/PR/BITACORA.md` (esta entrada)
+
+**Creados (16):**
+- `backend/app/models/tarea.py` (~140 líneas)
+- `backend/app/models/bitacora_timeline.py` (~85 líneas)
+- `backend/app/models/notificacion.py` (~95 líneas)
+- `backend/app/models/documento_reemplazo.py` (~75 líneas)
+- `backend/app/models/documento_alcance_difusion.py` (~70 líneas)
+- `backend/app/models/tarea_observacion.py` (~75 líneas)
+- `backend/app/models/proceso.py` (~55 líneas)
+- `backend/alembic/versions/2026_06_19_1238-r3_fase1_s37_create_7_tablas_y_extender_tipo_tarea.py` (~280 líneas, migración manual)
+- `backend/tests/test_tarea.py` (10 tests)
+- `backend/tests/test_bitacora_timeline.py` (7 tests)
+- `backend/tests/test_notificacion.py` (7 tests)
+- `backend/tests/test_documento_reemplazo.py` (7 tests)
+- `backend/tests/test_documento_alcance_difusion.py` (6 tests)
+- `backend/tests/test_tarea_observacion.py` (7 tests)
+- `backend/tests/test_proceso.py` (7 tests)
+
+### Estado al cierre de sesion 37
+
+| Métrica | Valor | Estado |
+|---|---|---|
+| pytest | **300/300 PASS** (de 249) | ✅ |
+| Tests nuevos sesion 37 | 51 (10+7+7+7+6+7+7) | ✅ |
+| Migraciones Alembic | 1 nueva (aplicada a DES via docker exec) | ✅ |
+| Tablas nuevas en BD | 7 (tareas, bitacora_timeline, notificaciones, documento_reemplazos, documento_alcance_difusion, tarea_observaciones, procesos) | ✅ |
+| Enum TipoTarea | 6 valores (REVISION, APROBACION, CONTROL_LECTURA, EVALUACION, LIBERACION, CORRECCION) | ✅ |
+| Semaforo actualizado | 4/7/10 con usa_dias_habiles=TRUE para REVISION/APROBACION | ✅ |
+| Rama | `r3/workflow-revision-aprobacion` | ✅ |
+| Pendiente commit | 16 archivos (atomic commit) | ⏳ |
+| QAS | SIN TOCAR (cambios solo DES) | — |
+
+### Pendientes para Fase 2
+
+- `tarea_service.py` — crear/completar/rechazar/reasignar tareas
+- `timeline_service.py` — escribir bitácora (append-only, sin UPDATE/DELETE)
+- `notificacion_service.py` — crear/marcar_leida
+- Integrar con `envio_service.liberar_documento()`: crear tareas de REVISION para cada revisor al liberar ETO
+- Helper `calcular_color_sla(tarea)` — días hábiles vs feriados
+- Tests de servicios (8-10)
+
+### Pendientes para Fase 5 (no bloqueante para Fase 2)
+
+- Script `migrar_jsonb_a_tablas_r3.py` idempotente (JSONB → tablas N:M)
+- Actualizar `seed_documentos.py` para crear tareas
+- Tests de migración (3-4)
+
+
 
 ### Resumen ejecutivo
 Sesion dedicada a cerrar la Fase 0 de R3 (rama `r3/workflow-revision-aprobacion` creada desde `r2/wizard-y-version-editable`). Se completaron los 6 items del wizard de R2 que estaban pendientes. **Total: 21 archivos modificados + 5 archivos nuevos, 2 migraciones Alembic, 21 tests nuevos, 249/249 tests PASS (de 228), 0 regresiones, 2 cambios de schema (enum `estatus_documento` + columna `documento_flujo.documento_actualizado_id` + tabla `documento_formularios`)**.

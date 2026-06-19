@@ -36,6 +36,20 @@ from app.models.email_template import EmailTemplate  # noqa: E402,F401
 from app.models.matriz_enrutamiento_eto import MatrizEnrutamientoEto  # noqa: E402,F401
 from app.models.tipo_documento import TipoDocumento  # noqa: E402,F401
 from app.models.estado import Estado  # noqa: E402,F401
+# R2 sesion 21: documentos y workflow
+from app.models.documento import Documento  # noqa: E402,F401
+from app.models.documento_flujo import DocumentoFlujo  # noqa: E402,F401
+from app.models.archivo_adjunto import ArchivoAdjunto  # noqa: E402,F401
+from app.models.semaforizacion_tarea import SemaforizacionTarea  # noqa: E402,F401
+from app.models.documento_formulario import DocumentoFormulario  # noqa: E402,F401
+# R3 Fase 1 (sesion 37): workflow de revision y aprobacion
+from app.models.proceso import Proceso  # noqa: E402,F401
+from app.models.tarea import Tarea  # noqa: E402,F401
+from app.models.bitacora_timeline import BitacoraTimeline  # noqa: E402,F401
+from app.models.notificacion import Notificacion  # noqa: E402,F401
+from app.models.documento_reemplazo import DocumentoReemplazo  # noqa: E402,F401
+from app.models.documento_alcance_difusion import DocumentoAlcanceDifusion  # noqa: E402,F401
+from app.models.tarea_observacion import TareaObservacion  # noqa: E402,F401
 
 # ─── Alembic Config ───
 config = context.config

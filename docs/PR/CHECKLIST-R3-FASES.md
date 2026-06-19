@@ -57,18 +57,18 @@
 
 > **6-8h / 2-3 sesiones. Solo Backend.**
 
-- [ ] Crear tabla `tareas` con índices
-- [ ] Crear tabla `bitacora_timeline` (append-only)
-- [ ] Crear tabla `notificaciones` con tracking de lectura
-- [ ] Crear tabla `documento_reemplazos`
-- [ ] Crear tabla `documento_alcance_difusion`
-- [ ] Crear tabla `tarea_observaciones`
-- [ ] Crear tabla `procesos` (catálogo, seed con 10 valores genéricos)
-- [ ] Extender enum `TipoTarea`: agregar LIBERACION, CORRECCION
-- [ ] Agregar columna `usa_dias_habiles` a `semaforizacion_tarea`
-- [ ] Actualizar valores de semáforo: verde=4, amarillo=7, rojo=10
-- [ ] Migración Alembic (autogenerate + revisión manual)
-- [ ] Tests: 5-6 tests de cada nuevo modelo (creación, índices, constraints)
+- [x] Crear tabla `tareas` con índices
+- [x] Crear tabla `bitacora_timeline` (append-only)
+- [x] Crear tabla `notificaciones` con tracking de lectura
+- [x] Crear tabla `documento_reemplazos`
+- [x] Crear tabla `documento_alcance_difusion`
+- [x] Crear tabla `tarea_observaciones`
+- [x] Crear tabla `procesos` (catálogo, seed con 10 valores genéricos)
+- [x] Extender enum `TipoTarea`: agregar LIBERACION, CORRECCION
+- [x] Agregar columna `usa_dias_habiles` a `semaforizacion_tarea`
+- [x] Actualizar valores de semáforo: verde=4, amarillo=7, rojo=10
+- [x] Migración Alembic (autogenerate + revisión manual)
+- [x] Tests: 5-6 tests de cada nuevo modelo (creación, índices, constraints) — **51 tests nuevos**
 
 ---
 

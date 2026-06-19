@@ -35,11 +35,17 @@ from app.core.database import Base
 
 
 class TipoTarea(str, enum.Enum):
-    """Tipos de tarea del SGD. Catalogo cerrado (4 entradas)."""
+    """Tipos de tarea del SGD. Catalogo cerrado (6 entradas en R3 Fase 1).
+
+    R3 Fase 1 agrega LIBERACION (US-1.05, ETO libera) y CORRECCION
+    (US-3.04, elaborador corrige). Los 4 originales siguen vigentes.
+    """
     REVISION = "REVISION"
     APROBACION = "APROBACION"
     CONTROL_LECTURA = "CONTROL_LECTURA"
     EVALUACION = "EVALUACION"
+    LIBERACION = "LIBERACION"      # R3 Fase 1: ETO libera (US-1.05, US-4.06)
+    CORRECCION = "CORRECCION"      # R3 Fase 1: elaborador corrige (US-3.04, US-3.05)
 
 
 class SemaforizacionTarea(Base):
@@ -67,6 +73,14 @@ class SemaforizacionTarea(Base):
 
     # Plazo maximo de la tarea en dias naturales (normalmente 15).
     plazo_maximo_dias: Mapped[int] = mapped_column(Integer, nullable=False, default=15)
+
+    # R3 Fase 1: US-3.01 exige calculo en dias HABILES (no naturales).
+    # True = el plazo_maximo_dias y los dias_verde/amarillo/rojo se
+    # cuentan excluyendo fines de semana + feriados (tabla `feriados`).
+    # False = legado R1/R2 (dias naturales). Default TRUE.
+    usa_dias_habiles: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False,
+    )
 
     descripcion: Mapped[str | None] = mapped_column(String(500), nullable=True)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

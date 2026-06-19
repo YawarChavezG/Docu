@@ -64,6 +64,19 @@ from app.models.documento_formulario import (  # noqa: F401
     DocumentoFormulario,
 )
 
+# ─── R3 Fase 1: Workflow de revision y aprobacion (sesion 37) ───
+# Catalogo: Proceso (PROPUESTA-R3-TABLAS.md §1.5.6).
+from app.models.proceso import Proceso  # noqa: F401
+# Core: Tarea, BitacoraTimeline, Notificacion.
+from app.models.tarea import Tarea  # noqa: F401
+from app.models.bitacora_timeline import BitacoraTimeline  # noqa: F401
+from app.models.notificacion import Notificacion  # noqa: F401
+# Tablas N:M que reemplazan JSONB en documento_flujo.
+from app.models.documento_reemplazo import DocumentoReemplazo  # noqa: F401
+from app.models.documento_alcance_difusion import DocumentoAlcanceDifusion  # noqa: F401
+# Sub-tabla: observaciones por tarea.
+from app.models.tarea_observacion import TareaObservacion  # noqa: F401
+
 
 __all__ = [
     "Base",
@@ -107,4 +120,12 @@ __all__ = [
     "TipoAdjunto",
     "StorageBackend",
     "DocumentoFormulario",
+    # R3 Fase 1
+    "Proceso",
+    "Tarea",
+    "BitacoraTimeline",
+    "Notificacion",
+    "DocumentoReemplazo",
+    "DocumentoAlcanceDifusion",
+    "TareaObservacion",
 ]
