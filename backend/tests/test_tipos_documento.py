@@ -25,11 +25,11 @@ async def test_listar_tipos_doc_eto(client: AsyncClient, auth_eto_cookies, seed_
 @pytest.mark.asyncio
 async def test_listar_tipos_doc_filtro_q(client: AsyncClient, auth_eto_cookies, seed_catalogos, db_session):
     db_session.add(TipoDocumento(
-        codigo="TST1", nombre="Procedimiento Test", codigo_doc=99,
+        codigo=99, slug="TST1", nombre="Procedimiento Test",
         periodo_vigencia=4, indefinido=False, activo=True,
     ))
     db_session.add(TipoDocumento(
-        codigo="TST2", nombre="Manual de Prueba", codigo_doc=100,
+        codigo=100, slug="TST2", nombre="Manual de Prueba",
         periodo_vigencia=3, indefinido=False, activo=True,
     ))
     await db_session.commit()
@@ -37,8 +37,8 @@ async def test_listar_tipos_doc_filtro_q(client: AsyncClient, auth_eto_cookies, 
     r = await client.get("/api/v1/tipos-documento?q=proced", cookies=auth_eto_cookies)
     data = r.json()
     codigos = [t["codigo"] for t in data["items"]]
-    assert "TST1" in codigos
-    assert "TST2" not in codigos
+    assert 99 in codigos
+    assert 100 not in codigos
 
 
 @pytest.mark.asyncio
@@ -46,9 +46,9 @@ async def test_crear_tipo_doc(client: AsyncClient, auth_eto_cookies, seed_catalo
     r = await client.post(
         "/api/v1/tipos-documento",
         json={
-            "codigo": "TSTCR",
+            "codigo": 50,
+            "slug": "TSTCR",
             "nombre": "Tipo Test Crear",
-            "codigo_doc": 50,
             "periodo_vigencia": 3,
             "indefinido": False,
             "activo": True,
@@ -57,7 +57,8 @@ async def test_crear_tipo_doc(client: AsyncClient, auth_eto_cookies, seed_catalo
     )
     assert r.status_code == 201
     data = r.json()
-    assert data["codigo"] == "TSTCR"
+    assert data["codigo"] == 50
+    assert data["slug"] == "TSTCR"
 
 
 @pytest.mark.asyncio
@@ -65,7 +66,7 @@ async def test_crear_tipo_doc_sin_rol(client: AsyncClient, auth_sin_rol_cookies,
     """POST /tipos-documento sin rol: 403 o 422."""
     r = await client.post(
         "/api/v1/tipos-documento",
-        json={"codigo": "X", "nombre": "X", "codigo_doc": 50, "periodo_vigencia": 1, "indefinido": False},
+        json={"codigo": 1, "slug": "X", "nombre": "X Test", "periodo_vigencia": 1, "indefinido": False},
         cookies=auth_sin_rol_cookies,
     )
     assert r.status_code in (403, 422)
@@ -74,7 +75,7 @@ async def test_crear_tipo_doc_sin_rol(client: AsyncClient, auth_sin_rol_cookies,
 @pytest.mark.asyncio
 async def test_actualizar_tipo_doc(client: AsyncClient, auth_eto_cookies, seed_catalogos, db_session):
     t = TipoDocumento(
-        codigo="TSTUP", nombre="Orig", codigo_doc=300,
+        codigo=300, slug="TSTUP", nombre="Orig",
         periodo_vigencia=3, indefinido=False, activo=True,
     )
     db_session.add(t)
@@ -93,7 +94,7 @@ async def test_actualizar_tipo_doc(client: AsyncClient, auth_eto_cookies, seed_c
 @pytest.mark.asyncio
 async def test_eliminar_tipo_doc(client: AsyncClient, auth_eto_cookies, seed_catalogos, db_session):
     t = TipoDocumento(
-        codigo="TSTDEL", nombre="Borrar", codigo_doc=400,
+        codigo=400, slug="TSTDEL", nombre="Borrar",
         periodo_vigencia=3, indefinido=False, activo=True,
     )
     db_session.add(t)

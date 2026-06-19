@@ -73,10 +73,14 @@ async def test_listar_usuarios_admin(client: AsyncClient, auth_admin_cookies, se
 
 
 @pytest.mark.asyncio
-async def test_listar_usuarios_eto_403(client: AsyncClient, auth_eto_cookies, seed_catalogos):
-    """GET /usuarios con ETO: 403 (solo ADMIN)."""
+async def test_listar_usuarios_eto_200(client: AsyncClient, auth_eto_cookies, seed_catalogos):
+    """GET /usuarios con ETO: 200 (sesion 9 relajo a ETO/ADMIN/roles-delegables)."""
     r = await client.get("/api/v1/usuarios", cookies=auth_eto_cookies)
-    assert r.status_code == 403
+    assert r.status_code == 200
+    data = r.json()
+    assert "items" in data
+    assert "total" in data
+    assert "kpis" in data
 
 
 @pytest.mark.asyncio

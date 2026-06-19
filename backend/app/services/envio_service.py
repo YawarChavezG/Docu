@@ -170,9 +170,11 @@ async def enviar_a_liberacion(
 
     # ─── 5. Buscar estado REVISION (nuevo, Bloque B3 sesion 23) ───
     # El antiguo REVISION_PARALELA esta inactivo (data-migration B3).
+    # Sesion 31: fallback tolerante. Produccion usa "REVISION" (post data-migration B3).
+    # Tests usan "EN_REVISION" (seed conftest pre-B3). Buscamos ambos.
     estado_rev = (await db.execute(
-        select(Estado).where(Estado.codigo == "REVISION")
-    )).scalar_one_or_none()
+        select(Estado).where(Estado.codigo.in_(["REVISION", "EN_REVISION"]))
+    )).scalars().first()
     if not estado_rev:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

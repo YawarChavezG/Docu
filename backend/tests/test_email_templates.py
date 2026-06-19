@@ -25,7 +25,7 @@ async def test_listar_email_templates_eto(client: AsyncClient, auth_eto_cookies,
 @pytest.mark.asyncio
 async def test_get_email_template(client: AsyncClient, auth_eto_cookies, seed_catalogos, db_session):
     t = EmailTemplate(
-        codigo=CodigoPlantilla.NUEVA_TAREA,
+        codigo=CodigoPlantilla.ASIG_REVISION,
         nombre="Test Plantilla",
         asunto="Asunto Test",
         cuerpo_html="<p>Hola {{CODIGO}}</p>",
@@ -51,7 +51,7 @@ async def test_get_email_template_no_existe_404(client: AsyncClient, auth_eto_co
 @pytest.mark.asyncio
 async def test_actualizar_email_template(client: AsyncClient, auth_eto_cookies, seed_catalogos, db_session):
     t = EmailTemplate(
-        codigo=CodigoPlantilla.NUEVA_TAREA,
+        codigo=CodigoPlantilla.ASIG_REVISION,
         nombre="Test",
         asunto="Original",
         cuerpo_html="<p>orig</p>",
@@ -73,7 +73,7 @@ async def test_actualizar_email_template(client: AsyncClient, auth_eto_cookies, 
 @pytest.mark.asyncio
 async def test_preview_email_template_con_variables(client: AsyncClient, auth_eto_cookies, seed_catalogos, db_session):
     t = EmailTemplate(
-        codigo=CodigoPlantilla.NUEVA_TAREA,
+        codigo=CodigoPlantilla.ASIG_REVISION,
         nombre="Test Preview",
         asunto="[{{CODIGO}}] {{TITULO}}",
         cuerpo_html="<p>Hola {{USUARIO}}</p>",
