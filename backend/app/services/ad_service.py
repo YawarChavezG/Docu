@@ -51,7 +51,7 @@ DEFAULT_EXCLUDED_CNS = [
 ]
 
 # â”€â”€â”€ Defaults para sAMAccountName excluidos â”€â”€â”€
-DEFAULT_EXCLUDED_SAMACCOUNTNAMES = ["dlanchipa", "ozegarra"]
+DEFAULT_EXCLUDED_SAMACCOUNTNAMES = ["dlanchipa", "ozegarra", "visitador2"]
 
 
 def _get_excluded_cns() -> List[str]:
@@ -486,7 +486,7 @@ def ldap_search_users(
                 continue
 
             # Filtro 3: sAMAccountName en lista excluida
-            if sam.lower() in ("dlanchipa", "ozegarra"):
+            if sam.lower() in ("dlanchipa", "ozegarra", "visitador2"):
                 excl_contadores["sam_excluido"] += 1
                 continue
 
