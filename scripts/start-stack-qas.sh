@@ -202,6 +202,18 @@ docker exec --user root "$C_BACKEND" \
     '
 ok "Storage con permisos correctos (755/644, owner sgduser)."
 
+# Copiar plantillas documentales al storage del container
+# Los archivos estan en ${SGD_DIR}/backend/storage/plantillas/ (host)
+# y se copian al volume que el container monta en /app/storage.
+# Idempotente: si ya existen, se sobreescriben (no cambian).
+log "Copiando plantillas documentales al storage del container..."
+if [ -d "${SGD_DIR}/backend/storage/plantillas" ] && [ "$(ls -A ${SGD_DIR}/backend/storage/plantillas 2>/dev/null | grep -v '.gitkeep' | wc -l)" -gt 0 ]; then
+    docker cp "${SGD_DIR}/backend/storage/plantillas/." "${C_BACKEND}:/app/storage/plantillas/" 2>/dev/null
+    ok "Plantillas copiadas a /app/storage/plantillas/."
+else
+    warn "No hay plantillas en ${SGD_DIR}/backend/storage/plantillas/. Se necesita copiarlas manualmente."
+fi
+
 # Reiniciar celery-beat para que regenere el schedule con los nuevos perms
 log "Reiniciando celery-beat para regenerar schedule file..."
 docker restart "$C_CELERY_BEAT" >/dev/null
