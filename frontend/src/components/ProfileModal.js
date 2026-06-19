@@ -59,20 +59,24 @@ export function initProfileModal() {
       return `Cancelar ${this.labelMotivo}`
     },
 
-    confirmar(msg) {
-      return new Promise(resolve => {
-        this.confirmMsg = msg
-        this.confirmOpen = true
-        this._confirmCallback = resolve
-      })
+    _confirmAction: null,
+
+    _askConfirm(msg, action) {
+      this.confirmMsg = msg
+      this.confirmOpen = true
+      this._confirmAction = action
     },
 
-    _handleConfirm(resp) {
+    _confirmYes() {
       this.confirmOpen = false
-      if (this._confirmCallback) {
-        this._confirmCallback(resp)
-        this._confirmCallback = null
-      }
+      const fn = this._confirmAction
+      this._confirmAction = null
+      if (fn) fn()
+    },
+
+    _confirmNo() {
+      this.confirmOpen = false
+      this._confirmAction = null
     },
 
     async abrir() {
@@ -214,7 +218,7 @@ export function initProfileModal() {
       }
     },
 
-    async cancelarAusencia() {
+    cancelarAusencia() {
       if (!this.ausenciaVigenteId) {
         this.ausente = false
         this.fechaInicio = ''
@@ -222,21 +226,21 @@ export function initProfileModal() {
         this.showAusenciaForm = false
         return
       }
-      const ok = await this.confirmar(`¿Cancelar ${this.labelMotivo} del ${this.fechaInicio} al ${this.fechaFin}?`)
-      if (!ok) return
-      const res = await apiDelete(`/ausencias/${this.ausenciaVigenteId}`)
-      if (res.ok) {
-        window.toast(`✅ ${this.labelMotivo} cancelada.`, 'success')
-        const auth = window.Alpine?.store('auth')
-        if (auth && auth.refreshFromBackend) await auth.refreshFromBackend()
-        this.ausente = false
-        this.fechaInicio = ''
-        this.fechaFin = ''
-        this.ausenciaVigenteId = null
-        this.showAusenciaForm = false
-      } else {
-        window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
-      }
+      this._askConfirm(`¿Cancelar ${this.labelMotivo} del ${this.fechaInicio} al ${this.fechaFin}?`, async () => {
+        const res = await apiDelete(`/ausencias/${this.ausenciaVigenteId}`)
+        if (res.ok) {
+          window.toast(`✅ ${this.labelMotivo} cancelada.`, 'success')
+          const auth = window.Alpine?.store('auth')
+          if (auth && auth.refreshFromBackend) await auth.refreshFromBackend()
+          this.ausente = false
+          this.fechaInicio = ''
+          this.fechaFin = ''
+          this.ausenciaVigenteId = null
+          this.showAusenciaForm = false
+        } else {
+          window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
+        }
+      })
     },
 
     async editarAusencia(a) {
@@ -248,16 +252,16 @@ export function initProfileModal() {
       this.ausenciaMotivo = a.motivo || 'vacaciones'
     },
 
-    async eliminarAusencia(a) {
-      const ok = await this.confirmar(`¿Cancelar ausencia del ${a.fecha_desde} al ${a.fecha_hasta}?`)
-      if (!ok) return
-      const res = await apiDelete(`/ausencias/${a.id}`)
-      if (res.ok) {
-        window.toast('✅ Ausencia cancelada.', 'success')
-        await this._cargarAusencias((await this._getMiId()))
-      } else {
-        window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
-      }
+    eliminarAusencia(a) {
+      this._askConfirm(`¿Cancelar ausencia del ${a.fecha_desde} al ${a.fecha_hasta}?`, async () => {
+        const res = await apiDelete(`/ausencias/${a.id}`)
+        if (res.ok) {
+          window.toast('✅ Ausencia cancelada.', 'success')
+          await this._cargarAusencias((await this._getMiId()))
+        } else {
+          window.toast('❌ Error: ' + (res.data?.detail || res.status), 'error')
+        }
+      })
     },
 
     async _getMiId() {
@@ -594,7 +598,7 @@ export const ProfileModalTemplate = /* html */`
          x-transition:leave="transition ease-in duration-150"
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0"
-         @keydown.escape.window="_handleConfirm(false)"
+         @keydown.escape.window="_confirmNo()"
          class="modal-overlay" style="z-index:8600;display:none"
          :style="confirmOpen ? 'display:flex' : 'display:none'">
 
@@ -602,8 +606,8 @@ export const ProfileModalTemplate = /* html */`
         <div class="text-4xl mb-3">🤔</div>
         <div class="text-sm text-slate-700 mb-6 leading-relaxed" x-text="confirmMsg"></div>
         <div class="flex gap-2.5 justify-center">
-          <button @click="_handleConfirm(false)" class="btn btn-ghost text-sm">Cancelar</button>
-          <button @click="_handleConfirm(true)" class="btn btn-danger text-sm">Sí, confirmar</button>
+          <button @click="_confirmNo()" class="btn btn-ghost text-sm">Cancelar</button>
+          <button @click="_confirmYes()" class="btn btn-danger text-sm">Sí, confirmar</button>
         </div>
       </div>
     </div>
