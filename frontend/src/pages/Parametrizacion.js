@@ -44,6 +44,35 @@ import {
   semaforizacion,
 } from '../services/parametrizacionApi.js'
 
+;(function() {
+  var ready = false
+  document.addEventListener('click', function(e) {
+    var data = window.__paramPageNavWatch
+    if (!data) return
+    var link = e.target.closest('a[href^="#/"]')
+    if (!link) return
+    var href = link.getAttribute('href')
+    if (!href || href === window.location.hash) return
+    if (!data.matrizTieneCambios) return
+    if (!window.location.hash.startsWith('#/parametrizacion')) return
+    if (href.startsWith('#/parametrizacion')) return
+    e.preventDefault()
+    e.stopPropagation()
+    data.confirmModalMessage = 'Tienes cambios sin guardar en la Matriz de Enrutamiento ETO. Si sales ahora, se perderán los cambios.'
+    data.confirmModalOnConfirm = function() {
+      data.confirmModalOpen = false
+      data._matrizRevertir()
+      window.location.hash = href
+    }
+    data.confirmModalOpen = true
+  }, true)
+  var check = setInterval(function() {
+    if (window.__paramPageNavWatch) { clearInterval(check); return }
+    var el = document.querySelector('[x-data="paramPage"]')
+    if (el && el._x_dataStack) { window.__paramPageNavWatch = el._x_dataStack[0]; clearInterval(check) }
+  }, 200)
+})()
+
 export const page = {
   init() {
     window.Alpine?.data('paramPage', () => {
@@ -376,6 +405,62 @@ export const page = {
       estados: [],
       estadoEditing: null,
       matrizETO: [],
+      matrizOriginal: [],     // deep clone del estado original para detectar cambios
+      confirmModalOpen: false,
+      confirmModalMessage: '',
+      confirmModalOnConfirm: null,
+
+      init() {
+        window.__paramPageNavWatch = this
+        this._cleanNavWatch = function() { document.body.style.overflow = ''; window.__paramPageNavWatch = null }
+        window.addEventListener('beforeunload', this._cleanNavWatch)
+      },
+      destroy() {
+        document.body.style.overflow = ''
+        window.removeEventListener('beforeunload', this._cleanNavWatch)
+      },
+      _matrizRevertir() {
+        var orig = JSON.parse(JSON.stringify(this.matrizOriginal))
+        this.matrizETO = orig.map(function(m) { return {
+          id: m.id, gerencia: m.gerencia_sigla, gerencia_id: m.gerencia_id,
+          analista: m.analista_username,
+          analista_id: m.analista_usuario_id == null ? null : String(m.analista_usuario_id),
+          analista_nombre: m.analista_nombre,
+          delegado: m.delegado_username,
+          delegado_id: m.delegado_usuario_id == null ? null : String(m.delegado_usuario_id),
+          delegado_nombre: m.delegado_nombre,
+          disponible: m.disponibilidad === 'DISPONIBLE', disponibilidad: m.disponibilidad,
+        }})
+      },
+
+      _matrizFilaCambio(fila) {
+        const orig = this.matrizOriginal.find(m => m.id === fila.id)
+        if (!orig) return false
+        return String(fila.analista_id || '') !== String(orig.analista_usuario_id ?? '') ||
+          (fila.disponible ? 'DISPONIBLE' : 'AUSENTE') !== orig.disponibilidad ||
+          String(fila.delegado_id || '') !== String(orig.delegado_usuario_id ?? '')
+      },
+      get matrizTieneCambios() {
+        if (!this.matrizOriginal.length || !this.matrizETO.length) return false
+        return this.matrizETO.some(m => this._matrizFilaCambio(m))
+      },
+      get matrizCambiosCount() {
+        if (!this.matrizOriginal.length || !this.matrizETO.length) return 0
+        return this.matrizETO.filter(m => this._matrizFilaCambio(m)).length
+      },
+      switchTab(newTab) {
+        if (newTab === 'diccionarios' || !this.matrizTieneCambios) {
+          this.tab = newTab; return
+        }
+        this.confirmModalMessage = 'Tienes cambios sin guardar en la Matriz de Enrutamiento ETO. Si sales ahora, se perderán los cambios.'
+        this.confirmModalOnConfirm = () => {
+          this.tab = newTab
+          this._matrizRevertir()
+          this.confirmModalOpen = false
+        }
+        this.confirmModalOpen = true
+      },
+
       analistas: [],          // ETOs para el dropdown de la matriz (rol ETO)
       usuariosActivos: [],    // todos los usuarios activos para delegado de matriz
       tiempoVigenciaDefault: 3,  // años; se carga de configuracion_global.tiempo_vigencia_anios
@@ -398,16 +483,19 @@ export const page = {
           if (estRes.ok) this.estados = (estRes.data.items || []).map(e => ({
             id: e.id, est: e.nombre, cod: e.codigo, ctx: e.contexto, activo: e.activo,
           }))
-          if (matRes.ok) this.matrizETO = (matRes.data.items || []).map(m => ({
-            id: m.id, gerencia: m.gerencia_sigla, gerencia_id: m.gerencia_id,
-            analista: m.analista_username,
-            analista_id: m.analista_usuario_id == null ? null : String(m.analista_usuario_id),
-            analista_nombre: m.analista_nombre,
-            delegado: m.delegado_username,
-            delegado_id: m.delegado_usuario_id == null ? null : String(m.delegado_usuario_id),
-            delegado_nombre: m.delegado_nombre,
-            disponible: m.disponibilidad === 'DISPONIBLE', disponibilidad: m.disponibilidad,
-          }))
+          if (matRes.ok) {
+            this.matrizETO = (matRes.data.items || []).map(m => ({
+              id: m.id, gerencia: m.gerencia_sigla, gerencia_id: m.gerencia_id,
+              analista: m.analista_username,
+              analista_id: m.analista_usuario_id == null ? null : String(m.analista_usuario_id),
+              analista_nombre: m.analista_nombre,
+              delegado: m.delegado_username,
+              delegado_id: m.delegado_usuario_id == null ? null : String(m.delegado_usuario_id),
+              delegado_nombre: m.delegado_nombre,
+              disponible: m.disponibilidad === 'DISPONIBLE', disponibilidad: m.disponibilidad,
+            }))
+            this.matrizOriginal = JSON.parse(JSON.stringify(matRes.data.items || []))
+          }
           if (uRes.ok) this.analistas = (uRes.data.items || []).map(u => ({ id: u.id, username: u.username, nombre: u.nombre_completo }))
           if (uaRes.ok) this.usuariosActivos = (uaRes.data.items || []).map(u => ({ id: u.id, username: u.username, nombre: u.nombre_completo }))
           // Re-bind de los controles de la matriz ETO: x-model/x-model no se
@@ -511,26 +599,30 @@ export const page = {
           },
         })
       },
-      async guardarFilaMatriz(m) {
+      async guardarMatrizCompleta() {
         try {
-          // Validar: si NO esta disponible, debe tener delegado.
-          if (!m.disponible && !m.delegado_id) {
-            window.toast('⚠️ Si el analista esta Ausente, asigne un delegado', 'warn')
-            return
+          const cambios = this.matrizETO.filter(m => this._matrizFilaCambio(m))
+          if (!cambios.length) { window.toast('No hay cambios para guardar', 'info'); return }
+          for (const m of cambios) {
+            if (!m.disponible && !m.delegado_id) {
+              window.toast(`⚠️ "${m.gerencia}": si el analista esta Ausente, asigne un delegado`, 'warn')
+              return
+            }
           }
-          const payload = {
-            disponibilidad: m.disponible ? 'DISPONIBLE' : 'AUSENTE',
-            analista_usuario_id: m.analista_id ? Number(m.analista_id) : null,
-            delegado_usuario_id: !m.disponible ? (m.delegado_id ? Number(m.delegado_id) : null) : null,
+          let ok = 0, fail = 0
+          for (const m of cambios) {
+            const payload = {
+              disponibilidad: m.disponible ? 'DISPONIBLE' : 'AUSENTE',
+              analista_usuario_id: m.analista_id ? Number(m.analista_id) : null,
+              delegado_usuario_id: !m.disponible ? (m.delegado_id ? Number(m.delegado_id) : null) : null,
+            }
+            const res = await matrizEto.update(m.id, payload)
+            if (res.ok) ok++; else fail++
           }
-          const res = await matrizEto.update(m.id, payload)
-          if (res.ok) {
-            window.toast('Fila actualizada', 'success')
-            await this.cargarDiccionarios()   // re-lee del backend para sincronizar
-            await this.cargarLogs()
-          } else {
-            window.toast(`Error: ${res.data?.detail || res.status}`, 'error')
-          }
+          if (fail > 0) window.toast(`${ok} fila(s) guardada(s), ${fail} error(es)`, 'warn')
+          else window.toast(`${ok} fila(s) guardada(s) correctamente`, 'success')
+          await this.cargarDiccionarios()
+          await this.cargarLogs()
         } catch (e) { window.toast(`Error: ${e.message}`, 'error') }
       },
 
@@ -1582,7 +1674,7 @@ export const page = {
   <!-- Tabs -->
   <div class="flex gap-0.5 bg-slate-100 rounded-xl p-1 mb-4 flex-wrap">
     <template x-for="t in tabs" :key="t.id">
-      <button @click="tab=t.id"
+      <button @click="switchTab(t.id)"
               :class="tab===t.id ? 'bg-white text-brand-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'"
               class="px-4 py-1.5 rounded-lg border-none text-[11.5px] font-semibold cursor-pointer transition-all duration-150"
               x-text="t.label"></button>
@@ -1905,7 +1997,6 @@ export const page = {
               <th>Analista ETO Asignado</th>
               <th class="text-center w-28">Disponibilidad</th>
               <th>Delegado (si ausente)</th>
-              <th class="w-16 text-center">Guardar</th>
             </tr>
           </thead>
           <tbody>
@@ -1933,17 +2024,26 @@ export const page = {
                     <option value="">— Seleccionar —</option>
                     <!-- Issue 7.1: dropdown delegado SOLO usuarios con rol ETO
                          (mismo array 'analistas' que el dropdown de analista) -->
-                    <template x-for="u in analistas" :key="'de'+u.id"><option :value="String(u.id)" x-text="(u.nombre || u.username)"></option></template>
+                    <template x-for="u in analistas.filter(a => String(a.id) !== String(m.analista_id))" :key="'de'+u.id"><option :value="String(u.id)" x-text="(u.nombre || u.username)"></option></template>
                   </select>
                   <span x-show="m.disponible" class="text-[11px] text-slate-400">—</span>
-                </td>
-                <td class="text-center">
-                  <button @click="guardarFilaMatriz(m)" class="btn btn-sm text-[10px] py-0.5 px-1.5">💾</button>
                 </td>
               </tr>
             </template>
           </tbody>
         </table>
+      </div>
+      <div class="flex items-center justify-between mt-3 pt-3 border-t border-slate-200">
+        <div class="text-[11px]">
+          <span x-show="matrizTieneCambios" class="text-amber-600 font-semibold">⚠️ <span x-text="matrizCambiosCount"></span> fila(s) con cambios sin guardar</span>
+          <span x-show="!matrizTieneCambios" class="text-slate-400">✓ Sin cambios pendientes</span>
+        </div>
+        <button @click="guardarMatrizCompleta()"
+                :disabled="!matrizTieneCambios"
+                :class="matrizTieneCambios ? 'bg-brand-500 hover:bg-brand-600 text-white border-brand-500' : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed'"
+                class="btn btn-sm text-[11px] px-3">
+          💾 Guardar Cambios
+        </button>
       </div>
     </div>
   </div>
@@ -2719,5 +2819,36 @@ export const page = {
     </div>
   </div>
 
+<!-- Modal de confirmacion cambios sin guardar -->
+<div x-effect="document.body.style.overflow = confirmModalOpen ? 'hidden' : ''" class="hidden"></div>
+<template x-teleport="body">
+  <div x-show="confirmModalOpen"
+       x-transition:enter="transition ease-out duration-200"
+       x-transition:enter-start="opacity-0"
+       x-transition:enter-end="opacity-100"
+       x-transition:leave="transition ease-in duration-150"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       @keydown.escape.window="confirmModalOpen=false"
+       class="modal-overlay"
+       style="z-index:8600;display:none;">
+    <div @click.stop
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 scale-95"
+         x-transition:enter-end="opacity-100 scale-100"
+         class="modal-box max-w-[400px] relative max-h-[90vh] overflow-y-auto">
+      <div class="text-center mb-4">
+        <div class="w-14 h-14 rounded-full bg-amber-100 mx-auto mb-3 flex items-center justify-center text-2xl font-bold" style="color:#f59e0b">⚠️</div>
+        <h3 class="text-[15px] font-bold text-slate-800">Cambios sin guardar</h3>
+        <p class="text-[11.5px] text-slate-500 mt-2 leading-snug" x-text="confirmModalMessage"></p>
+      </div>
+      <div class="flex gap-2.5">
+        <button @click="confirmModalOpen=false" class="btn flex-1">Cancelar</button>
+        <button @click="confirmModalOnConfirm ? confirmModalOnConfirm() : (confirmModalOpen=false)"
+                class="btn flex-1 bg-amber-500 hover:bg-amber-600 text-white border-amber-500 hover:border-amber-600">Si, salir sin guardar</button>
+      </div>
+    </div>
+  </div>
+</template>
 </div>`
 }

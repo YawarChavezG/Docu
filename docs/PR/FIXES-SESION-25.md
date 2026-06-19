@@ -591,6 +591,9 @@ Aplicado en:
 
 ## Issue 7.1 — Dropdown de delegado en Matriz ETO muestra TODOS los usuarios (debería solo ETO)
 
+> ✅ **RESUELTO (sesión 34, 2026-06-18)** — Validado end-to-end con Chrome MCP. Batch save con botón único "Guardar Cambios" reemplaza botones individuales por fila. Footer con contador de cambios pendientes. Modal de confirmación al cambiar de tab o navegar a otra ruta via sidebar (teleportado a body, position:fixed, overflow:hidden). Delegado dropdown filtrado correctamente (excluye analista de la misma fila). Persistencia F5 OK. 8/8 tests pytest PASS.
+> Próximo fix: **2.1** (Performance login - Promise.all).
+
 **Página afectada:** Parametrización → Matriz de Enrutamiento ETO
 
 **Error reportado por el cliente:**

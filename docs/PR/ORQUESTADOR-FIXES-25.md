@@ -126,7 +126,7 @@ Reglas duras:
 | 8.4 | REPORTES en Excel para elaboradores | 🟡 | ⛔ DEPRECADO |
 | 5.1 | Selector Estados con 4 opciones | 🟡 | ✅ RESUELTO |
 | 1.2 | Lista delegados corta | 🟡 | ✅ RESUELTO |
-| 7.1 | Matriz ETO dropdown delegado solo ETO | 🟡 | pendiente |
+| 7.1 | Matriz ETO dropdown delegado solo ETO | 🟡 | ✅ RESUELTO |
 | 2.1 | Performance login (Promise.all) | 🟡 | pendiente |
 | 8.3 | Header "Área" | 🟢 | pendiente |
 | 8.5 | KPI inactivos + desvinculados | 🟢 | pendiente |
@@ -134,7 +134,7 @@ Reglas duras:
 | 9.2 | Quitar bloque "IA — Recomendación" | 🟢 | pendiente |
 | 6.1 | Ocultar columna SLUG en tipos_documento | 🟢 | pendiente |
 
-**Progreso**: 13/22 (59.0%).
+**Progreso**: 14/22 (63.6%).
 
 ---
 
