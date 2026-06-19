@@ -374,7 +374,7 @@ export const ProfileModalTemplate = /* html */`
          class="modal-overlay" style="z-index:8000;display:none"
          :style="open ? 'display:flex' : 'display:none'">
 
-      <div @click.stop
+      <div @click.stop="mostrarListaDelegado = false"
            class="modal-box max-w-[440px] relative max-h-[90vh] overflow-y-auto">
 
         <button @click="cerrar()" :disabled="saving"
@@ -454,7 +454,7 @@ export const ProfileModalTemplate = /* html */`
             </div>
 
             <!-- Buscador -->
-            <div class="relative mb-3" @click.outside="mostrarListaDelegado=false">
+            <div class="relative mb-3" @click.stop>
               <input type="text"
                      class="form-input text-xs"
                      placeholder="Buscar delegado por nombre, usuario o SAP..."

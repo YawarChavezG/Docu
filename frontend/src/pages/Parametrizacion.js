@@ -2424,7 +2424,7 @@ export const page = {
          class="modal-overlay" style="z-index:8000;display:none"
          :style="editModalOpen ? 'display:flex' : 'display:none'">
 
-      <div @click.stop class="modal-box max-w-[560px] relative max-h-[90vh] overflow-y-auto"
+      <div @click.stop="editModalShowDelegadoList = false" class="modal-box max-w-[560px] relative max-h-[90vh] overflow-y-auto"
            style="display:block">
 
         <button @click="cerrarModalEdicion()" :disabled="editModalSaving"
@@ -2487,7 +2487,7 @@ export const page = {
 
             <!-- Buscador de delegado -->
             <div x-show="!editForm.delegado_nombre || editModalShowDelegadoList"
-                 class="relative" @click.outside="editModalShowDelegadoList=false">
+                 class="relative" @click.stop>
               <input type="text"
                      class="form-input text-xs"
                      placeholder="Buscar por nombre, usuario, código SAP, email..."
