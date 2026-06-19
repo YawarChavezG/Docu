@@ -365,7 +365,7 @@ export const page = {
 
       // ─── Navegacion entre pasos ───
       async nextPaso() {
-        // Paso 1 -> 2: solo validar (NO crear documento todavia, eso se hace al firmar)
+        // Paso 1 -> 2: crear documento + subir archivo + validar caratula
         if (this.paso === 1) {
           if (!this.tipodoc || !this.gerencia || !this.area || !this.tipoSolicitud || !this.titulo.trim()) {
             window.toast?.('Complete todos los campos obligatorios del paso 1', 'warn')
@@ -389,6 +389,56 @@ export const page = {
                 return
               }
             }
+          }
+
+          // R3 item 0.3: crear documento + subir archivo + validar caratula al avanzar
+          if (!this.documentoId) {
+            this.submitting = true
+            try {
+              const resCreate = await documentos.create({
+                gerencia_id: Number(this.gerencia),
+                area_id: Number(this.area),
+                tipo_documento_id: Number(this.tipodoc),
+                titulo: this.titulo.trim(),
+                comentarios_eto: null,
+                tipo_solicitud: this.tipoSolicitud,
+              })
+              if (!resCreate.ok) {
+                window.toast?.(resCreate.message || 'Error al crear documento', 'error')
+                this.submitting = false
+                return
+              }
+              this.documentoId = resCreate.data.documento.id
+              this.flujoId = resCreate.data.flujo_id
+
+              // Subir archivo principal y validar caratula
+              if (this.archivoPrincipal) {
+                const upRes = await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
+                if (upRes.ok && upRes.data?.caratula_validacion) {
+                  const cv = upRes.data.caratula_validacion
+                  if (!cv.coincide && cv.warnings && cv.warnings.length > 0) {
+                    window.toast?.(
+                      '⚠️ Caratula del .docx no coincide: ' + cv.warnings.join(' | '),
+                      'warn',
+                    )
+                  } else if (cv.coincide && cv.caratula?.codigo) {
+                    window.toast?.('✅ Caratula del documento verificada correctamente', 'success')
+                  }
+                }
+              }
+              // Subir formularios
+              for (const f of this.formulariosAsociados) {
+                const upRes = await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
+                if (upRes.ok && upRes.data?.formulario?.codigo_formulario) {
+                  window.toast?.('✅ Formulario subido: ' + upRes.data.formulario.codigo_formulario, 'success')
+                }
+              }
+            } catch (e) {
+              window.toast?.('Error al crear documento: ' + (e?.message || e), 'error')
+              this.submitting = false
+              return
+            }
+            this.submitting = false
           }
         }
         if (this.paso < 3) this.paso++
@@ -415,41 +465,16 @@ export const page = {
           onSuccess: async ({ password }) => {
             this.submitting = true
             try {
-              // 1) Crear el documento en BD (recien al firmar, no antes)
+              // 1) El documento ya fue creado en nextPaso() (paso 1 -> 2).
+              //    Solo subir formularios que pudieron haber sido agregados despues.
               if (!this.documentoId) {
-                const resCreate = await documentos.create({
-                  gerencia_id: Number(this.gerencia),
-                  area_id: Number(this.area),
-                  tipo_documento_id: Number(this.tipodoc),
-                  titulo: this.titulo.trim(),
-                  comentarios_eto: null,
-                  tipo_solicitud: this.tipoSolicitud,
-                })
-                if (!resCreate.ok) {
-                  window.toast?.(resCreate.message || 'Error al crear documento', 'error')
-                  this.submitting = false
-                  return
-                }
-                this.documentoId = resCreate.data.documento.id
-                this.flujoId = resCreate.data.flujo_id
-                // Subir archivos despues de crear
-                if (this.archivoPrincipal) {
-                  // R3 item 0.3: el backend valida la caratula del .docx.
-                  // Si hay warning, lo mostramos como toast (NO bloqueante).
-                  const upRes = await documentos.uploadArchivo(this.documentoId, this.archivoPrincipal, 'PRINCIPAL')
-                  if (upRes.ok && upRes.data?.caratula_validacion) {
-                    const cv = upRes.data.caratula_validacion
-                    if (!cv.coincide && cv.warnings && cv.warnings.length > 0) {
-                      window.toast?.(
-                        '⚠️ Caratula del .docx no coincide: ' + cv.warnings.join(' | '),
-                        'warn',
-                      )
-                    }
-                  }
-                }
+                window.toast?.('Error: el documento deberia haberse creado en paso 1. Reintente.', 'error')
+                this.submitting = false
+                return
+              }
+              if (this.formulariosAsociados.length > 0) {
                 for (const f of this.formulariosAsociados) {
                   const upRes = await documentos.uploadArchivo(this.documentoId, f, 'FORMULARIO')
-                  // R3 item 0.4: si el backend devuelve codigo_formulario, mostrarlo
                   if (upRes.ok && upRes.data?.formulario?.codigo_formulario) {
                     window.toast?.('✅ Formulario subido: ' + upRes.data.formulario.codigo_formulario, 'success')
                   }
