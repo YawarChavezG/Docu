@@ -1,7 +1,7 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-18 (sesión 29 — **Radiografía total + 22 fixes validados + limpieza documental**)
+> **Última actualización:** 2026-06-18 (sesión 30 — **Fix P0 B7: 3 scripts seed rotos arreglados**)
 
 ## Versión actual
 **v1.0.0-qas** (tag creado en sesión 19, sin cambios en QAS). Sesión 20 aplicó 6 fixes preventivos al deploy pipeline basados en los bugs descubiertos durante el deploy de sesión 19. **QAS NO fue tocado en sesión 20** — todos los cambios son en código local (DES) para que el próximo deploy sea más robusto. Tag `v1.0.0-qas` se mantiene.
@@ -40,8 +40,10 @@
 
 **Sesión 29 (2026-06-18)**: Validación de los 22 fixes de sesión 25 (21/21 RESUELTOS, 1 DEPRECADO) + radiografía total del proyecto + limpieza de 7 archivos obsoletos. Fix aplicado: Issue 9.1 (/plantillas grid responsive — inline CSS vencía a Tailwind classes). Creado `RADIOGRAFIA-TOTAL-18-06-2026.md` con estado real de frontend/backend/BD/Docker/tests.
 
+**Sesión 30 (2026-06-18)**: **Fix P0 B7 — 3 scripts seed rotos arreglados** (`seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py` importaban `usuario_modulos` eliminado en sesión 26). Eliminadas solo las refs a `usuario_modulos`; data de roles/usuarios/áreas/modulos intacta. Idempotencia 100% validada (3 corridas, conteos constantes). Tests pytest sin regresiones (217/228, mismas 11 fallas preexistentes). Diff: -35 / +18 líneas en 3 archivos.
+
 ## Objetivo inmediato
-**R1+R2 cerrados al 100%. Pendiente: R3 (workflow + bandejas reales) + deploy QAS v1.1.0-qas + fix B7 (scripts seed rotos).**
+**R1+R2 cerrados al 100%. B7 (P0) RESUELTO. Pendiente: R3 (workflow + bandejas reales) + deploy QAS v1.1.0-qas + CSRF middleware.**
 
 ---
 
@@ -326,7 +328,7 @@ DELETE /api/v1/estados/{id}                               (NUEVO)
 | B4 | `frontend/src/data/*.js` aun tiene datos hardcoded del mock legacy | 🟡 Media | Componentes que importen de ahi muestran datos desactualizados. | `Parametrizacion.js` ya consume API. | Sesion 28 (cleanup) |
 | B5 | Modelos SQLAlchemy NO tienen `__repr__` consistente | 🟢 Baja | Logs de SQLAlchemy muestran `<Modelo at 0x...>`. | Agregar `def __repr__` a los modelos. | Sesion 28 |
 | B6 | `auth.py` logica de password dummy `cofar.2026` hardcoded | 🟠 Alta (en QAS) | En DES OK. Si QAS llega con `LDAP_ENABLED=false` se acepta cualquier pass. | Verificar `LDAP_ENABLED=true` en QAS. | Pre-deployment QAS |
-| B7 | **3 scripts de seed ROTOS** (sesión 27): `seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py` importan `usuario_modulos` (eliminado sesión 26) | 🟠 Alta | Si se corren manualmente fallan con ImportError. En DES no afecta (start-stack-des.bat no los corre). En QAS SÍ afecta (`start-stack-qas.sh` los llama) — el `| tail -3` enmascara el error. | No correrlos manualmente hasta fix. | **Sesion 28 (P0)** |
+| B7 | **3 scripts de seed ROTOS** (sesión 27): `seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py` importan `usuario_modulos` (eliminado sesión 26) | 🟠 Alta | Si se corren manualmente fallan con ImportError. En DES no afecta (start-stack-des.bat no los corre). En QAS SÍ afecta (`start-stack-qas.sh` los llama) — el `| tail -3` enmascara el error. | No correrlos manualmente hasta fix. | **✅ RESUELTO sesión 30** |
 | B8 | `vite.config.js` `manualChunks` problema preexistente | 🟢 Baja | Solo `npm run build`. HMR funciona. | Ninguno necesario. | Sesion 28 |
 | B9 | #13 Deuda delegado: 139 usuarios sin delegado | 🟡 Media | Bandeja ETO no funciona correctamente para estos usuarios. | Skip delegado + warning (sesión 8). | Sesion 28 |
 | B10 | #14 Cargos a areas (seed POSICION → area_id) | 🟡 Media | Wizard no muestra area correcta. | Manual lookup. | Sesion 28 |
@@ -394,7 +396,7 @@ DELETE /api/v1/estados/{id}                               (NUEVO)
 Bloqueos menores pre-QAS-public:
 - 🟠 B2: CSRF middleware ausente (seguridad pre-QAS-public)
 - 🟠 B6: `auth.py` password dummy `cofar.2026` (pre-QAS-public; ya validado que en QAS `LDAP_ENABLED=true` por lo que no aplica)
-- 🟠 B7: 3 scripts de seed ROTOS (P0 — bloquea fresh-install QAS)
+- 🟠 B7: 3 scripts de seed ROTOS (P0 — bloquea fresh-install QAS) → ✅ **RESUELTO sesión 30**
 - 🟠 QAS cert HTTPS autofirmado (cambiar a Let's Encrypt o cert corporativo pre-PUBLIC)
 
 Backlog menor:

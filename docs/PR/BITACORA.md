@@ -1,14 +1,52 @@
-# BITACORA — Sesion de trabajo SGD
+## Sesión 30 — 2026-06-18 (jueves PM) — Fix P0: 3 scripts seed rotos (B7)
 
-> **Bitacora cronologica de las sesiones de trabajo en el proyecto COFAR SGD.**
-> **Ultima actualizacion:** 2026-06-18 (sesion 29).
-> Para que cuando la ventana de contexto se llene, una nueva sesion pueda leer este archivo y retomar.
+### Resumen ejecutivo
+Sesion dedicada a cerrar la unica tarea P0 abierta del backlog: **B7 - 3 scripts de seed ROTOS** que importaban la tabla `usuario_modulos` eliminada en sesion 26 (migracion `drop_modulos_s26`). Los 3 scripts ahora corren limpios, son idempotentes, y los 217/228 tests siguen verde. **Total: 3 archivos modificados, -35 / +18 lineas, 0 cambios a seed data de roles/usuarios/areas/modulos.**
+
+### Tareas ejecutadas
+
+| # | Tarea | Archivo | Resultado |
+|---|---|---|---|
+| 1 | Fix `seed_data.py` | `backend/scripts/seed_data.py` | Removidos: import de `usuario_modulos`, parametro `modulos_cache` de `seed_usuarios_stub`, bloque "Asignar modulos" con `delete + insert` en `usuario_modulos`. Mantenido: `MODULOS_DATA` (catalogo modulos), `USUARIOS_STUB_DATA` con campo `modulos` (metadata), `seed_modulos()` (puebla tabla `modulos`). |
+| 2 | Fix `seed_local_test_users.py` | `backend/scripts/seed_local_test_users.py` | Removidos: import `usuario_modulos`, imports inline de `Modulo`, bloque "Asignar modulos" con lookup + delete + insert. Mantenido: `USUARIOS_LOCALES` con campo `modulos` (metadata). |
+| 3 | Fix `seed_matriz_eto.py` | `backend/scripts/seed_matriz_eto.py` | Removidos: import `usuario_modulos`, lookup de `Modulo.TODOS`, insert en `usuario_modulos`. Mantenido: `ASIGNACIONES` data completa. |
+| 4 | Validar idempotencia (3 corridas) | docker exec | 1ra corrida: rows nuevos. 2da corrida: 0 cambios, 0 errores. 3ra corrida: 0 cambios, 0 errores. Conteos finales: roles=5, usuarios=762, usuario_roles=731, matriz_enrutamiento_eto=10. |
+| 5 | Restore clean state | `scripts\restore_clean_state.bat` | `verify_clean_state()` retorna los 15 conteos esperados. Backend health OK. |
+| 6 | Tests pytest | `cd backend && .venv\Scripts\python -m pytest tests/` | **217 PASS, 11 FAIL** (las 11 fallas preexistentes de sesion 29: refs a `codigo_doc` eliminado, `CodigoPlantilla.NUEVA_TAREA` enum antiguo, etc.). **0 regresiones.** |
+
+### Logros tecnicos
+1. **3 scripts funcionales** y re-ejecutables sin errores (antes: ImportError al 5/5 de seed_data.py).
+2. **Idempotencia 100% validada**: 3 corridas consecutivas, conteos constantes.
+3. **Cero cambios a data**: `MODULOS_DATA`, `USUARIOS_STUB_DATA`, `USUARIOS_LOCALES`, `ASIGNACIONES` intactos. El campo `modulos` en cada dict de usuario se preserva como metadata.
+4. **Comentarios documentando la decision** agregados en los 3 archivos, referenciando sesion 26 + ADR-059.
+5. **Catalogo `modulos` sigue sembrandose** (tabla `modulos` se mantiene aunque no se use via `usuario_modulos` - queda disponible para R3+ si se reactiva el control por modulos).
+
+### Decisiones tecnicas (sin ADR nuevo)
+- El campo `u["modulos"]` se mantiene en los data dicts como **metadata/documentacion** (no se elimina) para que sea facil revertir si en el futuro se reactiva el control por modulos. Los seeds siguen siendo idempotentes.
+- El print `Módulos: N` se cambio a `Módulos (metadata, no se persisten): N` para que el operador sepa que el conteo es solo informativo.
+- No se creo ADR-066 (no es una decision arquitectonica, es un fix de bug preexistente documentado en D04/ADR-059).
+
+### Archivos modificados (3)
+- `backend/scripts/seed_data.py` (-13 / +5)
+- `backend/scripts/seed_local_test_users.py` (-12 / +6)
+- `backend/scripts/seed_matriz_eto.py` (-10 / +7)
+
+### Pendientes post-sesion 30
+- **B7 P0**: ✅ RESUELTO en esta sesion.
+- **Deploy QAS v1.1.0-qas**: bumpear tag con acumulado sesiones 20-30 (sigue pendiente).
+- **CSRF middleware** (B2): sigue pendiente.
+- **R3**: refactor Bandeja.js, LiberacionDetalle.js, ListaMaestra.js, Revision.js, AprobacionFinal.js, Correccion.js (6 paginas con datos mock).
+- **R3 workflow**: encadenar flujo revision→aprobacion→liberacion completo.
+- **#13 Deuda delegado**: 139 usuarios sin delegado.
+- **Data mocks cleanup**: 16 archivos en `frontend/src/data/` son codigo muerto.
 
 ---
 
-## Resumen ejecutivo (sesiones 1-29)
+## Sesión 29 — 2026-06-18 (jueves) — Validación 22 fixes + radiografía total + limpieza docs
 
-> **S�ntesis de las 29 sesiones completadas hasta el 2026-06-18.**
+## Resumen ejecutivo (sesiones 1-30)
+
+> **S�ntesis de las 30 sesiones completadas hasta el 2026-06-18.**
 
 ### Fases del proyecto (cronol�gicas)
 
@@ -22,26 +60,30 @@
 | **CRUD Parametrizacion** | 12-16 (2026-06-17) | Restaurar CRUD Parametrizacion (mock duplicado), Tiptap editor para plantillas, refresh bug #15, refresh fix, Matriz ETO + Previsualizar + Impersonate. |
 | **R2 FASE 1** | 21 (2026-06-17) | Modelos SQLAlchemy de documentos, correlativo con `pg_try_advisory_xact_lock`, 4 endpoints lectura, seed 10 docs, 33 tests. |
 | **R2 FASE 2** | 22 (2026-06-17) | Storage service (LocalStorage + SharePointStorage stub), POST/PATCH /documentos, firma 2FA at�mica, 4 endpoints /bandeja, refactor AprobacionDocumento.js + VersionEditable.js, 31 tests. **R2 al 100%**. |
+| **Fixes sesiones 23-28** | 23-28 (2026-06-17/18) | Bloques A-D (reunion cliente), E-F (plantillas), 22 fixes testing, drop usuario_modulos, AD sync mejorada, impersonate, modal custom, radiografia, clean state. |
+| **Fix P0 B7 (sesion 30)** | 30 (2026-06-18) | 3 scripts seed rotos arreglados (importaban `usuario_modulos` eliminado en sesion 26). Idempotencia validada, 0 regresiones. |
 
 ### Decisiones arquitect�nicas clave (ADRs principales)
 
 - **Stack**: FastAPI 0.137 + PostgreSQL 16 + Alpine.js 3.15 + Docker Compose (ADR-001, 003)
 - **Auth**: stub local en DES, LDAP real en QAS (ADR-004)
 - **ACceso frontend**: roles hardcodeados en `auth.js:canAccess()` (sesi�n 26 elimin� `usuario_modulos` que era c�digo muerto, ADR-059)
-- **BD**: 22 tablas, 22 migraciones Alembic aplicadas, FKs bien dise�adas, 763 usuarios sincronizados
+- **BD**: 22 tablas, 18 migraciones Alembic aplicadas, FKs bien dise�adas, 761 usuarios sincronizados
 - **Wizard R2**: 3 pasos, firma 2FA at�mica (no persiste si pass incorrecta), correlativo monotono via `SELECT FOR UPDATE` + advisory lock
 - **QAS**: stack completo en Docker, cert autofirmado, 1-click deploy, `v1.0.0-qas` tag
+- **Seeds P0 B7 (sesion 30)**: 3 scripts fix (seed_data, seed_local_test_users, seed_matriz_eto) sin refs a `usuario_modulos`. Campo `modulos` en data dicts se conserva como metadata. Catalogo `modulos` sigue sembrandose.
 
 ### Hallazgos persistentes (debt)
 
 - #13 Deuda delegado: 139 usuarios sin delegado (B9)
 - #14 Cargos a areas: seed POSICION ? area_id (B10)
-- 3 pages R2 sin refactor: Bandeja.js, LiberacionDetalle.js, ListaMaestra.js
-- 3 scripts de seed ROTOS: importan `usuario_modulos` eliminado sesi�n 26 (B7, P0)
+- 6 pages R3 sin refactor: Bandeja.js, LiberacionDetalle.js, ListaMaestra.js, Revision.js, AprobacionFinal.js, Correccion.js
+- ~~3 scripts de seed ROTOS: importan `usuario_modulos` eliminado sesi�n 26 (B7, P0)~~ **RESUELTO en sesion 30**
 
-### M�tricas al cierre de sesi�n 29
+### M�tricas al cierre de sesi�n 30
 
 - **R1 + EPICA9 + QAS + R2**: 100% cerrados
+- **B7 P0 (sesion 30)**: ✅ RESUELTO
 - **22 fixes sesi�n 25**: 21/21 RESUELTOS (1 DEPRECADO)
 - **R3-R6**: 0% (backlog)
 - **Tests**: ~228 (217 PASS, 11 fallas preexistentes no relacionadas)

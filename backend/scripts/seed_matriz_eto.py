@@ -28,7 +28,7 @@ from app.models.matriz_enrutamiento_eto import (
 from app.models.modulo import CodigoModulo, Modulo
 from app.models.rol import CodigoRol, Rol
 from app.models.usuario import (
-    EstadoDelegacion, EstadoUsuario, Usuario, usuario_modulos, usuario_roles,
+    EstadoDelegacion, EstadoUsuario, Usuario, usuario_roles,
 )
 
 
@@ -84,12 +84,10 @@ async def _ensure_cecEspinoza(db: AsyncSession) -> int:
 
     # Asignar rol ETO
     await db.execute(usuario_roles.insert().values(usuario_id=u.id, rol_id=rol_eto.id))
-    # Asignar modulo TODOS
-    mod_todos = (await db.execute(
-        select(Modulo).where(Modulo.codigo == CodigoModulo.TODOS)
-    )).scalar_one()
-    await db.execute(usuario_modulos.insert().values(usuario_id=u.id, modulo_id=mod_todos.id))
-    print(f"      rol=ETO, modulos=[TODOS]")
+    # Sesion 26: modulo por usuario eliminado (era codigo muerto).
+    # El control de acceso es por ROL via ACL hardcodeado en el frontend
+    # (auth.js:canAccess).
+    print(f"      rol=ETO")
     return u.id
 
 

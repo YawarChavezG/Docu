@@ -128,7 +128,7 @@ async def get_or_create_usuario(
     db: AsyncSession, u: dict, areas_cache: dict[str, int]
 ) -> Usuario:
     """Crea o actualiza un usuario local de test."""
-    from app.models.usuario import usuario_roles, usuario_modulos
+    from app.models.usuario import usuario_roles
 
     result = await db.execute(select(Usuario).where(Usuario.username == u["username"]))
     usuario = result.scalar_one_or_none()
@@ -173,20 +173,12 @@ async def get_or_create_usuario(
         usuario_roles.insert().values(usuario_id=usuario.id, rol_id=rol.id)
     )
 
-    # ─── Asignar módulos ───
-    from app.models.modulo import Modulo
-    await db.execute(
-        usuario_modulos.delete().where(usuario_modulos.c.usuario_id == usuario.id)
-    )
-    for modulo_codigo in u["modulos"]:
-        mod_result = await db.execute(select(Modulo).where(Modulo.codigo == modulo_codigo))
-        mod = mod_result.scalar_one()
-        await db.execute(
-            usuario_modulos.insert().values(usuario_id=usuario.id, modulo_id=mod.id)
-        )
-
+    # Sesion 26: modulo por usuario eliminado (era codigo muerto).
+    # El control de acceso es por ROL via ACL hardcodeado en el frontend
+    # (auth.js:canAccess). El campo u["modulos"] se conserva en el dict
+    # como metadata/documentacion pero no se persiste.
     print(f"    - Rol: {u['rol']}")
-    print(f"    - Módulos: {len(u['modulos'])}")
+    print(f"    - Módulos (metadata, no se persisten): {len(u['modulos'])}")
     print(f"    - Área: {u.get('area_sigla', '-')} (gerencia {u.get('gerencia_sigla', '-')})")
     return usuario
 

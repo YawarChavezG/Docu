@@ -1,7 +1,7 @@
 # RADIOGRAFÍA TOTAL — COFAR SGD (2026-06-18)
 
 > **Documento único de contexto para cualquier IA o developer.** Captura el estado real de: frontend, backend, BD, Docker, scripts, tests, pendientes, y deuda técnica. Para ser leído ANTES de cualquier sesión de trabajo.
-> **Última actualización:** 2026-06-18
+> **Última actualización:** 2026-06-18 (sesión 30 — B7 P0 RESUELTO)
 
 ---
 
@@ -236,9 +236,9 @@ Red: `sgd-des_net` (bridge, DNS corporativo COFAR).
 | `scripts/start-stack-backup.bat` | Stack backup paralelo |
 | `scripts/stop-stack-backup.bat` | Apagado stack backup |
 | `scripts/validar_stack.ps1` | Smoke test post-deploy |
-| `backend/scripts/seed_data.py` | 🟠 ROTO (importa usuario_modulos) |
-| `backend/scripts/seed_local_test_users.py` | 🟠 ROTO (importa usuario_modulos) |
-| `backend/scripts/seed_matriz_eto.py` | 🟠 ROTO (importa usuario_modulos) |
+| `backend/scripts/seed_data.py` | ✅ Funcional (sesión 30: fix `usuario_modulos`) |
+| `backend/scripts/seed_local_test_users.py` | ✅ Funcional (sesión 30: fix `usuario_modulos`) |
+| `backend/scripts/seed_matriz_eto.py` | ✅ Funcional (sesión 30: fix `usuario_modulos`) |
 | `backend/scripts/seed_organizacion.py` | ✅ Funcional |
 | `backend/scripts/seed_documentos.py` | ✅ Funcional |
 | `backend/scripts/seed_feriados.py` | ✅ Funcional |
@@ -325,7 +325,7 @@ Red: `sgd-des_net` (bridge, DNS corporativo COFAR).
 
 | ID | Descripción | Archivos afectados |
 |---|---|---|
-| B7 | 3 scripts seed ROTOS: `seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py` importan `usuario_modulos` (eliminado) | `backend/scripts/seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py` |
+| ~~B7~~ | ~~3 scripts seed ROTOS: importan `usuario_modulos` (eliminado)~~ **✅ RESUELTO sesión 30** | `backend/scripts/seed_data.py`, `seed_local_test_users.py`, `seed_matriz_eto.py` |
 | CSRF | Middleware CSRF ausente — api.js envía token pero backend no valida | `backend/app/main.py`, `middleware/` |
 | QAS cert | Certificado HTTPS autofirmado — cambiar a Let's Encrypt o corporativo | `deploy/nginx/ssl/` |
 | QAS tag | Bumpear `v1.1.0-qas` con acumulado sesiones 20-28 | tag git |
