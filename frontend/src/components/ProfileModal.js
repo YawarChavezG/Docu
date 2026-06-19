@@ -560,7 +560,7 @@ export const ProfileModalTemplate = /* html */`
                       <span x-show="!a.activo" class="text-amber-600 text-[9px]">cancelada</span>
                       <span class="ml-auto flex gap-1">
                         <button @click="editarAusencia(a)" class="text-blue-500 hover:text-blue-700 text-[11px] px-0.5 cursor-pointer" title="Editar">✏️</button>
-                        <button x-show="a.activo" @click="eliminarAusencia(a)" class="text-red-500 hover:text-red-700 text-[11px] px-0.5 cursor-pointer" title="Cancelar">🗑️</button>
+                        <button @click="eliminarAusencia(a)" class="text-red-500 hover:text-red-700 text-[11px] px-0.5 cursor-pointer" title="Cancelar">🗑️</button>
                       </span>
                     </div>
                   </template>
