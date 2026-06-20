@@ -58,19 +58,16 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 600s
           script: |
-            set +e
+            set -eo pipefail
             cd /opt/sgd
             cp -a .env.qas /tmp/env_bak 2>/dev/null; cp -a deploy/nginx/ssl /tmp/ssl_bak 2>/dev/null
             find . -mindepth 1 -not -path './backups' -not -path './backups/*' -delete 2>/dev/null
-            git init 2>/dev/null
-            git remote remove origin 2>/dev/null
-            git remote add origin https://github.com/YawarChavezG/Docu.git
-            GIT_SSL_NO_VERIFY=1 git fetch --tags origin ${{ github.ref_name }} --depth 1 2>&1
-            git checkout FETCH_HEAD 2>/dev/null || git checkout ${{ github.ref_name }} 2>/dev/null || echo "WARN: git checkout fallo"
+            curl -sL -o /tmp/repo.tar.gz "https://github.com/YawarChavezG/Docu/archive/refs/tags/${{ github.ref_name }}.tar.gz"
+            tar xzf /tmp/repo.tar.gz --strip-components=1 -C /opt/sgd/ 2>/dev/null || tar xzf /tmp/repo.tar.gz -C /tmp/ && cp -r /tmp/Docu-${{ github.ref_name }}/* /opt/sgd/ 2>/dev/null
+            rm -f /tmp/repo.tar.gz /tmp/Docu-${{ github.ref_name }} -rf 2>/dev/null
             cp -a /tmp/env_bak .env.qas 2>/dev/null; mkdir -p deploy/nginx/ssl && cp -a /tmp/ssl_bak/. deploy/nginx/ssl/ 2>/dev/null
             chmod +x scripts/*.sh 2>/dev/null
             if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf; fi
-            set -eo pipefail
             docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --pull backend celery-worker celery-beat frontend
             docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas up -d
             sleep 15
