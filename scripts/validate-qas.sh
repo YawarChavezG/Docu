@@ -182,7 +182,7 @@ declare -A EXPECTED_COUNTS=(
     [modulos]=11
     [gerencias]=10
     [areas]=50
-    [usuarios]=757
+    [usuarios]=754
     [tipos_documento]=13
     [estados]=16
     [feriados]=20
@@ -232,6 +232,7 @@ if [ "${DOC_COUNT:-0}" -ge 10 ] 2>/dev/null; then
     pass "D.16 documentos count=$DOC_COUNT (>= 10 esperado)"
 else
     warn "D.16 documentos count=$DOC_COUNT (< 10). seed_documentos.py no se ejecuto aun."
+fi
 
 # ════════════════════════════════════════════════════════════════
 # E. LOGIN

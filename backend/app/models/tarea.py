@@ -71,7 +71,7 @@ class Tarea(Base):
     # migrations sobre PostgreSQL. La validez del valor se enforza en
     # la capa de aplicacion (Pydantic) y en el catalogo semaforizacion_tarea.
     tipo_tarea: Mapped[str] = mapped_column(
-        sa.String(50),
+        String(50),
         nullable=False,
     )
     # Firma 2FA que registro la accion sobre esta tarea.
