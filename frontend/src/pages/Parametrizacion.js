@@ -356,11 +356,16 @@ export const page = {
         } catch (e) { window.toast('Error: ' + e.message, 'error')
         } finally { this.plantillaUploading = false }
       },
-      async eliminarPlantillaAdmin(p) {
-        if (!confirm(`¿Eliminar plantilla "${p.nombre_display}"?`)) return
-        const res = await plantillas.eliminar(p.nombre_archivo)
-        if (res.ok) { window.toast('Plantilla eliminada', 'success'); await this.cargarPlantillasAdmin() }
-        else window.toast('Error: ' + (res.data?.detail || res.status), 'error')
+      eliminarPlantillaAdmin(p) {
+        window.confirmDeleteModal?.abrir({
+          titulo: 'Eliminar Plantilla',
+          mensaje: `Eliminar la plantilla <strong>${p.nombre_display}</strong> (${p.nombre_archivo})?<br><span class="text-amber-600">No se borra del servidor, solo se oculta del listado público.</span>`,
+          onConfirm: async () => {
+            const res = await plantillas.eliminar(p.nombre_archivo)
+            if (res.ok) { window.toast('Plantilla eliminada', 'success'); await this.cargarPlantillasAdmin() }
+            else window.toast('Error: ' + (res.data?.detail || res.status), 'error')
+          },
+        })
       },
       async guardarRenombrarPlantilla(p) {
         if (!p._editNombre?.trim()) return
