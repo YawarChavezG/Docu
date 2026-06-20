@@ -38,7 +38,7 @@ jobs:
           ENVIRONMENT: ci
           LDAP_ENABLED: 'false'
       - name: pytest
-        run: cd backend && pip install pytest pytest-asyncio httpx && python -m pytest tests/ -q --tb=short
+        run: cd backend && pip install pytest pytest-asyncio httpx python-docx openpyxl && python -m pytest tests/ -q --tb=short
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           ENVIRONMENT: test
