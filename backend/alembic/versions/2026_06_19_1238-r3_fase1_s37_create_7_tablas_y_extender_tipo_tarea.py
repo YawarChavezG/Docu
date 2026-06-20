@@ -93,6 +93,7 @@ def upgrade() -> None:
                 "REVISION", "APROBACION", "CONTROL_LECTURA", "EVALUACION",
                 "LIBERACION", "CORRECCION",
                 name="tipo_tarea_semaforo",
+                create_type=False,
             ),
             nullable=False,
         ),
