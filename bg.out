@@ -1,6 +1,0 @@
-[dev-backend-bg] Mode = cofar
-[dev-backend-bg] LDAP_ENABLED = true
-[dev-backend-bg] Python = C:\Users\ychavez\PROYECTOS-DOCKER\SGD-DES\backend\.venv\Scripts\python.exe
-[dev-backend-bg] Logs   = C:\Users\ychavez\PROYECTOS-DOCKER\SGD-DES\backend.out / C:\Users\ychavez\PROYECTOS-DOCKER\SGD-DES\backend.err
-[dev-backend-bg] Started PID 105368
-[dev-backend-bg] Background started. Saliendo del script.

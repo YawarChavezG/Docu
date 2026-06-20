@@ -266,11 +266,10 @@ async def seed_areas(db: AsyncSession, gerencias_cache: dict[str, int]) -> dict[
 async def seed_usuarios_stub(
     db: AsyncSession,
     roles_cache: dict[str, int],
-    modulos_cache: dict[str, int],
     areas_cache: dict[str, int],
 ) -> None:
     """Crea los 4 usuarios de desarrollo."""
-    from app.models.usuario import usuario_roles, usuario_modulos
+    from app.models.usuario import usuario_roles
 
     for u in USUARIOS_STUB_DATA:
         existing = await db.execute(
@@ -318,18 +317,12 @@ async def seed_usuarios_stub(
             usuario_roles.insert().values(usuario_id=usuario.id, rol_id=rol_id)
         )
 
-        # Asignar módulos
-        await db.execute(
-            usuario_modulos.delete().where(usuario_modulos.c.usuario_id == usuario.id)
-        )
-        for modulo_codigo in u["modulos"]:
-            modulo_id = modulos_cache[modulo_codigo]
-            await db.execute(
-                usuario_modulos.insert().values(usuario_id=usuario.id, modulo_id=modulo_id)
-            )
-
+        # Sesion 26: modulo por usuario eliminado (era codigo muerto).
+        # El control de acceso es por ROL via ACL hardcodeado en el frontend
+        # (auth.js:canAccess). El campo u["modulos"] se conserva en el dict
+        # como metadata/documentacion pero no se persiste.
         print(f"    - Rol: {u['rol']}")
-        print(f"    - Módulos: {len(u['modulos'])}")
+        print(f"    - Módulos (metadata, no se persisten): {len(u['modulos'])}")
 
 
 async def main() -> None:
@@ -352,7 +345,7 @@ async def main() -> None:
             areas_cache = await seed_areas(db, gerencias_cache)
 
             print("\n[5/5] Sembrando usuarios stub...")
-            await seed_usuarios_stub(db, roles_cache, modulos_cache, areas_cache)
+            await seed_usuarios_stub(db, roles_cache, areas_cache)
 
             await db.commit()
             print("\n" + "=" * 60)

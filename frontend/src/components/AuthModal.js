@@ -36,16 +36,18 @@ export function initAuthModal() {
 
     confirmar() {
       if (!this.pass || this.pass.trim() === '') {
-        window.toast('⚠️ Debe ingresar su contraseña para firmar.', 'warn')
+        window.toast('Debe ingresar su contrasena para firmar.', 'warn')
         return
       }
       this.submitting = true
       setTimeout(() => {
         this.submitting = false
         this.open = false
-        window.toast('✅ Firma digital registrada. Acción realizada exitosamente.', 'success')
-        if (this._onSuccess) this._onSuccess({ usuario: this.usuario, timestamp: new Date().toISOString() })
-      }, 600)
+        // Sesion 23 / Bloque B5: NO mostrar toast de exito aca.
+        // El callback onSuccess() es responsable de mostrar el resultado
+        // (exito o error) segun la respuesta del backend.
+        if (this._onSuccess) this._onSuccess({ usuario: this.usuario, timestamp: new Date().toISOString(), password: this.pass })
+      }, 300)
     },
   }))
 

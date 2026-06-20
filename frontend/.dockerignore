@@ -1,0 +1,78 @@
+# .dockerignore para frontend COFAR SGD
+# Evita que archivos innecesarios entren al contexto de Docker build.
+# Sin esto, `COPY . .` en el Dockerfile incluye node_modules/ del host
+# (si existe de npm ci local) y los bind mounts pisan el node_modules
+# que npm install creo en el build, dejando el container con directorio
+# vacio al arrancar (sesion 19 bug).
+#
+# Esto es la primera linea de defensa. La segunda es:
+# 1) Asegurarse de que `node_modules/` del host NO se commitea
+#    (ya esta en .gitignore raiz).
+# 2) Si el host tiene `node_modules/` (por npm ci local), este archivo
+#    lo excluye del build context.
+
+# Dependencias (CRITICO: causa el bug del bind mount si se incluye)
+node_modules
+**/node_modules
+**/node_modules/**
+
+# Build de produccion
+dist
+build
+.vite
+
+# Control de versiones
+.git
+.gitignore
+.gitattributes
+
+# IDEs y editores
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Worktrees de git
+worktrees
+**/worktrees
+
+# Archivos de Claude Code / agent tools
+.claude
+.agents
+.opencode
+
+# Variables de entorno locales
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Coverage y tests
+coverage
+.nyc_output
+.cache
+.parcel-cache
+
+# Lockfiles duplicados (solo package-lock.json es el canonico)
+yarn.lock
+pnpm-lock.yaml
+bun.lockb
+package-lock.json.bak
+
+# Documentacion de proyecto
+docs
+**/*.md
+!frontend/src/**/*.md
+
+# Scripts de utilidad local
+scripts-tmp/
+tmp/

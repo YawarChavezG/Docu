@@ -25,12 +25,9 @@ RETRIES=30
 echo "[ENTRYPOINT] Environment: ${ENV}"
 echo "[ENTRYPOINT] Esperando a PostgreSQL..."
 
-# Probar localhost primero (GitHub Actions: job en runner, no en container)
-# Luego probar 'postgres' (Docker Compose: servicio nombrado 'postgres')
-PG_HOST="${POSTGRES_HOST:-localhost}"
 for i in $(seq 1 $RETRIES); do
-    if nc -z "$PG_HOST" 5432 2>/dev/null; then
-        echo "[ENTRYPOINT] PostgreSQL listo (${PG_HOST}:5432)."
+    if nc -z postgres 5432 2>/dev/null; then
+        echo "[ENTRYPOINT] PostgreSQL listo."
         break
     fi
     if [ "$i" -eq "$RETRIES" ]; then

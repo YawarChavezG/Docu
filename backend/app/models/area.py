@@ -6,7 +6,7 @@ Datos del Excel GERENCIAS, AREAS Y SIGLAS.
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, DateTime, Boolean, ForeignKey, Integer, func
+from sqlalchemy import String, DateTime, Boolean, ForeignKey, Integer, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -27,8 +27,12 @@ class Area(Base):
         index=True,
     )
 
-    # Sigla del área (ej: "CC", "DT", "PRO")
-    sigla: Mapped[str] = mapped_column(String(10), unique=True, nullable=False, index=True)
+    # Sigla del area (ej: "CC", "DT", "PRO").
+    # UNIQUE(gerencia_id, sigla): la sigla es unica DENTRO de cada gerencia, no global.
+    # Antes (Sesion 5) era UNIQUE global, lo que impedia "revivir" un area con la
+    # misma sigla despues de borrado logico si la sigla ya existia en otra gerencia.
+    # Fix B1 (Sesion 6).
+    sigla: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
 
     # Nombre completo
     nombre: Mapped[str] = mapped_column(String(150), nullable=False)
@@ -37,10 +41,10 @@ class Area(Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Si requiere un jefe_id (futuro - para fallback chain de reasignación)
-    jefe_id: Mapped[int | None] = mapped_column(
-        ForeignKey("usuarios.id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    # NOTA: NO lleva ForeignKey porque crea un ciclo con usuarios.area_id -> areas.id
+    # que SQLAlchemy no puede ordenar en SQLite (tests). Cuando se implemente la
+    # funcionalidad, agregar FK con use_alter=True en el constraint.
+    jefe_id: Mapped[int | None] = mapped_column(nullable=True)
 
     # Orden para mostrar en UI
     orden: Mapped[int] = mapped_column(default=0, nullable=False)
@@ -60,6 +64,10 @@ class Area(Base):
     gerencia: Mapped["Gerencia"] = relationship("Gerencia", back_populates="areas")
     usuarios: Mapped[list["Usuario"]] = relationship(
         "Usuario", back_populates="area", foreign_keys="Usuario.area_id"
+    )
+
+    __table_args__ = (
+        UniqueConstraint("gerencia_id", "sigla", name="uq_areas_gerencia_sigla"),
     )
 
     def __repr__(self) -> str:

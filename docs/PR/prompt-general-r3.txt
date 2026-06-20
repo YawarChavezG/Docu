@@ -1,0 +1,33 @@
+Lee docs/PR/INICIO-SESION.md y seguí las instrucciones.
+
+## Contexto general
+Estamos iniciando la rama R3 (`r3/workflow-revision-aprobacion`). Antes de implementar las nuevas tablas del workflow, hay que terminar lo que falta del wizard de R2 (Fase 0).
+
+## Reglas para todas las sesiones R3
+- Rama de trabajo: `r3/workflow-revision-aprobacion` (crearla desde `r2/wizard-y-version-editable`)
+- Cada sesión = 1 fase (no mezclar fases en una misma sesión)
+- Cada cambio se valida con:
+  - Tests pytest: `cd backend && .venv\Scripts\python -m pytest tests/`
+  - Chrome MCP cuando aplique cambios de UI
+  - `git diff` antes de commitear
+- Al final de cada sesión:
+  - Marcar los ítems completados en el checklist
+  - Actualizar docs (BITACORA, ESTADO, RADIOGRAFIA)
+  - Commit atómico con conventional commit
+  - Avisar al usuario que está listo para la siguiente fase
+
+## Documentación de referencia (leer antes de cualquier cambio)
+1. docs/PR/RADIOGRAFIA-TOTAL-18-06-2026.md — radiografía completa
+2. docs/PR/INICIO-SESION.md — prompt maestro
+3. docs/PR/LEARNINGS-ERRORES.md — errores conocidos (OBLIGATORIO)
+4. docs/PR/PROPUESTA-R3-TABLAS.md — propuesta técnica de tablas
+5. docs/PR/CHECKLIST-R3-FASES.md — fases ordenadas
+6. docs/PR/SKILL-FRONTEND-CONVENCIONES.md — diseño system frontend
+7. docs/PR/SKILL-MCP-TESTING.md — patrones de prueba Chrome MCP
+8. docs/PR/DECISIONES.md — ADRs activos (especialmente ADR-042 sobre JSONB)
+
+Inicio de la rama:
+```bash
+git checkout r2/wizard-y-version-editable
+git checkout -b r3/workflow-revision-aprobacion
+```

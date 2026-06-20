@@ -38,7 +38,8 @@ export const page = {
             d.cod.toLowerCase().includes(q) ||
             d.tit.toLowerCase().includes(q) ||
             d.ger.toLowerCase().includes(q) ||
-            d.area.toLowerCase().includes(q)
+            d.area.toLowerCase().includes(q) ||
+            (d.nombre_completo && d.nombre_completo.toLowerCase().includes(q))
           )
         })
       },
@@ -268,7 +269,7 @@ export const page = {
                 <td>
                   <span class="badge badge-gray text-[10px]" x-text="d.tipo"></span>
                 </td>
-                <td class="font-mono font-bold text-brand-600 text-[11px]" x-text="d.cod"></td>
+                <td class="font-mono font-bold text-brand-600 text-[11px]" :title="d.nombre_completo || (d.cod + ' ' + (d.tit||'').toUpperCase() + ' V' + d.ver)" x-text="d.cod"></td>
                 <td class="text-center font-mono text-[11px] text-slate-500" x-text="d.ver"></td>
                 <td class="text-[11.5px] font-medium text-slate-800" x-text="d.tit"></td>
                 <td class="text-center text-[10.5px] text-slate-500" x-text="d.f_ap"></td>

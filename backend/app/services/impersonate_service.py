@@ -84,7 +84,7 @@ def construir_usuario_virtual_para_impersonate(ad_user: dict) -> dict:
         "roles": [],
         # Metadata de impersonate
         "es_impersonado": True,
-        "ad_dn": ad_user["dn"],
+        "ad_dn": ad_user.get("dn", ""),
         "ad_info": ad_user.get("info", ""),
         "ad_postal_code": ad_user.get("postalCode", ""),
         "ad_tiene_codigo_sap": ad_user.get("tiene_codigo_sap", False),

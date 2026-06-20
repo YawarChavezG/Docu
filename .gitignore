@@ -28,6 +28,11 @@ backend_storage/
 minio_data/
 nginx_logs/
 
+# Plantillas documentales (binarios grandes, se copian via docker cp en start)
+# Mantenemos el directorio en git para preservar estructura + .gitkeep
+backend/storage/plantillas/*
+!backend/storage/plantillas/.gitkeep
+
 # IDEs
 .idea/
 .vscode/*
@@ -42,6 +47,8 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+.env.backup
+.env.qas
 *.pem
 *.key
 *.crt
@@ -53,3 +60,68 @@ logs/
 
 # OS
 .DS_Store
+
+# Temporales / tests
+tmp/
+temp/
+*.tmp
+backups/
+screenshots_sb/
+test_*.json
+test_served.js
+exports_test.xlsx
+cookies_*.txt
+*.dump
+celerybeat-schedule*
+.coverage
+
+# ─── Dev artifacts (outputs de procesos locales, NO se commitean) ───
+# Outputs del backend nativo (.bat) cuando se corre fuera de Docker
+backend.err
+backend.out
+backend.pid
+bg.err
+bg.out
+
+# Cookies de sesiones (curl + tests manuales)
+cookies.txt
+cookies_local.txt
+cookies_*.txt
+
+# JSONs de prueba manual (login, test_*, etc.)
+login_*.json
+login_*_local.json
+test_*.json
+test_imp_*.json
+*_local.json
+trash*.json
+
+# Outputs de procesos en background (nohup, start /B, etc.)
+*.pid
+nohup.out
+*.nohup
+*.pdf
+*.xlsx
+
+# Screenshots de validacion visual (sesiones de QA / debugging)
+screenshots_sb/
+
+# Archivos de recuperacion de sesion (no son parte del proyecto)
+docs/PR/RETORNO_ANTERIOR_SESION.md
+
+# Backups locales de BD (snapshots pg_dump - grandes y efimeros)
+backups/
+
+# Scripts temporales de prueba (Python sueltos)
+tmp_*.py
+tmp_*.xlsx
+tmp_*.docx
+
+# Screenshots de debugging
+docs/PR/screenshots/
+docs/*.docx
+
+# Test artifacts sueltos
+test_served.js
+test_*.js
+test_*.py

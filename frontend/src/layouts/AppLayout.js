@@ -286,9 +286,51 @@ export const AppLayout = {
   </aside>
 
   <!-- ════════════════════════════════════════════════════════
+       IMPERSONATE BANNER (Sesion 17)
+       Sticky top banner que aparece SOLO cuando el admin/ETO esta
+       impersonando a otro usuario. Visible en TODAS las paginas
+       autenticadas (porque vive en el AppLayout, fuera del slot
+       de page-content). El boton "Terminar" llama al endpoint
+       POST /admin/impersonate/stop y refresca el store.
+  ════════════════════════════════════════════════════════ -->
+  <div x-show="$store.auth.user?.impersonated_by"
+       x-cloak
+       x-transition:enter="transition-all duration-200 ease-out"
+       x-transition:enter-start="opacity-0 -translate-y-2"
+       x-transition:enter-end="opacity-100 translate-y-0"
+       x-transition:leave="transition-all duration-150 ease-in"
+       x-transition:leave-start="opacity-100"
+       x-transition:leave-end="opacity-0"
+       class="fixed top-0 left-0 right-0 z-[2000] bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-lg">
+    <div class="flex items-center justify-between gap-3 px-4 py-2.5 max-w-screen-2xl mx-auto">
+      <div class="flex items-center gap-2.5 min-w-0">
+        <span class="text-lg flex-shrink-0">🕵️</span>
+        <div class="text-[12.5px] font-medium leading-tight min-w-0">
+          <div class="truncate">
+            <span class="font-bold">Impersonando a:</span>
+            <span class="font-semibold" x-text="$store.auth.user?.nombre_completo"></span>
+            <span class="opacity-80 font-mono" x-text="'(' + $store.auth.user?.username + ')'"></span>
+          </div>
+          <div class="text-[10.5px] opacity-90 truncate">
+            <span>Sesión real: </span>
+            <span class="font-mono font-semibold" x-text="$store.auth.user?.impersonated_by"></span>
+            <span> · Los cambios se ejecutan como el usuario impersonado. Esta acción queda registrada en auditoría.</span>
+          </div>
+        </div>
+      </div>
+      <button type="button"
+              @click="window.dispatchEvent(new CustomEvent('sgd-stop-impersonate'))"
+              class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 active:bg-white/40 border border-white/30 text-white text-[11px] font-bold transition-colors cursor-pointer">
+        ✕ Terminar Impersonate
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
        MAIN CONTENT AREA
   ════════════════════════════════════════════════════════ -->
-  <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+  <div class="flex flex-col flex-1 min-w-0 overflow-hidden"
+       :class="$store.auth.user?.impersonated_by ? 'pt-[60px]' : ''">
 
     <!-- Topbar -->
     <header class="flex-shrink-0 h-14 bg-white border-b border-slate-200 flex items-center gap-3 px-4 lg:px-5 shadow-card">

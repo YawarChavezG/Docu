@@ -1,0 +1,62 @@
+Lee docs/PR/INICIO-SESION.md y seguí las instrucciones.
+
+## Contexto
+Iniciamos la rama R3 (`r3/workflow-revision-aprobacion`) desde `r2/wizard-y-version-editable`. 
+Antes de empezar con las nuevas tablas de R3, hay que terminar lo que falta de R2 en el wizard de creación de documentos.
+
+## Tareas de esta sesión (Fase 0: ítems 0.1 al 0.6)
+
+La rama nueva se crea al empezar:
+```bash
+git checkout r2/wizard-y-version-editable
+git checkout -b r3/workflow-revision-aprobacion
+```
+
+### 0.5 Fix vigencia del wizard (más fácil, empezar por acá)
+El wizard paso 2 siempre muestra `periodo_vigencia = 4` años aunque el tipo de documento sea indefinido.
+En `frontend/src/pages/AprobacionDocumento.js`, cuando el usuario selecciona un tipo de documento, leer `tipos_documento.periodo_vigencia` y mostrar el valor real o "Indefinido".
+Validar con Chrome MCP: crear documento con tipo indefinido → debe mostrar "Indefinido".
+
+### 0.1 Código completo del documento
+Crear helper `generar_nombre_completo(código, título, versión)` en backend que retorne:
+`"CC-7-005 PROCEDIMIENTO DE MUESTREO V00"`
+Actualizar el display en el wizard, Bandeja y Lista Maestra para mostrar el nombre completo.
+Agregar 2-3 tests en `backend/tests/test_documentos.py`.
+
+### 0.6 Flujo post-wizard: va a ETO primero
+Actualmente al firmar el wizard, el documento va directo a EN_REVISION.
+Debe ir primero a la bandeja del ETO (según `matriz_enrutamiento_eto` por gerencia).
+Modificar `envio_service.py` para que al firmar crear una tarea de LIBERACION para el ETO,
+y el estado del documento pase a `LIBERACION_ETO` (no EN_REVISION directamente).
+Agregar estado `LIBERACION_ETO` al enum `EstatusDocumento`.
+2-3 tests del flujo.
+
+### 0.2 Actualización documental
+Agregar `documento_flujo.documento_actualizado_id` (columna + migración Alembic).
+Frontend: cuando wizard tipo_solicitud=ACTUALIZACION, mostrar selector de documentos 
+existentes filtrados por (área, tipo_documento). Al seleccionar, autocompletar código,
+título y calcular version = version_anterior + 1.
+3-4 tests.
+
+### 0.4 Código de formularios (-F01)
+Crear tabla `documento_formularios` con migración Alembic.
+Extender `correlativo_service` para generar códigos -F01, -F02...
+Wizard: al subir formularios, asignar código correlativo.
+2-3 tests.
+
+### 0.3 Validación de carátula (lectura de .docx)
+Al subir archivo en actualización, leer página 1 del .docx con python-docx o pymupdf.
+Extraer título, código, versión de la carátula y comparar con BD.
+Si no coincide: advertencia (no bloqueante). Si coincide: confirmación.
+3-4 tests.
+
+## Validación final
+- `cd backend && .venv\Scripts\python -m pytest tests/ 2>&1 | Select-Object -Last 5` → 228 PASS
+- Navegar en Chrome MCP: crear documento nuevo, crear documento actualización, verificar vigencia
+- `git diff` antes de commitear
+
+## REGLAS
+- Rama de trabajo: `r3/workflow-revision-aprobacion` (crearla al inicio)
+- Commits en la nueva rama, NO en r2/wizard-y-version-editable
+- Mostrar `git diff` antes de commitear
+- Al final, actualizar docs + commit + avisar que está listo

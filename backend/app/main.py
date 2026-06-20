@@ -12,7 +12,8 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.core.config import settings
-from app.api.v1 import auth, health, admin_impersonate, usuarios
+from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias, areas, bandeja, configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados, audit_log, roles, semaforizacion_tarea, documentos, ausencias, plantillas_documentales
+from app.middleware.csrf import CSRFMiddleware
 
 # ─── Timezone (Bolivia = UTC-4) ───
 # Truco: pisamos el converter CLASS-attribute de logging.Formatter con
@@ -77,6 +78,11 @@ app.add_middleware(
     expose_headers=["X-CSRF-Token"],  # para que el frontend pueda leerlo
 )
 
+# ─── CSRF (Sesion 35) ───
+# Valida X-CSRF-Token contra cookie csrf_token en POST/PUT/PATCH/DELETE.
+# Registrado DESPUES de CORS y ANTES de los routers.
+app.add_middleware(CSRFMiddleware)
+
 
 # ─── Startup / Shutdown ───
 @app.on_event("startup")
@@ -100,7 +106,22 @@ async def shutdown_event():
 app.include_router(health.router, prefix=settings.api_v1_prefix, tags=["Health"])
 app.include_router(auth.router, prefix=settings.api_v1_prefix, tags=["Auth"])
 app.include_router(usuarios.router, prefix=settings.api_v1_prefix, tags=["Usuarios"])
+app.include_router(gerencias.router, prefix=settings.api_v1_prefix, tags=["Gerencias"])
+app.include_router(areas.router, prefix=settings.api_v1_prefix, tags=["Areas"])
+app.include_router(configuracion_global.router, prefix=settings.api_v1_prefix, tags=["Configuracion"])
+app.include_router(feriados.router, prefix=settings.api_v1_prefix, tags=["Feriados"])
+app.include_router(email_templates.router, prefix=settings.api_v1_prefix, tags=["Email Templates"])
+app.include_router(matriz_enrutamiento_eto.router, prefix=settings.api_v1_prefix, tags=["Matriz ETO"])
+app.include_router(tipos_documento.router, prefix=settings.api_v1_prefix, tags=["Tipos Documento"])
+app.include_router(estados.router, prefix=settings.api_v1_prefix, tags=["Estados"])
+app.include_router(roles.router, prefix=settings.api_v1_prefix, tags=["Roles"])
+app.include_router(semaforizacion_tarea.router, prefix=settings.api_v1_prefix, tags=["Semaforizacion"])
+app.include_router(audit_log.router, prefix=settings.api_v1_prefix, tags=["Audit Log"])
 app.include_router(admin_impersonate.router, prefix=settings.api_v1_prefix)
+app.include_router(documentos.router, prefix=settings.api_v1_prefix, tags=["Documentos"])
+app.include_router(bandeja.router, prefix=settings.api_v1_prefix, tags=["Bandeja"])
+app.include_router(ausencias.router, prefix=settings.api_v1_prefix, tags=["Ausencias"])
+app.include_router(plantillas_documentales.router, prefix=settings.api_v1_prefix, tags=["Plantillas Documentales"])
 
 
 # ─── Root ───

@@ -15,14 +15,17 @@ class Base(DeclarativeBase):
 
 
 # ─── Engine (pool de conexiones) ───
-engine = create_async_engine(
-    settings.database_url,
-    echo=settings.debug,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    pool_recycle=3600,
-)
+# SQLite (tests) NO acepta pool_size/max_overflow; PostgreSQL (prod) sí.
+_engine_kwargs: dict = {
+    "echo": settings.debug,
+    "pool_pre_ping": True,
+    "pool_recycle": 3600,
+}
+if not settings.database_url.startswith("sqlite"):
+    _engine_kwargs["pool_size"] = 10
+    _engine_kwargs["max_overflow"] = 20
+
+engine = create_async_engine(settings.database_url, **_engine_kwargs)
 
 # ─── Session factory ───
 AsyncSessionLocal = async_sessionmaker(

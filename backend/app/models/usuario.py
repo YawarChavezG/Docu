@@ -20,7 +20,6 @@ from app.core.database import Base
 
 if TYPE_CHECKING:
     from app.models.rol import Rol
-    from app.models.modulo import Modulo
     from app.models.area import Area
     from app.models.delegacion import Delegacion
     from app.models.ausencia import Ausencia
@@ -49,14 +48,6 @@ usuario_roles = Table(
     Base.metadata,
     Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True),
     Column("rol_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-    Column("created_at", DateTime(timezone=True), server_default=func.now()),
-)
-
-usuario_modulos = Table(
-    "usuario_modulos",
-    Base.metadata,
-    Column("usuario_id", Integer, ForeignKey("usuarios.id", ondelete="CASCADE"), primary_key=True),
-    Column("modulo_id", Integer, ForeignKey("modulos.id", ondelete="CASCADE"), primary_key=True),
     Column("created_at", DateTime(timezone=True), server_default=func.now()),
 )
 
@@ -124,6 +115,9 @@ class Usuario(Base):
     ad_postal_code: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Fecha del último sync que actualizó este usuario desde AD
     ad_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Sesion 23 / Bloque C2: true si el usuario fue importado/creado desde el AD.
+    # False si fue creado manualmente o sembrado como stub de DES.
+    es_usuario_ad: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, index=True)
 
     # ─── Auditoría ───
     password_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -147,9 +141,9 @@ class Usuario(Base):
     roles: Mapped[List["Rol"]] = relationship(
         "Rol", secondary=usuario_roles, backref="usuarios"
     )
-    modulos: Mapped[List["Modulo"]] = relationship(
-        "Modulo", secondary=usuario_modulos, backref="usuarios"
-    )
+    # Sesion 26: la relacion modulos se elimino. El control de acceso es por
+    # ROL via ACL hardcodeado en el frontend (auth.js:canAccess). El campo
+    # user.modulos del backend era codigo muerto.
     delegaciones_como_principal: Mapped[List["Delegacion"]] = relationship(
         "Delegacion", foreign_keys="Delegacion.usuario_principal_id", back_populates="usuario_principal"
     )
