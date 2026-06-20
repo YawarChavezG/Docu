@@ -108,7 +108,8 @@ def run_local(cmd: list[str], timeout: int = 120, cwd: str = None) -> tuple[str,
     """Ejecuta comando local. Retorna (stdout, exit_code)."""
     try:
         r = subprocess.run(cmd, capture_output=True, text=False, timeout=timeout, cwd=cwd)
-        return r.stdout.strip(), r.returncode
+        out = r.stdout.decode("utf-8", errors="replace").strip() if r.stdout else ""
+        return out, r.returncode
     except subprocess.TimeoutExpired:
         return "(TIMEOUT)", -1
 
