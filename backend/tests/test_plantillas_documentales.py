@@ -21,12 +21,17 @@ from app.models.audit_log import AuditLog
 # ─── Fixtures ──────────────────────────────────────────────────────────
 
 @pytest.fixture
-def plantillas_dir(tmp_path, monkeypatch):
-    """Crea 2 .docx dummy + 1 .exe (ignorado) y setea PLANTILLAS_STORAGE_PATH."""
+async def plantillas_dir(tmp_path, monkeypatch, db_session):
+    """Crea 2 .docx dummy + 1 .exe (ignorado) y setea PLANTILLAS_STORAGE_PATH.
+    Ademas inserta en BD para que el endpoint DB-based las encuentre."""
     (tmp_path / "ficha.docx").write_bytes(b"dummy docx content 1")
     (tmp_path / "procedimiento.docx").write_bytes(b"dummy docx content 2")
     (tmp_path / "malware.exe").write_bytes(b"bad")
     monkeypatch.setenv("PLANTILLAS_STORAGE_PATH", str(tmp_path))
+    # Sembrar en BD (el endpoint ahora lee de BD, no del disco directamente)
+    from app.services.plantilla_manager_service import seed_plantillas_desde_disco
+    await seed_plantillas_desde_disco(db_session)
+    await db_session.commit()
     return tmp_path
 
 
