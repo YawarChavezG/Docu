@@ -28,7 +28,7 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 0.1 | Separador versión: `/` → ` ` V | 🔵 EN PROGRESO | — | — | `formatear_codigo_completo()` + displays |
+| 0.1 | Separador versión: `/` → ` ` V | ✅ | 2026-06-20 | 1df60db | `formatear_codigo_completo()` + displays + tests |
 | 0.2 | Agregar credenciales MS Graph + SMTP al `.env` y `config.py` | ⬜ | — | — | Incluir `SHAREPOINT_SITE_ID` |
 | 0.3 | Ocultar LIBERACION de semaforización UI | ⬜ | — | — | Filtrar en endpoint GET |
 | 0.4 | Filtrar usuarios AUSENTES de dropdowns revisores/aprobadores | ⬜ | — | — | Backend + frontend |
