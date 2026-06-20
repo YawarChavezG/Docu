@@ -245,10 +245,30 @@ docker logs sgd-qas-backend --tail 50 -f
 
 ---
 
-## FASE 4 — OBJETIVO DE LA SESIÓN
+## FASE 4 — REPORTE INICIAL (LO QUE DEBES DECIR AL USUARIO)
 
-``` 
-Próxima tarea: Fase 2 — Servicios core R3
+Después de leer TODO el contexto y diagnosticar DES + QAS, debes reportar al usuario:
+
+```text
+✅ Contexto completo del proyecto cargado.
+✅ DES: [X] tablas, [X] tests PASS, entrypoint CI OK, [X] contenedores.
+✅ QAS: [X] tablas, [X]/38 validate PASS, [X] contenedores healthy, alembic head correcto.
+✅ Learnings y errores conocidos asimilados.
+✅ Guía de deploy disponible.
+
+Listo para recibir instrucciones. NO voy a empezar ninguna tarea hasta que me lo indiques específicamente.
+```
+
+**NO empezar ninguna tarea sin orden explícita del usuario.**
+**NO ejecutar ningún comando de deploy sin confirmación explícita.**
+**Solo reportar y esperar.**
+
+---
+
+## FASE 5 — PRÓXIMAS TAREAS (pendientes de autorización)
+
+```
+Fase 2 — Servicios core R3:
 1. tarea_service.py (crear/completar/rechazar/reasignar tarea)
 2. timeline_service.py (bitácora append-only)
 3. notificacion_service.py (crear/marcar leída)
@@ -257,5 +277,4 @@ Próxima tarea: Fase 2 — Servicios core R3
 6. Tests: 8-10 de servicios
 ```
 
-Tenés el contexto COMPLETO del proyecto. Estás listo para continuar.
-Preguntá cuál es la siguiente tarea o esperá instrucciones.
+El usuario decidirá cuándo empezar. No adelantarse.
