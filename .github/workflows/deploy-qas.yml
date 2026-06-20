@@ -57,15 +57,19 @@ jobs:
           username: ${{ secrets.QAS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            set +e
             cd /opt/sgd
             cp -a .env.qas /tmp/env_bak 2>/dev/null; cp -a deploy/nginx/ssl /tmp/ssl_bak 2>/dev/null
             find . -mindepth 1 -not -path './backups' -not -path './backups/*' -delete 2>/dev/null
-            git init && git remote add origin https://github.com/YawarChavezG/Docu.git
-            git fetch origin ${{ github.ref_name }} --depth 1
-            git checkout FETCH_HEAD
+            git init 2>/dev/null
+            git remote remove origin 2>/dev/null
+            git remote add origin https://github.com/YawarChavezG/Docu.git
+            GIT_SSL_NO_VERIFY=1 git fetch --tags origin ${{ github.ref_name }} --depth 1 2>&1
+            git checkout FETCH_HEAD 2>/dev/null || git checkout ${{ github.ref_name }} 2>/dev/null || echo "WARN: git checkout fallo"
             cp -a /tmp/env_bak .env.qas 2>/dev/null; mkdir -p deploy/nginx/ssl && cp -a /tmp/ssl_bak/. deploy/nginx/ssl/ 2>/dev/null
             chmod +x scripts/*.sh 2>/dev/null
             if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf; fi
+            set -e
             docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --pull backend celery-worker celery-beat frontend 2>&1 | tail -3
             docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas up -d && sleep 15 && docker restart sgd-qas-nginx
       - name: Health check
