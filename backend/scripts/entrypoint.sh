@@ -26,7 +26,7 @@ echo "[ENTRYPOINT] Environment: ${ENV}"
 echo "[ENTRYPOINT] Esperando a PostgreSQL..."
 
 for i in $(seq 1 $RETRIES); do
-    if nc -z postgres 5432 2>/dev/null; then
+    if nc -z "${POSTGRES_HOST:-localhost}" 5432 2>/dev/null || pg_isready -q 2>/dev/null; then
         echo "[ENTRYPOINT] PostgreSQL listo."
         break
     fi
