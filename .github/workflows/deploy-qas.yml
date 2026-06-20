@@ -53,15 +53,16 @@ jobs:
       - name: Empaquetar
         run: |
           mkdir -p /tmp/sgd_deploy; cp -r ${{ github.workspace }}/backend /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/frontend /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/deploy /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/scripts /tmp/sgd_deploy/; cp ${{ github.workspace }}/.env.example /tmp/sgd_deploy/; rm -rf /tmp/sgd_deploy/backend/{node_modules,.venv,__pycache__,.pytest_cache}; rm -rf /tmp/sgd_deploy/frontend/{node_modules,dist}; cd /tmp && zip -r sgd_deploy.zip sgd_deploy/
-      - name: Setup SSH agent
-        uses: webfactory/ssh-agent@v0.9
+      - name: SCP a QAS via SSH action
+        uses: appleboy/scp-action@v0.1.7
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      - name: SCP a QAS
-        run: |
-          mkdir -p ~/.ssh && ssh-keyscan -H 10.11.0.11 >> ~/.ssh/known_hosts 2>/dev/null
-          scp /tmp/sgd_deploy.zip ${{ secrets.QAS_USER }}@10.11.0.11:/tmp/
-          scp ${{ github.workspace }}/scripts/extract_qas.py ${{ secrets.QAS_USER }}@10.11.0.11:/tmp/
+          host: 10.11.0.11
+          username: ${{ secrets.QAS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          source: /tmp/sgd_deploy.zip,${{ github.workspace }}/scripts/extract_qas.py
+          target: /tmp/
+          strip_components: 0
       - name: Extraer + Rebuild + Restart
         uses: appleboy/ssh-action@v1
         with:
