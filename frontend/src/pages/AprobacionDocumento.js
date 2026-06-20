@@ -75,7 +75,10 @@ export const page = {
       revisores: [],   // {id, username, nombre_completo}
       aprobadores: [],
       reemplaza: 'no',
-      inputReemplazo: '',
+      _reemplazoInput: '',
+      _reemplazoResults: [],
+      _reemplazoOpen: false,
+      _reemplazoDebounce: null,
       chipsReemplazo: [],
       submitting: false,  // indica que se esta creando/firmando
       _validandoCaratula: false, // R3 item 0.3: evitar llamadas concurrentes
@@ -596,10 +599,31 @@ export const page = {
       removerRevisor(idx) { this.revisores.splice(idx, 1) },
       removerAprobador(idx) { this.aprobadores.splice(idx, 1) },
 
-      addChipReemplazo() {
-        const val = this.inputReemplazo.trim().toUpperCase()
-        if (val && !this.chipsReemplazo.includes(val)) this.chipsReemplazo.push(val)
-        this.inputReemplazo = ''
+      _onReemplazoInput() {
+        const q = this._reemplazoInput.trim()
+        if (this._reemplazoDebounce) clearTimeout(this._reemplazoDebounce)
+        if (q.length < 2) {
+          this._reemplazoResults = []
+          this._reemplazoOpen = false
+          return
+        }
+        this._reemplazoDebounce = setTimeout(async () => {
+          try {
+            const res = await documentos.buscar(q, 8)
+            if (res.ok) {
+              const items = (res.data?.items || []).filter(d => !this.chipsReemplazo.includes(d.codigo_completo))
+              this._reemplazoResults = items
+              this._reemplazoOpen = items.length > 0
+            }
+          } catch (_) { /* ignore */ }
+        }, 300)
+      },
+      _seleccionarReemplazo(doc) {
+        const cod = doc.codigo_completo
+        if (!this.chipsReemplazo.includes(cod)) this.chipsReemplazo.push(cod)
+        this._reemplazoInput = ''
+        this._reemplazoResults = []
+        this._reemplazoOpen = false
       },
       removeChipReemplazo(chip) {
         this.chipsReemplazo = this.chipsReemplazo.filter(c => c !== chip)
@@ -1277,15 +1301,41 @@ export const page = {
       </div>
       <div x-show="reemplaza==='si'" class="mt-2">
         <label class="form-label">Codigos de documentos a dar de baja</label>
-        <div class="flex gap-2">
-          <input type="text" x-model="inputReemplazo" @keydown.enter.prevent="addChipReemplazo()" class="form-input text-xs flex-1 font-mono" placeholder="CC-3-005/00">
-          <button @click="addChipReemplazo()" class="btn btn-sm">+ Agregar</button>
+        <div class="relative">
+          <input type="text" x-model="_reemplazoInput" @input="_onReemplazoInput()"
+                 @keydown.enter.prevent="_seleccionarReemplazo({codigo_completo: _reemplazoInput.trim().toUpperCase()})"
+                 @focus="if(_reemplazoResults.length>0) _reemplazoOpen=true"
+                 class="form-input text-xs w-full font-mono" placeholder="Escriba el codigo para buscar... CC-3-005/00"
+                 autocomplete="off" autocorrect="off" spellcheck="false">
+          <div x-show="_reemplazoOpen && _reemplazoResults.length > 0"
+               x-transition:enter="transition ease-out duration-100"
+               x-transition:enter-start="opacity-0 -translate-y-1"
+               x-transition:enter-end="opacity-100 translate-y-0"
+               class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+               style="display:none"
+               :style="(_reemplazoOpen && _reemplazoResults.length > 0) ? 'display:block' : 'display:none'"
+               @click.stop>
+            <template x-for="doc in _reemplazoResults" :key="doc.id">
+              <button @click="_seleccionarReemplazo(doc)" type="button"
+                      class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors">
+                <div class="text-[11px] font-semibold text-slate-800 font-mono" x-text="doc.codigo_completo + ' — ' + (doc.titulo || '')"></div>
+                <div class="text-[10px] text-slate-500" x-text="(doc.gerencia?.sigla || '') + ' / ' + (doc.area?.sigla || '') + ' · ' + (doc.tipo?.nombre || '')"></div>
+              </button>
+            </template>
+          </div>
+          <div x-show="_reemplazoOpen && _reemplazoResults.length === 0 && _reemplazoInput.trim().length >= 2"
+               class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-center text-[11px] text-slate-500"
+               style="display:none"
+               :style="(_reemplazoOpen && _reemplazoResults.length === 0 && _reemplazoInput.trim().length >= 2) ? 'display:block' : 'display:none'">
+            Sin resultados.
+          </div>
+          <div x-show="_reemplazoOpen" @click="_reemplazoOpen=false" class="fixed inset-0 z-10"></div>
         </div>
         <div class="flex flex-wrap gap-1.5 mt-2">
           <template x-for="chip in chipsReemplazo" :key="chip">
             <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] bg-amber-50 text-amber-700 border border-amber-200">
               <span x-text="chip"></span>
-              <button @click="removeChipReemplazo(chip)" class="text-amber-900 hover:text-amber-700">x</button>
+              <button @click="removeChipReemplazo(chip)" class="text-red-600 hover:text-red-800 text-[13px] cursor-pointer leading-none">✕</button>
             </span>
           </template>
           <span x-show="chipsReemplazo.length===0" class="text-[11px] text-slate-400 italic self-center">Sin codigos agregados</span>
