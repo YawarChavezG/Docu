@@ -1906,6 +1906,45 @@ export const page = {
         <button @click="guardarLimitesDescarga()" class="btn btn-primary w-full mt-3">💾 Guardar Límites de Descarga</button>
       </div>
     </div>
+    <!-- Plantillas Documentales Admin -->
+    <div class="card-base mt-3.5">
+      <div class="section-header">📄 Plantillas Documentales</div>
+      <p class="text-[11px] text-slate-500 mb-3 leading-snug">Gestiona las plantillas .docx que los usuarios descargan desde Plantillas Documentales. Al eliminar una plantilla, se oculta del listado público pero se conserva en el servidor.</p>
+      <div class="flex flex-wrap gap-2 mb-3">
+        <template x-for="p in plantillasAdmin" :key="p.nombre_archivo">
+          <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2 text-[11px] min-w-0 max-w-full">
+            <span class="text-slate-400 text-[16px]">📄</span>
+            <div class="min-w-0 flex-1">
+              <template x-if="plantillaEditing === p.nombre_archivo">
+                <div class="flex items-center gap-1">
+                  <input type="text" x-model="p._editNombre" class="form-input text-[11px] py-0.5 w-36" @keydown.enter.prevent="guardarRenombrarPlantilla(p)" :value="p.nombre_display">
+                  <button @click="guardarRenombrarPlantilla(p)" class="text-emerald-600 hover:text-emerald-700 text-xs cursor-pointer">✓</button>
+                  <button @click="plantillaEditing=null" class="text-red-400 hover:text-red-600 text-xs cursor-pointer">✕</button>
+                </div>
+              </template>
+              <template x-if="plantillaEditing !== p.nombre_archivo">
+                <div>
+                  <span class="font-semibold text-slate-800" x-text="p.nombre_display"></span>
+                  <span class="text-slate-400 ml-1 text-[10px]" x-text="'(' + (p.tamano_bytes/1024).toFixed(0) + 'KB)'"></span>
+                </div>
+              </template>
+            </div>
+            <button @click="p._editNombre = p.nombre_display; plantillaEditing = p.nombre_archivo" class="text-slate-400 hover:text-blue-600 text-xs cursor-pointer" title="Renombrar">✏️</button>
+            <button @click="eliminarPlantillaAdmin(p)" class="text-slate-400 hover:text-red-600 text-xs cursor-pointer" title="Eliminar">🗑️</button>
+          </div>
+        </template>
+        <template x-if="plantillasAdmin.length === 0">
+          <div class="w-full text-center text-[11px] text-slate-400 py-4">No hay plantillas cargadas.</div>
+        </template>
+      </div>
+      <div class="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-150"
+           :class="plantillaUploading ? 'border-brand-300 bg-blue-50' : 'border-slate-200 hover:border-brand-400 bg-slate-50/50'"
+           @click="document.querySelector('#plantilla-upload-input')?.click()">
+        <div class="text-sm mb-1">📤</div>
+        <div class="text-[11px] font-semibold text-slate-600" x-text="plantillaUploading ? 'Subiendo...' : 'Subir nueva plantilla .docx'"></div>
+      </div>
+      <input type="file" id="plantilla-upload-input" accept=".docx,.doc,.xlsx,.xls,.pdf" class="hidden" @change="subirPlantillaAdmin($event.target.files[0])">
+    </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════
@@ -2662,46 +2701,6 @@ export const page = {
                           </template>
       </div>
     </div>
-    <!-- Plantillas Documentales Admin -->
-    <div class="card-base mt-3.5">
-      <div class="section-header">📄 Plantillas Documentales</div>
-      <p class="text-[11px] text-slate-500 mb-3 leading-snug">Gestiona las plantillas .docx que los usuarios descargan desde Plantillas Documentales. Al eliminar una plantilla, se oculta del listado público pero se conserva en el servidor.</p>
-      <div class="flex flex-wrap gap-2 mb-3">
-        <template x-for="p in plantillasAdmin" :key="p.nombre_archivo">
-          <div class="bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2 text-[11px] min-w-0 max-w-full">
-            <span class="text-slate-400 text-[16px]">📄</span>
-            <div class="min-w-0 flex-1">
-              <template x-if="plantillaEditing === p.nombre_archivo">
-                <div class="flex items-center gap-1">
-                  <input type="text" x-model="p._editNombre" class="form-input text-[11px] py-0.5 w-36" @keydown.enter.prevent="guardarRenombrarPlantilla(p)" :value="p.nombre_display">
-                  <button @click="guardarRenombrarPlantilla(p)" class="text-emerald-600 hover:text-emerald-700 text-xs cursor-pointer">✓</button>
-                  <button @click="plantillaEditing=null" class="text-red-400 hover:text-red-600 text-xs cursor-pointer">✕</button>
-                </div>
-              </template>
-              <template x-if="plantillaEditing !== p.nombre_archivo">
-                <div>
-                  <span class="font-semibold text-slate-800" x-text="p.nombre_display"></span>
-                  <span class="text-slate-400 ml-1 text-[10px]" x-text="'(' + (p.tamano_bytes/1024).toFixed(0) + 'KB)'"></span>
-                </div>
-              </template>
-            </div>
-            <button @click="p._editNombre = p.nombre_display; plantillaEditing = p.nombre_archivo" class="text-slate-400 hover:text-blue-600 text-xs cursor-pointer" title="Renombrar">✏️</button>
-            <button @click="eliminarPlantillaAdmin(p)" class="text-slate-400 hover:text-red-600 text-xs cursor-pointer" title="Eliminar">🗑️</button>
-          </div>
-        </template>
-        <template x-if="plantillasAdmin.length === 0">
-          <div class="w-full text-center text-[11px] text-slate-400 py-4">No hay plantillas cargadas.</div>
-        </template>
-      </div>
-      <div class="border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all duration-150"
-           :class="plantillaUploading ? 'border-brand-300 bg-blue-50' : 'border-slate-200 hover:border-brand-400 bg-slate-50/50'"
-           @click="document.querySelector('#plantilla-upload-input')?.click()">
-        <div class="text-sm mb-1">📤</div>
-        <div class="text-[11px] font-semibold text-slate-600" x-text="plantillaUploading ? 'Subiendo...' : 'Subir nueva plantilla .docx'"></div>
-      </div>
-      <input type="file" id="plantilla-upload-input" accept=".docx,.doc,.xlsx,.xls,.pdf" class="hidden" @change="subirPlantillaAdmin($event.target.files[0])">
-    </div>
-  </div>
                   </button>
                 </template>
               </div>
