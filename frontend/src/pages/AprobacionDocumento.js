@@ -327,7 +327,7 @@ export const page = {
       },
 
       // ─── Dropdowns custom (estilo searchable) ───
-      dropdownOpen: { tipodoc: false, gerencia: false, area: false, solicitud: false },
+      dropdownOpen: { tipodoc: false, gerencia: false, area: false, solicitud: false, eval: false, lectura: false, reemplazo: false },
 
       _toggleDropdown(name) {
         this.dropdownOpen[name] = !this.dropdownOpen[name]
@@ -351,6 +351,15 @@ export const page = {
           this.tipoSolicitud = val
           this.dropdownOpen.solicitud = false
           this.onTipoSolicitudChange()
+        } else if (name === 'eval') {
+          this.requiereEval = val
+          this.dropdownOpen.eval = false
+        } else if (name === 'lectura') {
+          this.requiereLectura = val
+          this.dropdownOpen.lectura = false
+        } else if (name === 'reemplazo') {
+          this.reemplaza = val
+          this.dropdownOpen.reemplazo = false
         }
       },
 
@@ -367,6 +376,12 @@ export const page = {
         } else if (name === 'solicitud') {
           const labels = { CREACION: 'Creacion de nuevo documento', ACTUALIZACION: 'Actualizacion de documento' }
           return labels[this.tipoSolicitud] || 'Seleccionar...'
+        } else if (name === 'eval') {
+          return this.requiereEval === 'si' ? 'Si' : 'No'
+        } else if (name === 'lectura') {
+          return this.requiereLectura === 'si' ? 'Si - firma de lectura obligatoria' : 'No'
+        } else if (name === 'reemplazo') {
+          return this.reemplaza === 'si' ? 'Si' : 'No'
         }
         return ''
       },
@@ -378,6 +393,18 @@ export const page = {
         if (name === 'solicitud') return [
           { id: 'CREACION', label: 'Creacion de nuevo documento' },
           { id: 'ACTUALIZACION', label: 'Actualizacion de documento' },
+        ]
+        if (name === 'eval') return [
+          { id: 'si', label: 'Si' },
+          { id: 'no', label: 'No' },
+        ]
+        if (name === 'lectura') return [
+          { id: 'si', label: 'Si - firma de lectura obligatoria' },
+          { id: 'no', label: 'No' },
+        ]
+        if (name === 'reemplazo') return [
+          { id: 'no', label: 'No' },
+          { id: 'si', label: 'Si' },
         ]
         return []
       },
@@ -529,16 +556,42 @@ export const page = {
         else this.toggleHijo(chip.refPadre, chip.refHijo)
       },
 
-      // ─── Paso 3: revisores/aprobadores como strings para input simple ───
-      // (simplificado: usamos el username del dropdown)
+      // ─── Paso 3: revisores/aprobadores con searchable dropdown ───
+      _addSearch: { revisor: '', aprobador: '' },
+      _addSearchOpen: { revisor: false, aprobador: false },
+
+      get _revisoresFiltrados() {
+        const q = (this._addSearch.revisor || '').toLowerCase().trim()
+        if (!q) return this.revisoresList
+        return this.revisoresList.filter(u => (u.nombre_completo || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q))
+      },
+      get _aprobadoresFiltrados() {
+        const q = (this._addSearch.aprobador || '').toLowerCase().trim()
+        if (!q) return this.aprobadoresList
+        return this.aprobadoresList.filter(u => (u.nombre_completo || '').toLowerCase().includes(q) || (u.username || '').toLowerCase().includes(q))
+      },
 
       addRevisor() {
         if (this.revisoresList.length === 0) return
-        this.revisores.push({ id: Date.now() + Math.random(), user_id: this.revisoresList[0].id, username: this.revisoresList[0].username, nombre: this.revisoresList[0].nombre_completo })
+        this._addSearchOpen.revisor = true
+      },
+      seleccionarRevisor(emp) {
+        if (!this.revisores.some(r => r.user_id === emp.id)) {
+          this.revisores.push({ id: Date.now() + Math.random(), user_id: emp.id, username: emp.username, nombre: emp.nombre_completo })
+        }
+        this._addSearch.revisor = ''
+        this._addSearchOpen.revisor = false
       },
       addAprobador() {
         if (this.aprobadoresList.length === 0) return
-        this.aprobadores.push({ id: Date.now() + Math.random(), user_id: this.aprobadoresList[0].id, username: this.aprobadoresList[0].username, nombre: this.aprobadoresList[0].nombre_completo })
+        this._addSearchOpen.aprobador = true
+      },
+      seleccionarAprobador(emp) {
+        if (!this.aprobadores.some(a => a.user_id === emp.id)) {
+          this.aprobadores.push({ id: Date.now() + Math.random(), user_id: emp.id, username: emp.username, nombre: emp.nombre_completo })
+        }
+        this._addSearch.aprobador = ''
+        this._addSearchOpen.aprobador = false
       },
       removerRevisor(idx) { this.revisores.splice(idx, 1) },
       removerAprobador(idx) { this.aprobadores.splice(idx, 1) },
@@ -991,30 +1044,69 @@ export const page = {
         <label class="form-label">Tiempo de vigencia</label>
         <input type="text" :value="tiempoVigenciaLabel" class="form-input bg-slate-50 text-slate-400 text-xs" readonly>
       </div>
-      <div>
+      <!-- Dropdown Requiere evaluacion -->
+      <div class="relative">
         <label class="form-label">Requiere evaluacion</label>
-        <select class="form-input text-xs" x-model="requiereEval">
-          <option value="si">Si</option>
-          <option value="no">No</option>
-        </select>
+        <div class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="requiereEval ? 'text-slate-800' : 'text-slate-400'"
+             @click.stop="_toggleDropdown('eval')">
+          <span x-text="_getDisplayVal('eval')"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="dropdownOpen.eval ? 'rotate-180' : ''">▼</span>
+        </div>
+        <div x-show="dropdownOpen.eval"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[200px] overflow-y-auto"
+             style="display:none" :style="dropdownOpen.eval ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="o in _getDropdownOptions('eval')" :key="o.id">
+            <button @click="_selectDropdown('eval', o.id)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]"
+                    :class="requiereEval === o.id ? 'bg-blue-50 font-semibold text-brand-700' : 'text-slate-700'">
+              <span x-text="o.label"></span>
+            </button>
+          </template>
+        </div>
+        <div x-show="dropdownOpen.eval" @click="dropdownOpen.eval=false" class="fixed inset-0 z-10"></div>
       </div>
-      <div class="sm:col-span-2">
+      <!-- Dropdown Requiere control de lectura -->
+      <div class="sm:col-span-2 relative">
         <label class="form-label">Requiere control de lectura</label>
-        <select class="form-input text-xs" x-model="requiereLectura">
-          <option value="si">Si - firma de lectura obligatoria</option>
-          <option value="no">No</option>
-        </select>
+        <div class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="requiereLectura ? 'text-slate-800' : 'text-slate-400'"
+             @click.stop="_toggleDropdown('lectura')">
+          <span x-text="_getDisplayVal('lectura')"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="dropdownOpen.lectura ? 'rotate-180' : ''">▼</span>
+        </div>
+        <div x-show="dropdownOpen.lectura"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[200px] overflow-y-auto"
+             style="display:none" :style="dropdownOpen.lectura ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="o in _getDropdownOptions('lectura')" :key="o.id">
+            <button @click="_selectDropdown('lectura', o.id)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]"
+                    :class="requiereLectura === o.id ? 'bg-blue-50 font-semibold text-brand-700' : 'text-slate-700'">
+              <span x-text="o.label"></span>
+            </button>
+          </template>
+        </div>
+        <div x-show="dropdownOpen.lectura" @click="dropdownOpen.lectura=false" class="fixed inset-0 z-10"></div>
       </div>
     </div>
 
     <div>
       <label class="form-label">Alcance de difusion (Gerencias / Areas) *</label>
       <div class="relative" @click.outside="showTree=false">
-        <div @click="showTree=!showTree" class="bg-white border border-slate-200 rounded-md px-3 py-2.5 cursor-pointer flex justify-between items-center w-full min-h-[38px]">
-          <span class="text-xs text-slate-600" x-text="chipsDifusion.length ? chipsDifusion.length + ' grupo(s) seleccionado(s)' : 'Seleccionar grupos...'"></span>
-          <span class="text-[10px] text-slate-400" :class="showTree ? 'rotate-180' : ''">▼</span>
+        <div @click="showTree=!showTree" class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="chipsDifusion.length ? 'text-slate-800' : 'text-slate-400'">
+          <span x-text="chipsDifusion.length ? chipsDifusion.length + ' grupo(s) seleccionado(s)' : 'Seleccionar grupos...'"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="showTree ? 'rotate-180' : ''">▼</span>
         </div>
-        <div x-show="showTree" @click.stop class="absolute z-[100] left-0 w-full top-[calc(100%+4px)] bg-white border border-slate-200 rounded-xl p-3 shadow-card-md max-h-[300px] overflow-y-auto">
+        <div x-show="showTree" @click.stop class="absolute z-[100] left-0 w-full top-[calc(100%+4px)] bg-white border border-slate-200 rounded-lg shadow-xl p-3 max-h-[300px] overflow-y-auto">
           <div class="text-[10px] text-slate-400 mb-2.5 pb-2 border-b border-slate-100">Marcar una Gerencia selecciona todas sus areas automaticamente</div>
           <template x-for="grupo in arbol" :key="grupo.id">
             <div class="mb-2.5">
@@ -1051,47 +1143,131 @@ export const page = {
   <div x-show="paso===3" class="card-base">
     <div class="section-header">3. Flujo y firmas</div>
 
+    <!-- Revisores con searchable dropdown -->
     <div>
       <label class="form-label">Revisores asignados (Minimo 1)</label>
       <div class="flex flex-col gap-1.5">
         <template x-for="(r,i) in revisores" :key="r.id">
-          <div class="flex gap-2">
-            <select class="form-input flex-1 text-xs" x-model.number="r.user_id">
-              <template x-for="emp in revisoresList" :key="emp.id">
-                <option :value="emp.id" x-text="emp.nombre_completo + ' (@' + emp.username + ')'"></option>
-              </template>
-            </select>
-            <button @click="removerRevisor(i)" class="btn btn-danger px-2.5 text-[13px]">X</button>
+          <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            <div class="flex-1 min-w-0">
+              <div class="text-[12px] font-semibold text-slate-800 truncate" x-text="r.nombre"></div>
+              <div class="text-[10px] text-slate-500 font-mono" x-text="'@' + r.username"></div>
+            </div>
+            <button @click="removerRevisor(i)" class="text-red-400 hover:text-red-600 text-sm cursor-pointer shrink-0" title="Quitar revisor">✕</button>
           </div>
         </template>
       </div>
-      <button @click="addRevisor()" class="btn btn-sm text-brand-600 border-brand-500 mt-1.5 text-[11px]">+ Agregar Revisor</button>
+      <div class="relative mt-2">
+        <div class="flex items-center gap-2">
+          <input type="text" class="form-input text-xs flex-1" x-model="_addSearch.revisor"
+                 placeholder="Buscar revisor por nombre..."
+                 @focus="_addSearchOpen.revisor=true"
+                 @input="_addSearchOpen.revisor=true"
+                 @click.stop>
+          <button @click="addRevisor()" class="btn btn-sm text-brand-600 border-brand-500 text-[11px] shrink-0">Buscar</button>
+        </div>
+        <div x-show="_addSearchOpen.revisor && _revisoresFiltrados.length > 0"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+             style="display:none"
+             :style="(_addSearchOpen.revisor && _revisoresFiltrados.length > 0) ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="emp in _revisoresFiltrados" :key="emp.id">
+            <button @click="seleccionarRevisor(emp)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors">
+              <div class="text-[11px] font-semibold text-slate-800" x-text="emp.nombre_completo"></div>
+              <div class="text-[10px] text-slate-500 font-mono" x-text="'@' + emp.username"></div>
+            </button>
+          </template>
+        </div>
+        <div x-show="_addSearchOpen.revisor && _revisoresFiltrados.length === 0 && _addSearch.revisor"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-center text-[11px] text-slate-500"
+             style="display:none"
+             :style="(_addSearchOpen.revisor && _revisoresFiltrados.length === 0 && _addSearch.revisor) ? 'display:block' : 'display:none'">
+          Sin resultados.
+        </div>
+        <div x-show="_addSearchOpen.revisor" @click="_addSearchOpen.revisor=false" class="fixed inset-0 z-10"></div>
+      </div>
     </div>
 
+    <!-- Aprobadores con searchable dropdown -->
     <div class="mt-4">
       <label class="form-label">Aprobadores asignados (Minimo 1)</label>
       <div class="flex flex-col gap-1.5">
         <template x-for="(a,i) in aprobadores" :key="a.id">
-          <div class="flex gap-2">
-            <select class="form-input flex-1 text-xs" x-model.number="a.user_id">
-              <template x-for="emp in aprobadoresList" :key="emp.id">
-                <option :value="emp.id" x-text="emp.nombre_completo + ' (@' + emp.username + ')'"></option>
-              </template>
-            </select>
-            <button @click="removerAprobador(i)" class="btn btn-danger px-2.5 text-[13px]">X</button>
+          <div class="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+            <div class="flex-1 min-w-0">
+              <div class="text-[12px] font-semibold text-slate-800 truncate" x-text="a.nombre"></div>
+              <div class="text-[10px] text-slate-500 font-mono" x-text="'@' + a.username"></div>
+            </div>
+            <button @click="removerAprobador(i)" class="text-red-400 hover:text-red-600 text-sm cursor-pointer shrink-0" title="Quitar aprobador">✕</button>
           </div>
         </template>
       </div>
-      <button @click="addAprobador()" class="btn btn-sm text-brand-600 border-brand-500 mt-1.5 text-[11px]">+ Agregar Aprobador</button>
+      <div class="relative mt-2">
+        <div class="flex items-center gap-2">
+          <input type="text" class="form-input text-xs flex-1" x-model="_addSearch.aprobador"
+                 placeholder="Buscar aprobador por nombre..."
+                 @focus="_addSearchOpen.aprobador=true"
+                 @input="_addSearchOpen.aprobador=true"
+                 @click.stop>
+          <button @click="addAprobador()" class="btn btn-sm text-brand-600 border-brand-500 text-[11px] shrink-0">Buscar</button>
+        </div>
+        <div x-show="_addSearchOpen.aprobador && _aprobadoresFiltrados.length > 0"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+             style="display:none"
+             :style="(_addSearchOpen.aprobador && _aprobadoresFiltrados.length > 0) ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="emp in _aprobadoresFiltrados" :key="emp.id">
+            <button @click="seleccionarAprobador(emp)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors">
+              <div class="text-[11px] font-semibold text-slate-800" x-text="emp.nombre_completo"></div>
+              <div class="text-[10px] text-slate-500 font-mono" x-text="'@' + emp.username"></div>
+            </button>
+          </template>
+        </div>
+        <div x-show="_addSearchOpen.aprobador && _aprobadoresFiltrados.length === 0 && _addSearch.aprobador"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-center text-[11px] text-slate-500"
+             style="display:none"
+             :style="(_addSearchOpen.aprobador && _aprobadoresFiltrados.length === 0 && _addSearch.aprobador) ? 'display:block' : 'display:none'">
+          Sin resultados.
+        </div>
+        <div x-show="_addSearchOpen.aprobador" @click="_addSearchOpen.aprobador=false" class="fixed inset-0 z-10"></div>
+      </div>
     </div>
 
     <!-- Issue 11.2: UI para "Reemplazo o baja de documento" -->
     <div class="mt-4">
-      <label class="form-label">Reemplazo o baja de documento</label>
-      <select class="form-input text-xs" x-model="reemplaza">
-        <option value="no">No</option>
-        <option value="si">Si</option>
-      </select>
+      <div class="relative">
+        <label class="form-label">Reemplazo o baja de documento</label>
+        <div class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="reemplaza ? 'text-slate-800' : 'text-slate-400'"
+             @click.stop="_toggleDropdown('reemplazo')">
+          <span x-text="_getDisplayVal('reemplazo')"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="dropdownOpen.reemplazo ? 'rotate-180' : ''">▼</span>
+        </div>
+        <div x-show="dropdownOpen.reemplazo"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[200px] overflow-y-auto"
+             style="display:none" :style="dropdownOpen.reemplazo ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="o in _getDropdownOptions('reemplazo')" :key="o.id">
+            <button @click="_selectDropdown('reemplazo', o.id)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]"
+                    :class="reemplaza === o.id ? 'bg-blue-50 font-semibold text-brand-700' : 'text-slate-700'">
+              <span x-text="o.label"></span>
+            </button>
+          </template>
+        </div>
+        <div x-show="dropdownOpen.reemplazo" @click="dropdownOpen.reemplazo=false" class="fixed inset-0 z-10"></div>
+      </div>
       <div x-show="reemplaza==='si'" class="mt-2">
         <label class="form-label">Codigos de documentos a dar de baja</label>
         <div class="flex gap-2">
