@@ -140,13 +140,14 @@ export const usuarios = {
     return apiDownload(`/usuarios/export?${params.toString()}`)
   },
   // Listar usuarios activos para el picker de delegado (modal editar)
-  listActivos: (q = '') => apiGet(`/usuarios?estado=activo&page_size=500&q=${encodeURIComponent(q)}`),
+  listActivos: (q = '') => apiGet(`/usuarios?estado=activo&ausente=false&page_size=500&q=${encodeURIComponent(q)}`),
   // Listar usuarios activos que tienen un rol especifico (Sesion 24 / F1)
   // Usado por dropdowns que requieren solo usuarios de un rol (ej: analistas ETO).
   // Ej: listPorRol('ETO') -> todos los usuarios con rol ETO
   listPorRol: (rol, q = '') => {
     const params = new URLSearchParams({
       estado: 'activo',
+      ausente: 'false',
       rol: rol,
       page_size: '200',
     })
@@ -163,7 +164,7 @@ export const usuarios = {
     // Importar apiGet para evitar depender de `this.listPorRol` (que a veces
     // es undefined cuando el caller hace destructuring o re-bind).
     const { apiGet } = await import('../utils/api.js')
-    const params = { estado: 'activo', rol: '', page_size: '500' }
+    const params = { estado: 'activo', ausente: 'false', rol: '', page_size: '500' }
     if (q) params.q = q
     const results = await Promise.all(roles.map(async (rol) => {
       params.rol = rol
