@@ -105,15 +105,7 @@ services:
     dns_search:
       - cofar.com
       - .
-    command: >
-      sh -c "
-        echo 'Esperando a PostgreSQL...' &&
-        until nc -z postgres 5432; do sleep 1; done &&
-        echo 'PostgreSQL listo. Aplicando migraciones (si las hay)...' &&
-        alembic upgrade head 2>&1 || echo 'Sin migraciones aún (esperado en R1)' &&
-        echo 'Iniciando uvicorn...' &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+    command: bash scripts/entrypoint.sh
     environment:
       # ── App ──
       PROJECT_NAME: ${PROJECT_NAME:-cofar-sgd}

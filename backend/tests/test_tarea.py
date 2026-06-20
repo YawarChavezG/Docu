@@ -149,19 +149,22 @@ async def test_tarea_fk_documento_flujo_invalido(db_session, seed_catalogos):
 
 
 @pytest.mark.asyncio
-async def test_tarea_fk_tipo_tarea_invalido(db_session, seed_catalogos):
-    """FK tipo_tarea: tipo no existente en semaforizacion_tarea => IntegrityError."""
+async def test_tarea_acepta_tipo_string_sin_fk(db_session, seed_catalogos):
+    """tipo_tarea es String(50) sin FK (por compatibilidad PG enum).
+    La validacion se hace en la capa de aplicacion (Pydantic)."""
     flujo = await _crear_doc_flujo(db_session, seed_catalogos)
     eto = seed_catalogos["eto"]
     tarea = Tarea(
         documento_flujo_id=flujo.id,
         usuario_id=eto.id,
-        tipo_tarea="TIPO_INEXISTENTE",
+        tipo_tarea="REVISION",
     )
     db_session.add(tarea)
-    with pytest.raises(IntegrityError):
-        await db_session.commit()
-    await db_session.rollback()
+    await db_session.commit()
+
+    saved = await db_session.get(Tarea, tarea.id)
+    assert saved is not None
+    assert saved.tipo_tarea == "REVISION"
 
 
 # ════════════════════════════════════════════════════════════════

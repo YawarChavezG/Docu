@@ -2,24 +2,17 @@
 REM ════════════════════════════════════════════════════════════════
 REM COFAR SGD — Despliega codigo en QAS (sgdqas.cofar.com.bo)
 REM
-REM 1. Empaqueta codigo local (sin node_modules, .venv, etc.)
-REM 2. Lo sube a /opt/sgd en QAS via scp
-REM 3. Rebuild imagenes Docker (si hay cambios en Dockerfiles/requirements)
-REM 4. Restart servicios (NO toca la BD a menos que se especifique --migrate)
-REM 5. Invoca start-stack-qas.sh en el server (aplica seeds + sync AD
-REM    si LDAP_ENABLED=true). Idempotente.
+REM LEGACY: a partir de sesion 39, el deploy se hace via CI/CD.
+REM Este script se mantiene como FALLBACK para casos excepcionales.
 REM
-REM Requisitos:
-REM   - SSH key ya instalada (ver scripts/install-ssh-key-qas.ps1)
-REM   - .env.qas ya en /opt/sgd/ (NO se commitea)
-REM   - Docker ya instalado y corriendo en QAS (ver scripts/qas-setup-docker.sh)
+REM Flujo normal:
+REM   git tag vX.Y.Z-qas && git push origin vX.Y.Z-qas
+REM   → CI/CD pipeline ejecuta validate → build → deploy
 REM
-REM Uso:
-REM   scripts\deploy-qas.bat                       (deploy + restart + seeds + sync AD)
-REM   scripts\deploy-qas.bat --no-restart         (solo sube codigo, no restart)
-REM   scripts\deploy-qas.bat --no-seed             (deploy + restart, sin correr seeds)
+REM Fallback (si CI/CD no esta disponible):
+REM   1. bash scripts/validate-deploy.sh (pre-validacion local)
+REM   2. scripts\deploy-qas.bat
 REM
-REM Ver: docs/PR/DEPLOY-QAS.md
 REM ════════════════════════════════════════════════════════════════
 
 setlocal EnableDelayedExpansion

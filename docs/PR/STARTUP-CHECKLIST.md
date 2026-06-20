@@ -21,14 +21,16 @@ se monta en bind, no requiere seeds ni sync AD real.
 
 ## FASE 0 — Pre-deploy (en DES, ANTES de tocar QAS)
 
-- [ ] Working tree limpio en rama `r3/workflow-revision-aprobacion`.
+> **A partir de sesion 39, el deploy se hace via CI/CD (GitHub Actions).**
+> El flujo manual (deploy-qas.bat) queda como fallback.
+
+- [ ] Correr validador pre-deploy: `bash scripts/validate-deploy.sh`
+      (crea BD fresh, corre migrations + seeds, verifica 0 errores).
 - [ ] Tests pytest verde: `cd backend && .venv\Scripts\python -m pytest tests/`.
-- [ ] Tag nuevo creado: `git tag v1.1.1-qas` (o el que corresponda).
-- [ ] Codigo commit + push a origin.
-- [ ] `deploy/docker-compose.qas.yml` actualizado con TZ + healthchecks
-      (validar contra este repo: `deploy/docker-compose.qas.yml`).
-- [ ] `scripts/validate-qas.sh` actualizado: alembic head `r3_plantillas_table_s37`, conteos (semaforo=6, usuarios=757, estados=16, etc.), nuevas tablas R3.
-- [ ] `scripts/start-stack-qas.sh` corregido (12 seeds, ver REQUIRED_FILES y SEEDS).
+- [ ] Tag nuevo creado: `git tag vX.Y.Z-qas`.
+- [ ] Push tag: `git push origin vX.Y.Z-qas`.
+      → CI/CD pipeline se ejecuta automaticamente.
+      → Valida migrations + tests + build + deploy a QAS.
 
 ---
 
