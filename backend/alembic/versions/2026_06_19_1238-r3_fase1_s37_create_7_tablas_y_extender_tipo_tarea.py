@@ -115,7 +115,6 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["delegado_origen_id"], ["usuarios.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["documento_flujo_id"], ["documento_flujo.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["firma_id"], ["firmas_digitales.id"], ondelete="SET NULL"),
-        sa.ForeignKeyConstraint(["tipo_tarea"], ["semaforizacion_tarea.tipo_tarea"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["usuario_id"], ["usuarios.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(

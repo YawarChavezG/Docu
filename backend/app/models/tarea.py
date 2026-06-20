@@ -66,9 +66,12 @@ class Tarea(Base):
         ForeignKey("usuarios.id", ondelete="SET NULL"),
         nullable=True,
     )
-    # FK al catalogo de semaforizacion (PK = tipo_tarea).
+    # FK al catalogo de semaforizacion (PK = tipo_tarea, tipo ENUM).
+    # Usamos String (no Enum) para evitar conflictos de CREATE TYPE en
+    # migrations sobre PostgreSQL. La validez del valor se enforza en
+    # la capa de aplicacion (Pydantic) y en el catalogo semaforizacion_tarea.
     tipo_tarea: Mapped[str] = mapped_column(
-        ForeignKey("semaforizacion_tarea.tipo_tarea", ondelete="RESTRICT"),
+        sa.String(50),
         nullable=False,
     )
     # Firma 2FA que registro la accion sobre esta tarea.
