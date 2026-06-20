@@ -1,0 +1,2 @@
+# Dependencias de producción (vacía por ahora, hereda de base)
+-r base.txt

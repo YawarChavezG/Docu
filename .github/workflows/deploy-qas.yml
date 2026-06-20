@@ -1,0 +1,238 @@
+# ════════════════════════════════════════════════════════════════
+# COFAR SGD — CI/CD Pipeline: Deploy a QAS
+#
+# Trigger: push de tag v*-qas (ej: v1.1.1-qas)
+#
+# Flujo:
+#   1. Crea BD PostgreSQL fresh (servicio Docker)
+#   2. Corre alembic upgrade head (valida migrations)
+#   3. Corre pthreads (337+ tests)
+#   4. Corre seeds (valida idempotencia)
+#   5. Build imagenes Docker
+#   6. Push imagenes a GitHub Container Registry (ghcr.io)
+#   7. SSH a QAS → deploy con nuevas imagenes
+#
+# Requisitos:
+#   - Secrets: SSH_PRIVATE_KEY, QAS_HOST, QAS_USER
+#   - GHCR_TOKEN (automatico con GITHUB_TOKEN)
+#
+# ════════════════════════════════════════════════════════════════
+name: Deploy a QAS
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+-qas'
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  PG_USER: sgd
+  PG_PASSWORD: sgd_ci
+  PG_DB: sgd_ci
+
+jobs:
+
+  # ─── FASE 1: Validacion ─────────────────────────────────────
+  validate:
+    name: Validar migrations + tests + seeds
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ${{ env.PG_USER }}
+          POSTGRES_PASSWORD: ${{ env.PG_PASSWORD }}
+          POSTGRES_DB: ${{ env.PG_DB }}
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready -U ${{ env.PG_USER }} -d ${{ env.PG_DB }}
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Instalar dependencias
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements/base.txt
+
+      - name: Ejecutar alembic upgrade head
+        run: |
+          cd backend
+          alembic upgrade head
+        env:
+          DATABASE_URL: "postgresql+asyncpg://${{ env.PG_USER }}:${{ env.PG_PASSWORD }}@localhost:5432/${{ env.PG_DB }}"
+          ENVIRONMENT: ci
+          LDAP_ENABLED: 'false'
+
+      - name: Verificar alembic head
+        run: |
+          HEAD=$(psql -U ${{ env.PG_USER }} -d ${{ env.PG_DB }} -tA -c "SELECT version_num FROM alembic_version")
+          echo "Alembic head: $HEAD"
+          if [ "$HEAD" != "r3_plantillas_table_s37" ]; then
+            echo "ERROR: Head esperado r3_plantillas_table_s37, actual: $HEAD"
+            exit 1
+          fi
+        env:
+          PGPASSWORD: ${{ env.PG_PASSWORD }}
+
+      - name: Validar entrypoint modo CI
+        run: |
+          cd backend
+          bash scripts/entrypoint.sh
+        env:
+          DATABASE_URL: "postgresql+asyncpg://${{ env.PG_USER }}:${{ env.PG_PASSWORD }}@localhost:5432/${{ env.PG_DB }}"
+          ENVIRONMENT: ci
+          LDAP_ENABLED: 'false'
+
+      - name: Ejecutar pytest
+        run: |
+          cd backend
+          pip install pytest pytest-asyncio httpx
+          python -m pytest tests/ -q --tb=short
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          ENVIRONMENT: test
+          LDAP_ENABLED: 'false'
+
+  # ─── FASE 2: Build + Push imagenes ──────────────────────────
+  build:
+    name: Build y push imagenes Docker
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Login a GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build y push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-backend:${{ github.ref_name }}
+
+      - name: Build y push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-frontend:${{ github.ref_name }}
+
+  # ─── FASE 3: Deploy a QAS ───────────────────────────────────
+  deploy:
+    name: Deploy a servidor QAS
+    needs: validate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout codigo
+        uses: actions/checkout@v4
+
+      - name: Empaquetar codigo
+        run: |
+          cd /tmp
+          mkdir -p sgd_deploy/{backend,frontend,deploy,scripts}
+          cp -r ${{ github.workspace }}/backend /tmp/sgd_deploy/
+          cp -r ${{ github.workspace }}/frontend /tmp/sgd_deploy/
+          cp -r ${{ github.workspace }}/deploy /tmp/sgd_deploy/
+          cp -r ${{ github.workspace }}/scripts /tmp/sgd_deploy/
+          cp ${{ github.workspace }}/.env.example /tmp/sgd_deploy/
+          cd /tmp/sgd_deploy
+          # Limpiar pesados
+          rm -rf backend/node_modules backend/.venv backend/__pycache__ backend/.pytest_cache
+          rm -rf frontend/node_modules frontend/dist
+          cd /tmp && zip -r sgd_deploy.zip sgd_deploy/
+          echo "ZIP size: $(du -h /tmp/sgd_deploy.zip | cut -f1)"
+
+      - name: Subir ZIP a QAS
+        run: |
+          scp -o StrictHostKeyChecking=no /tmp/sgd_deploy.zip \
+            ${{ secrets.QAS_USER }}@${{ secrets.QAS_HOST }}:/tmp/sgd_deploy.zip
+          scp -o StrictHostKeyChecking=no ${{ github.workspace }}/scripts/extract_qas.py \
+            ${{ secrets.QAS_USER }}@${{ secrets.QAS_HOST }}:/tmp/extract_qas.py
+
+      - name: Extraer en QAS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.QAS_HOST }}
+          username: ${{ secrets.QAS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/sgd
+            cp -a .env.qas /tmp/env_bak 2>/dev/null
+            cp -a deploy/nginx/ssl /tmp/ssl_bak 2>/dev/null
+            find . -mindepth 1 -not -path './backups' -not -path './backups/*' -delete 2>/dev/null
+            python3 /tmp/extract_qas.py
+            cp -a /tmp/env_bak .env.qas 2>/dev/null
+            mkdir -p deploy/nginx/ssl
+            cp -a /tmp/ssl_bak/. deploy/nginx/ssl/ 2>/dev/null
+            chmod +x scripts/*.sh 2>/dev/null
+            if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then
+              mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf
+            fi
+            rm -f /tmp/sgd_deploy.zip /tmp/env_bak
+
+      - name: Rebuild + Restart + Seeds
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.QAS_HOST }}
+          username: ${{ secrets.QAS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/sgd
+            docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas \
+              build --pull backend celery-worker celery-beat frontend 2>&1 | tail -3
+            docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas up -d
+            sleep 15
+            docker restart sgd-qas-nginx
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.QAS_HOST }}
+          username: ${{ secrets.QAS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            for i in $(seq 1 30); do
+              STATUS=$(curl -kfsS -o /dev/null -w "%{http_code}" https://localhost/api/v1/health 2>/dev/null)
+              if [ "$STATUS" = "200" ]; then echo "Health OK ($((i*2))s)"; break; fi
+              sleep 2
+            done
+
+      - name: Seeds + Validacion
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.QAS_HOST }}
+          username: ${{ secrets.QAS_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/sgd
+            bash scripts/start-stack-qas.sh 2>&1 | tail -3
+            bash scripts/validate-qas.sh 2>&1 | grep -E "PASS:|FAIL:|WARN:|QAS"

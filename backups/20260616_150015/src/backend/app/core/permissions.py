@@ -1,0 +1,97 @@
+"""
+permissions.py — Helpers de autorización compartidos.
+
+Helpers reusables entre los routers de parametrizacion (gerencias, areas,
+config-global, feriados, email-templates, matriz-eto, tipos-doc, estados).
+Evita duplicar la lectura de cookie + chequeo de rol en cada router.
+"""
+import logging
+from typing import Optional
+
+from fastapi import HTTPException, Request, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
+
+from app.models.usuario import Usuario
+from app.models.rol import CodigoRol
+from app.models.area import Area
+
+logger = logging.getLogger(__name__)
+
+
+async def get_current_user_from_cookie(
+    request: Request, db: AsyncSession
+) -> Optional[Usuario]:
+    """
+    Lee el user_id de la cookie y devuelve el Usuario con roles + area + gerencia.
+    Devuelve None si no hay cookie o el usuario no existe.
+    """
+    user_id_raw = request.cookies.get("user_id")
+    if not user_id_raw:
+        return None
+    try:
+        uid = int(user_id_raw)
+    except (ValueError, TypeError):
+        return None
+
+    return (await db.execute(
+        select(Usuario)
+        .where(Usuario.id == uid)
+        .options(
+            selectinload(Usuario.roles),
+            selectinload(Usuario.area).selectinload(Area.gerencia),
+        )
+    )).scalar_one_or_none()
+
+
+def _user_has_any_role(user: Usuario, role_codes: list[str]) -> bool:
+    """True si el usuario tiene AL MENOS uno de los role_codes."""
+    if not user or not user.roles:
+        return False
+    user_codes = {r.codigo for r in user.roles}
+    return any(rc in user_codes for rc in role_codes)
+
+
+async def require_authenticated(request: Request, db: AsyncSession) -> Usuario:
+    """
+    Verifica que haya sesion activa. 401 si no.
+    """
+    user = await get_current_user_from_cookie(request, db)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No autenticado. Inicia sesion.",
+        )
+    return user
+
+
+async def require_eto_or_admin(request: Request, db: AsyncSession) -> Usuario:
+    """
+    Verifica que el usuario este autenticado Y tenga rol ETO o ADMIN.
+    ETO es el rol primario de parametrizacion (US-9.0x del PDF oficial).
+    401 si no hay sesion, 403 si el rol no es valido.
+    """
+    user = await require_authenticated(request, db)
+    if not _user_has_any_role(user, [CodigoRol.ETO, CodigoRol.ADMIN]):
+        codes = ", ".join(r.codigo for r in user.roles) or "ninguno"
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=(
+                f"Esta operacion requiere rol ETO o ADMIN "
+                f"(tu rol: {codes})"
+            ),
+        )
+    return user
+
+
+async def require_admin(request: Request, db: AsyncSession) -> Usuario:
+    """Verifica que el usuario sea ADMIN. 401/403 segun corresponda."""
+    user = await require_authenticated(request, db)
+    if not _user_has_any_role(user, [CodigoRol.ADMIN]):
+        codes = ", ".join(r.codigo for r in user.roles) or "ninguno"
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Esta operacion requiere rol ADMIN (tu rol: {codes})",
+        )
+    return user

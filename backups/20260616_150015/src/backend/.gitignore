@@ -1,0 +1,25 @@
+# Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+storage/
+logs/
+.env
+.env.local
+
+# Outputs intermedios de sync AD (se regeneran corriendo sync_ad_oficial.py)
+# Excepcion: el *_FINAL*.csv validado se commitea
+scripts/usuarios_*.csv
+!scripts/usuarios_sap_FINAL2026.csv
+scripts/*.err
+scripts/*.out

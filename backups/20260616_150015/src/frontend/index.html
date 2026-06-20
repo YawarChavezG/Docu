@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="COFAR — Sistema de Gestión Documental v2.0" />
+  <title>COFAR · SGD</title>
+
+  <!-- Inter font (variable weight) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..800;1,14..32,300..400&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Compiled Tailwind CSS -->
+  <link rel="stylesheet" href="/src/main.css" />
+</head>
+<body class="h-full font-sans antialiased bg-slate-100 text-slate-800">
+
+  <!-- ══ App root — router injects here ══════════════════════════ -->
+  <div id="app" class="h-full"></div>
+
+  <!-- ══ Toast notifications portal ══════════════════════════════ -->
+  <div
+    id="toast-container"
+    class="fixed bottom-5 right-5 z-[9999] flex flex-col-reverse gap-2 pointer-events-none w-80"
+    aria-live="polite"
+    aria-label="Notificaciones"
+  ></div>
+
+  <!-- ══ App bootstrap ══════════════════════════════════════════ -->
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
