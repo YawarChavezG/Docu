@@ -17,15 +17,16 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import write_audit
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.permissions import require_authenticated
+from app.core.permissions import require_authenticated, require_eto_or_admin
 from app.schemas.plantilla_documental import PlantillaDocumentalOut, PlantillaListResponse
+from app.services.plantilla_manager_service import listar_plantillas, subir_plantilla, renombrar_plantilla, eliminar_plantilla
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plantillas-documentales", tags=["Plantillas Documentales"])
@@ -135,46 +136,23 @@ async def list_plantillas(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista las plantillas disponibles en /app/storage/plantillas/.
-
-    Auth required: cualquier usuario autenticado puede ver el listado.
-    La descarga es un endpoint separado (/download) que SI requiere auth
-    y se audita.
-    """
+    """Lista las plantillas disponibles."""
     await require_authenticated(request, db)
-
-    root = _get_storage_root()
-    if not root.exists():
-        logger.warning("Directorio de plantillas no existe: %s", root)
-        return PlantillaListResponse(total=0, items=[])
-
-    items: list[PlantillaDocumentalOut] = []
-    for entry in sorted(root.iterdir()):
-        if not entry.is_file():
-            continue
-        if _safe_ext(entry) not in _EXT_TO_CATEGORIA:
-            continue
-        nombre_archivo = entry.name
-        if not _is_safe_filename(nombre_archivo):
-            logger.warning("Nombre de plantilla inseguro ignorado: %s", nombre_archivo)
-            continue
-        meta = _PLANTILLAS_META.get(nombre_archivo, {
-            "nombre_display": nombre_archivo.replace("_", " ").replace(".docx", "").title(),
-            "descripcion": "",
-            "version": "v1",
-        })
-        ext = _safe_ext(entry)
-        items.append(PlantillaDocumentalOut(
-            nombre_archivo=nombre_archivo,
-            nombre_display=meta["nombre_display"],
-            descripcion=meta.get("descripcion", ""),
-            categoria=_EXT_TO_CATEGORIA[ext],
-            tamano_bytes=entry.stat().st_size,
-            version=meta.get("version", "v1"),
-            url_descarga=f"/api/v1/plantillas-documentales/{nombre_archivo}/download",
+    items = listar_plantillas()
+    out = []
+    for p in items:
+        ext = Path(p["nombre_archivo"]).suffix.lower()
+        out.append(PlantillaDocumentalOut(
+            nombre_archivo=p["nombre_archivo"],
+            nombre_display=p["nombre_display"],
+            descripcion=p.get("descripcion", ""),
+            categoria=_EXT_TO_CATEGORIA.get(ext, "otro"),
+            tamano_bytes=p["tamano_bytes"],
+            version="v1",
+            url_descarga=f"/api/v1/plantillas-documentales/{p['nombre_archivo']}/download",
+            activo=p.get("activo", True),
         ))
-
-    return PlantillaListResponse(total=len(items), items=items)
+    return PlantillaListResponse(total=len(out), items=out)
 
 
 @router.get("/{nombre_archivo}/download")
@@ -247,3 +225,67 @@ async def download_plantilla(
             "X-Plantilla-Nombre": nombre_archivo,
         },
     )
+
+
+# ════════════════════════════════════════════════════════════════
+#  Endpoints ADMIN (solo ETO/ADMIN)
+# ════════════════════════════════════════════════════════════════
+
+@router.post("/admin/upload")
+async def upload_plantilla_admin(
+    request: Request,
+    archivo: UploadFile = File(...),
+    nombre_display: str = Form(""),
+    descripcion: str = Form(""),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sube una nueva plantilla. Requiere ETO o ADMIN."""
+    await require_eto_or_admin(request, db)
+    if not archivo.filename:
+        raise HTTPException(400, "Nombre de archivo requerido")
+    contenido = await archivo.read()
+    if len(contenido) > 50 * 1024 * 1024:
+        raise HTTPException(413, "Archivo demasiado grande (max 50MB)")
+    result = subir_plantilla(archivo.filename, contenido, nombre_display, descripcion)
+    await write_audit(db, request, await require_authenticated(request, db),
+                      accion="UPLOAD", recurso="plantilla_documental", recurso_id=None,
+                      descripcion=f"Plantilla subida: {archivo.filename}")
+    await db.commit()
+    return result
+
+
+@router.patch("/admin/{nombre_archivo}")
+async def rename_plantilla_admin(
+    nombre_archivo: str,
+    request: Request,
+    payload: dict,
+    db: AsyncSession = Depends(get_db),
+):
+    """Renombra el nombre_display de una plantilla. Requiere ETO o ADMIN."""
+    await require_eto_or_admin(request, db)
+    nuevo_nombre = payload.get("nombre_display", "").strip()
+    nueva_desc = payload.get("descripcion", "").strip()
+    if not nuevo_nombre:
+        raise HTTPException(422, "nombre_display requerido")
+    result = renombrar_plantilla(nombre_archivo, nuevo_nombre, nueva_desc)
+    if not result:
+        raise HTTPException(404, "Plantilla no encontrada")
+    return result
+
+
+@router.delete("/admin/{nombre_archivo}")
+async def delete_plantilla_admin(
+    nombre_archivo: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Elimina (desactiva) una plantilla. Requiere ETO o ADMIN."""
+    user = await require_eto_or_admin(request, db)
+    ok = eliminar_plantilla(nombre_archivo)
+    if not ok:
+        raise HTTPException(404, "Plantilla no encontrada")
+    await write_audit(db, request, user,
+                      accion="DELETE", recurso="plantilla_documental", recurso_id=None,
+                      descripcion=f"Plantilla eliminada: {nombre_archivo}")
+    await db.commit()
+    return {"ok": True}

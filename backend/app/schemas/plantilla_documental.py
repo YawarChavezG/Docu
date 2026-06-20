@@ -32,6 +32,7 @@ class PlantillaDocumentalOut(BaseModel):
     tamano_bytes: int = Field(..., ge=0, description="Tamano del archivo en bytes")
     version: str = Field("v1", description="Version logica de la plantilla")
     url_descarga: str = Field(..., description="URL relativa para descargar (auth required)")
+    activo: bool = Field(True, description="Si la plantilla esta visible o fue eliminada")
 
 
 class PlantillaListResponse(BaseModel):
