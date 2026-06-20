@@ -54,10 +54,12 @@ def _calcular_color(cfg: SemaforizacionTarea, dias_transcurridos: int) -> str:
 async def list_semaforizacion(
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista las 4 reglas. No requiere auth (catalogo publico)."""
+    """Lista las reglas. Excluye LIBERACION (ETO sin plazo, US-1.05).
+    No requiere auth (catalogo publico)."""
     rows = (await db.execute(
         select(SemaforizacionTarea)
         .where(SemaforizacionTarea.activo == True)
+        .where(SemaforizacionTarea.tipo_tarea != TipoTarea.LIBERACION)
         .order_by(SemaforizacionTarea.tipo_tarea)
     )).scalars().all()
     return SemaforizacionTareaListResponse(
