@@ -158,7 +158,7 @@ if "%DO_SEED%"=="1" (
         echo       Para correr manualmente: ssh %QAS_USER%@%QAS_HOST% "bash /opt/sgd/scripts/start-stack-qas.sh"
     ) else (
         echo [6/6] Corriendo start-stack-qas.sh (seeds + sync AD + URLs)...
-        echo       Esto aplica los 7 seeds idempotentes y, si LDAP_ENABLED=true,
+        echo       Esto aplica los 12 seeds idempotentes y, si LDAP_ENABLED=true,
         echo       genera el CSV desde el AD de COFAR.
         echo.
         ssh %QAS_USER%@%QAS_HOST% "bash /opt/sgd/scripts/start-stack-qas.sh"

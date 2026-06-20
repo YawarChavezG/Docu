@@ -111,6 +111,8 @@ REQUIRED_FILES=(
     "${SCRIPTS_DIR}/seed_usuario_roles.py"
     "${SCRIPTS_DIR}/seed_usuario_roles.sql"
     "${SCRIPTS_DIR}/seed_documentos.py"
+    "${SCRIPTS_DIR}/seed_procesos.py"
+    "${SCRIPTS_DIR}/seed_plantillas_db.py"
     "${SCRIPTS_DIR}/sync_ad_oficial.py"
 )
 MISSING=()
@@ -230,12 +232,14 @@ SEEDS=(
     "seed_data.py:Roles + Modulos + Gerencias + Areas + 4 usuarios stub"
     "seed_organizacion.py:27 areas adicionales (de la matriz abril)"
     "seed_tipos_documento.py:13 tipos de documento del Excel"
-    "seed_estados.py:5 estados del flujo documental"
+    "seed_estados.py:5 estados del flujo documental (PROCESO, no AMBAS)"
     "seed_feriados.py:20 feriados Bolivia 2026 (11 nac + 9 dptos)"
-    "seed_email_templates.py:6 plantillas de notificacion (US-9.04)"
+    "seed_email_templates.py:11 plantillas de notificacion (US-9.04)"
     "seed_matriz_eto.py:10 filas matriz ETO + usuario cecEspinoza"
     "seed_configuracion_global.py:11 parametros US-9.01+9.02 (VIGENCIA, SEMAFORO, ARCHIVOS, DESCARGAS)"
     "seed_usuario_roles.py:729 asignaciones snapshot (idempotente, sesion 33)"
+    "seed_procesos.py:10 procesos genericos (R3 Fase 1)"
+    "seed_plantillas_db.py:migra plantillas de filesystem a BD (R3 Fase 1)"
     "seed_documentos.py:10 documentos de ejemplo (idempotente, sesion 21 R2; opcional post-deploy)"
 )
 SEED_FAILED=0
@@ -253,7 +257,7 @@ done
 if [ "$SEED_FAILED" -gt 0 ]; then
     warn "${SEED_FAILED} seed(s) fallaron. Verificar manualmente: docker exec ${C_BACKEND} python scripts/seed_*.py"
 else
-    ok "10/10 seeds aplicados correctamente."
+    ok "12/12 seeds aplicados correctamente."
 fi
 
 # ─── 7. Sync AD (opcional, solo si LDAP_ENABLED=true) ───

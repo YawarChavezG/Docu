@@ -96,6 +96,14 @@ else
     fail "B.1 openpyxl version: '$OPENPYXL_VER' (esperado 3.1.5)"
 fi
 
+# B.3 python-docx en backend (R3 item 0.3: validacion de caratula)
+DOCX_VER=$(docker exec "$C_BACKEND" python -c 'import docx; print(docx.__version__)' 2>/dev/null)
+if [ "${DOCX_VER:-}" = "1.2.0" ]; then
+    pass "B.3 python-docx $DOCX_VER (validacion caratula .docx)"
+else
+    fail "B.3 python-docx version: '$DOCX_VER' (esperado 1.2.0)"
+fi
+
 # B.2 Tiptap en frontend
 TIPTAP_COUNT=$(docker exec "$C_FRONTEND" sh -c 'ls -d /app/node_modules/@tiptap/* 2>/dev/null | wc -l' 2>/dev/null | tr -d ' ')
 if [ "${TIPTAP_COUNT:-0}" -ge 5 ]; then
@@ -110,11 +118,11 @@ fi
 heading "═══ C. MIGRACIONES ═══"
 
 # C.1 alembic head esperado
-ALEMBIC_HEAD=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c "SELECT version_num FROM alembic_version" 2>/dev/null)
-if [ "$ALEMBIC_HEAD" = "drop_modulos_s26" ]; then
+    ALEMBIC_HEAD=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c "SELECT version_num FROM alembic_version" 2>/dev/null)
+if [ "$ALEMBIC_HEAD" = "r3_plantillas_table_s37" ]; then
     pass "C.1 alembic head: $ALEMBIC_HEAD"
 else
-    fail "C.1 alembic head: $ALEMBIC_HEAD (esperado drop_modulos_s26)"
+    fail "C.1 alembic head: $ALEMBIC_HEAD (esperado r3_plantillas_table_s37)"
 fi
 
 # C.2 semaforizacion_tarea existe
@@ -134,6 +142,21 @@ else
     fail "C.3 tipos_documento: codigo_doc=$TIPOS_CODIGODOC (esperado 0), slug=$TIPOS_SLUG (esperado 1)"
 fi
 
+# C.5 Nuevas tablas R3 Fase 1 (sesion 37-38) existen
+R3_TABLAS="documento_formularios tareas bitacora_timeline notificaciones documento_reemplazos documento_alcance_difusion tarea_observaciones procesos plantillas"
+R3_MISSING=0
+for tbl in $R3_TABLAS; do
+    EXISTS=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c \
+        "SELECT count(*) FROM information_schema.tables WHERE table_name='$tbl'" 2>/dev/null)
+    if [ "$EXISTS" != "1" ]; then
+        fail "C.5 tabla $tbl NO existe (esperado 1)"
+        R3_MISSING=$((R3_MISSING + 1))
+    fi
+done
+if [ "$R3_MISSING" -eq 0 ]; then
+    pass "C.5 Nuevas tablas R3: 9/9 existen"
+fi
+
 # C.4 email_templates enum con 11 valores
 EMAIL_ENUM=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c "SELECT count(*) FROM pg_enum WHERE enumtypid=(SELECT oid FROM pg_type WHERE typname='codigo_plantilla')" 2>/dev/null)
 if [ "$EMAIL_ENUM" = "11" ]; then
@@ -147,25 +170,26 @@ fi
 # ════════════════════════════════════════════════════════════════
 heading "═══ D. DATOS BD ═══"
 
-# Conteos esperados (post-deploy v1.1.0-qas, sesion 33)
-# - usuarios=752: 4 stubs + 750 AD - 2 visitador/visitador2 excluidos (sesion 32 fix)
-# - estados=16: 5 originales + 4 PROCESO + 6 TAREA + 3 ACCION (sesion 23 B3) - algunos marcados inactivos
-#   NOTA: validate pasa si count >= esperado; el limite inferior es 12.
-# - configuracion_global=11: 11 parametros US-9.01+9.02 (no se removieron)
+# Conteos esperados (post-deploy v1.1.1-qas, sesion 38)
+# - usuarios=757: 4 stubs DES + 753 AD (sesion 30 sync agregó usuarios)
+# - estados=16: 5 PROCESO + 8 TAREA + 3 ACCION. Algunos marcados inactivos.
+# - semaforizacion_tarea=6: REVISION, APROBACION, CONTROL_LECTURA, EVALUACION, LIBERACION, CORRECCION
+# - configuracion_global=11: 11 parametros US-9.01+9.02
 # - email_templates=11: catalogo completo (sesion 13)
+# - documentos=10: seed_documentos.py (sesion 21 R2, opcional post-deploy)
 declare -A EXPECTED_COUNTS=(
     [roles]=5
     [modulos]=11
     [gerencias]=10
     [areas]=50
-    [usuarios]=752
+    [usuarios]=757
     [tipos_documento]=13
-    [estados]=12
+    [estados]=16
     [feriados]=20
     [email_templates]=11
     [matriz_enrutamiento_eto]=10
     [configuracion_global]=11
-    [semaforizacion_tarea]=4
+    [semaforizacion_tarea]=6
 )
 for table in "${!EXPECTED_COUNTS[@]}"; do
     expected="${EXPECTED_COUNTS[$table]}"
@@ -201,6 +225,13 @@ if [ "$EXCL_COUNT" = "0" ]; then
 else
     fail "D.15 $EXCL_COUNT usuarios excluidos del sync AD todavia en BD. Aplicar cleanup."
 fi
+
+# D.16 documentos >= 10 (seed_documentos.py post-deploy)
+DOC_COUNT=$(docker exec "$C_POSTGRES" psql -U sgd -d sgd -tA -c "SELECT count(*) FROM documentos" 2>/dev/null)
+if [ "${DOC_COUNT:-0}" -ge 10 ] 2>/dev/null; then
+    pass "D.16 documentos count=$DOC_COUNT (>= 10 esperado)"
+else
+    warn "D.16 documentos count=$DOC_COUNT (< 10). seed_documentos.py no se ejecuto aun."
 
 # ════════════════════════════════════════════════════════════════
 # E. LOGIN

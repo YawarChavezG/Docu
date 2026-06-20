@@ -97,3 +97,60 @@ def test_validar_caratula_bytes_invalidos_no_warning():
     assert resultado.coincide is True
     assert resultado.warnings == []
     assert resultado.caratula.exitoso is False
+
+
+# ════════════════════════════════════════════════════════════════
+#  Tests de extraccion desde HEADER del .docx (coverage gap)
+# ════════════════════════════════════════════════════════════════
+
+
+def test_extraer_caratula_desde_header():
+    """Codigo y version en el header del .docx se extraen correctamente."""
+    from tests.docx_helpers import crear_docx_con_header
+    docx = crear_docx_con_header(
+        header_text="CC-3-005  PROCEDIMIENTO DE MUESTREO  V00",
+        body_text="Cuerpo del documento sin codigo",
+    )
+    caratula = extraer_caratula(docx)
+    assert caratula.exitoso is True
+    assert caratula.codigo == "CC-3-005"
+    assert caratula.version == "00"
+
+
+def test_extraer_caratula_version_con_acento():
+    """'Versión' con acento agudo se reconoce como version."""
+    from tests.docx_helpers import crear_docx_con_header
+    docx = crear_docx_con_header(
+        header_text="CC-3-005  PROCEDIMIENTO  Versión: 03",
+    )
+    caratula = extraer_caratula(docx)
+    assert caratula.exitoso is True
+    assert caratula.version == "03"
+
+
+def test_extraer_caratula_version_ver_dot():
+    """'VER. 01' se reconoce como version (formato compacto)."""
+    from tests.docx_helpers import crear_docx_con_header
+    docx = crear_docx_con_header(
+        header_text="CC-3-005  PROCEDIMIENTO  VER. 01",
+    )
+    caratula = extraer_caratula(docx)
+    assert caratula.exitoso is True
+    assert caratula.version == "01"
+
+
+def test_extraer_caratula_desde_tabla_en_header():
+    """Tabla en el header con codigo y version en celdas separadas."""
+    from tests.docx_helpers import crear_docx_con_header_tabla
+    docx = crear_docx_con_header_tabla(
+        header_cells=[
+            "CC-3-005",
+            "PROCEDIMIENTO DE MUESTREO",
+            "V02",
+        ],
+        body_text="Contenido del documento",
+    )
+    caratula = extraer_caratula(docx)
+    assert caratula.exitoso is True
+    assert caratula.codigo == "CC-3-005"
+    assert caratula.version == "02"

@@ -38,3 +38,40 @@ def crear_docx_sin_caratula(texto_libre: str = "lorem ipsum dolor sit amet") -> 
     buf = BytesIO()
     doc.save(buf)
     return buf.getvalue()
+
+
+def crear_docx_con_header(header_text: str = "", body_text: str = "") -> bytes:
+    """Crea un .docx con texto en el header (section.header)."""
+    from docx.enum.section import WD_HEADER_FOOTER
+    doc = Document()
+    section = doc.sections[0]
+    header = section.header
+    hp = header.paragraphs[0]
+    hp.text = header_text
+    if body_text:
+        doc.add_paragraph(body_text)
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue()
+
+
+def crear_docx_con_header_tabla(
+    header_cells: list[str],
+    body_text: str = "",
+) -> bytes:
+    """Crea un .docx con una tabla en el header (codigo/titulo/version en celdas)."""
+    from docx.enum.section import WD_HEADER_FOOTER
+    from docx import Document as DsDocument
+    from docx.shared import Inches
+    doc = DsDocument()
+    section = doc.sections[0]
+    header = section.header
+    # Agregar tabla al header (width requerido en python-docx para header)
+    table = header.add_table(rows=len(header_cells), cols=1, width=Inches(6))
+    for i, text in enumerate(header_cells):
+        table.cell(i, 0).text = text
+    if body_text:
+        doc.add_paragraph(body_text)
+    buf = BytesIO()
+    doc.save(buf)
+    return buf.getvalue()

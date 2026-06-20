@@ -4,7 +4,7 @@
 > QAS/PRD en orden, validando cada paso, y registrando los pasos POST-DEPLOY
 > que son responsabilidad del operador (no del script automatizado).
 >
-> **Ultima actualizacion:** 2026-06-19 (sesion 34 — cierre 6 fixes post-deploy: OpenSSL 3.x + seed_documentos en orquestador + restore_qas validado).
+> **Ultima actualizacion:** 2026-06-20 (sesion 38 — R3 Fase 1 + 30 tablas + plantillas BD + seed_procesos).
 
 ---
 
@@ -21,14 +21,14 @@ se monta en bind, no requiere seeds ni sync AD real.
 
 ## FASE 0 — Pre-deploy (en DES, ANTES de tocar QAS)
 
-- [ ] Working tree limpio en rama `r2/wizard-y-version-editable`.
+- [ ] Working tree limpio en rama `r3/workflow-revision-aprobacion`.
 - [ ] Tests pytest verde: `cd backend && .venv\Scripts\python -m pytest tests/`.
-- [ ] Tag nuevo creado: `git tag v1.1.0-qas` (o el que corresponda).
+- [ ] Tag nuevo creado: `git tag v1.1.1-qas` (o el que corresponda).
 - [ ] Codigo commit + push a origin.
 - [ ] `deploy/docker-compose.qas.yml` actualizado con TZ + healthchecks
       (validar contra este repo: `deploy/docker-compose.qas.yml`).
-- [ ] `scripts/validate-qas.sh` actualizado con los conteos esperados del tag.
-- [ ] `scripts/start-stack-qas.sh` corregido (10 seeds, no 7 — sesion 34 agrego seed_documentos).
+- [ ] `scripts/validate-qas.sh` actualizado: alembic head `r3_plantillas_table_s37`, conteos (semaforo=6, usuarios=757, estados=16, etc.), nuevas tablas R3.
+- [ ] `scripts/start-stack-qas.sh` corregido (12 seeds, ver REQUIRED_FILES y SEEDS).
 
 ---
 
@@ -51,7 +51,7 @@ bash /opt/sgd/scripts/start-stack-qas.sh
 3. Levanta 8 servicios Docker (postgres, redis, mailhog, backend, celery-W/B, frontend, nginx).
 4. Espera healthchecks.
 5. Aplica permisos de storage dentro del container.
-6. Aplica **10 seeds** idempotentes (seed_data, seed_organizacion, seed_tipos_documento, seed_estados, seed_feriados, seed_email_templates, seed_matriz_eto, seed_configuracion_global, seed_usuario_roles, **seed_documentos** — este último opcional post-deploy, sesion 34).
+6. Aplica **12 seeds** idempotentes (seed_data, seed_organizacion, seed_tipos_documento, seed_estados, seed_feriados, seed_email_templates, seed_matriz_eto, seed_configuracion_global, seed_usuario_roles, **seed_procesos**, **seed_plantillas_db**, **seed_documentos** — este último opcional post-deploy, sesion 34).
 7. Ejecuta `sync_ad_oficial.py` (solo si `LDAP_ENABLED=true`).
 8. Imprime resumen + URLs.
 
@@ -67,7 +67,7 @@ bash /opt/sgd/scripts/validate-qas.sh
 - A. Health (backend directo + via HTTPS, 8 servicios Up, openpyxl, Tiptap).
 - B. Librerias.
 - C. Migraciones (alembic head, semaforizacion_tarea existe, tipos_documento sin codigo_doc, enum 11).
-- D. Datos BD (conteos esperados: roles=5, modulos=11, gerencias=10, areas=50, **usuarios=761**, tipos_documento=13, **estados=12**, feriados=20, **email_templates=11**, matriz_eto=10, **configuracion=7**, **semaforizacion_tarea=4**).
+- D. Datos BD (conteos esperados: roles=5, modulos=11, gerencias=10, areas=50, **usuarios=757**, tipos_documento=13, **estados=16**, feriados=20, **email_templates=11**, matriz_eto=10, **configuracion=11**, **semaforizacion_tarea=6**, **documentos=10**).
 - E. Login (aromero BD Local + /me con cookies).
 - F. Endpoints nuevos (audit-log, semaforizacion, impersonate/list).
 - J. Sync AD (CSV generado con >=750 lineas).

@@ -327,6 +327,52 @@ async def test_liberar_password_incorrecta_401(client, seed_catalogos, db_sessio
     # (en produccion viene de request.client.host)
 
 
+@pytest.mark.asyncio
+async def test_liberar_documento_inexistente_404(client, seed_catalogos, db_session):
+    """Llamar /liberar con un doc_id que no existe: 404."""
+    eto = seed_catalogos["eto"]
+    cookies = {"user_id": str(eto.id), "session": "x"}
+    r = await client.post(
+        "/api/v1/documentos/99999/liberar",
+        json={"password": "cofar.2026"}, cookies=cookies,
+    )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_liberar_documento_sin_estado_revision_catalogo_500(client, seed_catalogos, db_session):
+    """Si el catalogo de estados no tiene REVISION/EN_REVISION -> 500."""
+    from app.models.estado import Estado
+    # Eliminar el estado REVISION del catalogo
+    await db_session.execute(
+        __import__("sqlalchemy").delete(Estado).where(
+            Estado.codigo.in_(["REVISION", "EN_REVISION"])
+        )
+    )
+    await db_session.commit()
+
+    tipo = await _crear_tipo(db_session, codigo=55, slug="LIB55", nombre="Liberar Test")
+    area = seed_catalogos["area"]
+    eto = seed_catalogos["eto"]
+    cookies = {"user_id": str(eto.id), "session": "x"}
+
+    doc_id = await _crear_doc_en_elaboracion(client, cookies, area, tipo)
+    # Enviar a LIBERACION_ETO
+    r1 = await client.post(
+        f"/api/v1/documentos/{doc_id}/enviar",
+        json=_payload_enviar(doc_id), cookies=cookies,
+    )
+    assert r1.status_code == 200
+
+    # Liberar (falla porque no hay estado REVISION en catalogo)
+    r2 = await client.post(
+        f"/api/v1/documentos/{doc_id}/liberar",
+        json={"password": "cofar.2026"}, cookies=cookies,
+    )
+    assert r2.status_code == 500
+    assert "REVISION" in r2.json()["detail"]
+
+
 # ════════════════════════════════════════════════════════════════
 #  R3 item 0.2: Actualizacion documental
 #  Sesion 36 R3 - FASE 0
