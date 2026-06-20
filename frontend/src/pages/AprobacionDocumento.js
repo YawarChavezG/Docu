@@ -436,7 +436,7 @@ export const page = {
       _nextFormId: 1,
 
       _sanitizarNombre(t) {
-        return (t || '').toUpperCase().replace(/[^A-Z0-9ÁÉÍÓÚÑÜ\s]/g, '').trim().replace(/\s+/g, '_')
+        return (t || '').toUpperCase().replace(/[^A-Z0-9ÁÉÍÓÚÑÜ\s]/g, '').trim()
       },
 
       _getExtension(name) {
@@ -452,7 +452,7 @@ export const page = {
           const ext = this._getExtension(f.file.name)
           const tituloSanitizado = this._sanitizarNombre(f.titulo || '')
           const corr = String(i + 1).padStart(2, '0')
-          const nombre = tituloSanitizado ? `${cod}-F${corr}_${tituloSanitizado}_V${ver}${ext}` : `${cod}-F${corr}_V${ver}${ext}`
+          const nombre = tituloSanitizado ? `${cod}-F${corr} ${tituloSanitizado} V${ver}${ext}` : `${cod}-F${corr} V${ver}${ext}`
           return { ...f, nombre_codificado: nombre, correlativo: corr }
         })
       },
