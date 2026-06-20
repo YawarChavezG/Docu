@@ -89,12 +89,7 @@ def upgrade() -> None:
         sa.Column("delegado_origen_id", sa.Integer(), nullable=True),
         sa.Column(
             "tipo_tarea",
-            sa.Enum(
-                "REVISION", "APROBACION", "CONTROL_LECTURA", "EVALUACION",
-                "LIBERACION", "CORRECCION",
-                name="tipo_tarea_semaforo",
-                create_type=False,
-            ),
+            sa.String(length=50),
             nullable=False,
         ),
         sa.Column("firma_id", sa.Integer(), nullable=True),
