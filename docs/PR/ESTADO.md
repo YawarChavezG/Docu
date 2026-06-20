@@ -1,14 +1,34 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-19 (sesión 37 — **R3 FASE 1 CERRADA + sub-fix semaforo: 7 tablas nuevas, SharePoint Graph API probado, seed_full_restore.bat creado, 300/300 tests PASS**)
+> **Última actualización:** 2026-06-20 (sesión 37/38 — **R3 FASE 1 CERRADA + wizard completo US-2.02/2.04 + tabla plantillas en BD + 300/300 tests PASS**)
 
 ## Versión actual
-**v1.1.0-qas (DESPLEGADO EN QAS)** — sesión 33 ejecutó el deploy end-to-end. Sesión 34 cerró los 6 fixes pendientes (OpenSSL 3.x cert check + seed_documentos en orquestador + restore_qas validado + 10 documentos sembrados). Sesión 35 cerró 3 items de deuda técnica (B3 vite manualChunks + B1 gerencia cascade + CSRF middleware), 228/228 tests PASS. Sesión 36 cerró la FASE 0 de R3 (6 items: 0.5 vigencia + 0.1 nombre_completo + 0.6 LIBERACION_ETO + 0.2 actualizacion + 0.4 formularios -F01 + 0.3 validacion caratula .docx), **249/249 tests PASS** (21 nuevos). **Sesión 37 cierra la FASE 1 de R3** (7 tablas nuevas + enum extendido + semaforo actualizado + 51 tests, **sub-fix**: corrección de valores semaforo a 7/12/15 días naturales, LIBERACION=999), **300/300 tests PASS**. QAS corriendo con tag `v1.1.0-qas` (commit `63ffe7d`). Pendiente:
-1. **CRÍTICO POST-DEPLOY**: ejecutar `run_matriz_import.py` con el Excel `USUARIOS EXISTENTES A ABRIL.xlsx` (FASE 3.1 de STARTUP-CHECKLIST.md). Los 723 usuario_roles actuales son snapshot de DES; el operador debe re-asignar con la matriz oficial.
-2. **Restore script + nginx restart** (low): agregar `docker restart sgd-qas-nginx` al final de `restore_clean_state_qas.sh` para automatizar el fix del 502.
-3. **Deploy a QAS v1.1.1-qas** (Fase 0 + CSRF + Fase 1): acumula los cambios de sesiones 35, 36 y 37. Pendiente bumpear tag.
-4. **R3 Fase 2**: servicios core (tarea_service, timeline_service, notificacion_service) + integración con envio_service.
+**v1.1.0-qas (DESPLEGADO EN QAS)** — Sesiones 33-36 ejecutaron deploy, fixes y Fase 0 de R3. **Sesión 37-38**: Fase 1 de R3 (7 tablas workflow) + sub-fix semáforo (7/12/15 naturales) + **300/300 tests PASS**. Además se completaron:
+
+**Frontend (Wizard AprobacionDocumento):**
+- US-2.02: Searchable dropdown "Documento a actualizar" (input + filtro)
+- US-2.04: Formularios con drag-reorder, título editable desde contenido del archivo, codificación automática -F01/-F02/-F03
+- Dropdowns visuales custom en todo el wizard (Tipo doc, Gerencia, Area, Solicitud, Eval, Lectura, Reemplazo)
+- Checkboxes custom en árbol de difusión
+- Searchable dropdowns para Revisores y Aprobadores
+- Autocomplete en vivo para Códigos de reemplazo (vía /documentos/buscar)
+- Extracción de título real de .xlsx/.docx al subir formularios (endpoint POST /extraer-titulo-formulario)
+
+**Administración de Plantillas:**
+- Nueva tabla `plantillas` en BD (soft-delete, audit_log, storage_path, created_by_id)
+- CRUD completo (subir, renombrar, eliminar) desde Parametrización > Restricciones
+- Migración de 8 plantillas del filesystem a BD
+- Interfaz con ConfirmDeleteModal (sin confirm() nativo)
+
+**Infraestructura:**
+- Script `seed_full_restore.bat` (un comando: sync AD + matriz roles + documentos)
+- Documentación de arranque desde BD vacía en INICIO-SESION.md
+- Prueba exitosa de Graph API (SharePoint) desde QAS (subida/descarga/rename/move)
+
+QAS corriendo con tag `v1.1.0-qas`. Pendiente:
+1. **Deploy a QAS v1.1.1-qas**: acumula cambios de sesiones 35-38. Pendiente bumpear tag.
+2. **R3 Fase 2**: servicios core (tarea_service, timeline_service, notificacion_service) + integración con envio_service.
 
 ## Arranque desde BD vacía
 Si Docker se apaga y se pierden los volúmenes (`docker volume prune`) o la BD está vacía:
@@ -273,12 +293,21 @@ El script `seed_full_restore.bat` restaura 757 usuarios + 724 usuario_roles + 10
 - R1 + EPICA9 + Impersonate + Refresh + Sesión 27 fixes: **100% cerrado**
 - QAS: 100% funcional
 - R2 FASE 1 + FASE 2: 100% cerrado
-- R3: 0% (3 pages sin refactor)
-- R4-R6: 0% (backlog)
-- **Total: 100% R1 + 100% R2 + 100% QAS + 81% R2 (con refactors pendientes R3)**
+- R3 Fase 0 (Wizard R2 completion): **100% cerrado**
+- R3 Fase 1 (7 tablas workflow): **100% cerrado** + sub-fix semáforo
+- R3 Fase 2 (Servicios core): **0%** (pendiente)
+- R4-R6: **0%** (backlog)
+- **Tests: 300/300 PASS**
+- **Tablas BD: 30** (+7 Fase 1 + 1 plantillas)
+- **Endpoints: 90+ REST**
 
 ## Tablas de BD
-**22 tablas en BD** (21 entidades + alembic_version). Alembic head: `drop_modulos_s26`.
+**30 tablas en BD** (29 entidades + alembic_version). Alembic head: `r3_plantillas_table_s37`.
+
+Tablas nuevas desde Fase 0/Fase 1/Esta sesión:
+- Fase 0: `documento_formularios`
+- Fase 1: `tareas`, `bitacora_timeline`, `notificaciones`, `documento_reemplazos`, `documento_alcance_difusion`, `tarea_observaciones`, `procesos`
+- Sesión 38: `plantillas`
 
 ## Servicios backend implementados
 

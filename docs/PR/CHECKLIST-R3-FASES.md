@@ -2,7 +2,7 @@
 
 > **Checklist de implementación para R3 (Workflow de Revisión y Aprobación).**
 > **Cada fase termina con: código commiteado + tests PASANDO + docs actualizados.**
-> **Rama:** `r3/workflow-revision-aprobación` (crear desde `r2/wizard-y-version-editable`)
+> **Rama:** `r3/workflow-revision-aprobacion` (creada desde `r2/wizard-y-version-editable`)
 >
 > **Estimación total:** 55-65h (14-16 sesiones de 4h)
 
@@ -71,6 +71,23 @@
 - [x] Tests: 5-6 tests de cada nuevo modelo (creación, índices, constraints) — **51 tests nuevos**
 
 ---
+
+### Bonus — Mejoras wizard (US-2.02, US-2.04) + Admin plantillas
+- [x] Searchable dropdown "Documento a actualizar" (US-2.02)
+- [x] Formularios drag-reorder + título editable + codificación -F01/-F02 (US-2.04)
+- [x] Extracción de título real desde .xlsx/.docx al subir (POST /extraer-titulo-formulario)
+- [x] Dropdowns visuales custom (Tipo, Gerencia, Area, Solicitud, Eval, Lectura, Reemplazo)
+- [x] Checkboxes custom en árbol de difusión
+- [x] Searchable dropdowns para Revisores y Aprobadores
+- [x] Autocomplete en vivo para Códigos de reemplazo (vía /documentos/buscar)
+- [x] Tabla `plantillas` en BD (soft-delete, audit_log, storage_path)
+- [x] CRUD plantillas desde Parametrización > Restricciones (subir, renombrar, eliminar)
+- [x] ConfirmDeleteModal en vez de confirm() nativo
+- [x] Tabla `documento_formularios` (Fase 0.4)
+- [x] Validación de carátula .docx (Fase 0.3)
+- [x] Columna `usa_dias_habiles` en semaforizacion_tarea
+- [x] Valores semáforo corregidos: 7/12/15 naturales, LIBERACION=999
+- [x] Contexto AMBAS eliminado del modelo Estado
 
 ## 🟡 Fase 2: Servicios core R3
 

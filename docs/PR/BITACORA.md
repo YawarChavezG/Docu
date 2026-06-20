@@ -99,22 +99,63 @@ La data migration de la Fase 1 cambió los valores históricos 7/12/15 (días na
 | Pendiente commit | 18 archivos (atomic commit) | ⏳ |
 | QAS | SIN TOCAR (cambios solo DES) | — |
 
-### Pendientes para Fase 2
+### Pendientes para Fase 2 (próxima sesión)
+- `tarea_service.py`, `timeline_service.py`, `notificacion_service.py`
+- Integrar `envio_service.liberar_documento()` con tareas
+- Helper `calcular_color_sla(tarea)`
+- Tests (8-10)
+- Migración JSONB → N:M (Fase 5)
+- Actualizar seed_documentos.py
 
-- `tarea_service.py` — crear/completar/rechazar/reasignar tareas
-- `timeline_service.py` — escribir bitácora (append-only, sin UPDATE/DELETE)
-- `notificacion_service.py` — crear/marcar_leida
-- Integrar con `envio_service.liberar_documento()`: crear tareas de REVISION para cada revisor al liberar ETO
-- Helper `calcular_color_sla(tarea)` — días hábiles vs feriados
-- Tests de servicios (8-10)
+---
 
-### Pendientes para Fase 5 (no bloqueante para Fase 2)
+## Sesión 38 — 2026-06-19/20 — Wizard UX + Plantillas DB + Fixes generales
 
-- Script `migrar_jsonb_a_tablas_r3.py` idempotente (JSONB → tablas N:M)
-- Actualizar `seed_documentos.py` para crear tareas
-- Tests de migración (3-4)
+### Resumen ejecutivo
+Sesión dedicada a mejorar la UX del wizard, implementar admin de plantillas en BD, y corregir múltiples bugs. **18 archivos modificados, +1303/-203 líneas, 300/300 tests PASS, 30 tablas en BD.**
 
+### Tareas ejecutadas
 
+**Frontend — Wizard AprobacionDocumento:**
+- Searchable dropdown "Documento a actualizar" (input + filtro en vivo)
+- Dropdowns visuales custom (Tipo, Gerencia, Area, Solicitud, Eval, Lectura, Reemplazo)
+- Checkboxes custom con span en árbol de difusión (✓/−)
+- Searchable Revisores/Aprobadores (input + dropdown con nombre)
+- Formularios drag-reorder + título editable + codificación -F01/-F02/-F03
+- Extracción de título real desde .xlsx/.docx al subir (POST /extraer-titulo-formulario)
+- Autocomplete en vivo para códigos de reemplazo (vía /documentos/buscar, 300ms debounce)
+- File upload fix: `$refs.filePrincipal.click()` → `document.querySelector()`
+
+**Backend — Plantillas Documentales:**
+- Modelo `Plantilla` en BD (11 columnas, soft-delete)
+- Migración Alembic `r3_plantillas_table_s37`
+- Servicio asíncrono DB-based + seed desde filesystem (8 plantillas)
+- Endpoints admin con audit_log (UPLOAD/RENAME/DELETE)
+- ConfirmDeleteModal en vez de confirm() nativo
+
+**Fixes:**
+- Impersonate: header X-CSRF-Token agregado a _ejecutarImpersonate y stopImpersonate
+- Login: bloquea usuarios inactivos y desvinculados
+- Self-impersonate: botón oculto si username coincide
+- Self-editar estado: bloqueado en backend (422) y frontend (input disabled)
+- Contexto AMBAS eliminado del modelo Estado (solo PROCESO, TAREA, ACCION)
+- Semáforo LIBERACION: fila marcada activo=false, filtro en API
+- `template x-if` dentro de `x-teleport` → `span x-show` (documentado como F12)
+- ProfileModal: confirm dialog, botones editar/cancelar ausencias, labels dinámicos
+
+**Infraestructura:**
+- `scripts/seed_full_restore.bat` (un comando: sync AD + matriz roles + documentos)
+- Documentación de arranque desde BD vacía en INICIO-SESION.md y ESTADO.md
+- Prueba exitosa de Graph API (SharePoint) desde QAS (subida, descarga, rename, move)
+
+### Commits esta sesión (20)
+Desde `dc73cbd` a `813a8a2` en rama `r3/workflow-revision-aprobacion`. QAS sin tocar.
+
+| Métrica | Valor |
+|---|---|
+| Tests | **300/300 PASS** |
+| Tablas BD | **30** |
+| Migraciones | 24 (head: r3_plantillas_table_s37) |
 
 ### Resumen ejecutivo
 Sesion dedicada a cerrar la Fase 0 de R3 (rama `r3/workflow-revision-aprobacion` creada desde `r2/wizard-y-version-editable`). Se completaron los 6 items del wizard de R2 que estaban pendientes. **Total: 21 archivos modificados + 5 archivos nuevos, 2 migraciones Alembic, 21 tests nuevos, 249/249 tests PASS (de 228), 0 regresiones, 2 cambios de schema (enum `estatus_documento` + columna `documento_flujo.documento_actualizado_id` + tabla `documento_formularios`)**.
