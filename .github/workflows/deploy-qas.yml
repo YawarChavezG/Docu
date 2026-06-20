@@ -53,16 +53,15 @@ jobs:
       - name: Empaquetar
         run: |
           mkdir -p /tmp/sgd_deploy; cp -r ${{ github.workspace }}/backend /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/frontend /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/deploy /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/scripts /tmp/sgd_deploy/; cp ${{ github.workspace }}/.env.example /tmp/sgd_deploy/; rm -rf /tmp/sgd_deploy/backend/{node_modules,.venv,__pycache__,.pytest_cache}; rm -rf /tmp/sgd_deploy/frontend/{node_modules,dist}; cd /tmp && zip -r sgd_deploy.zip sgd_deploy/
-      - name: SCP a QAS via SSH action
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: 10.11.0.11
-          username: ${{ secrets.QAS_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          port: 22
-          source: /tmp/sgd_deploy.zip,${{ github.workspace }}/scripts/extract_qas.py
-          target: /tmp/
-          strip_components: 0
+      - name: SCP a QAS
+        run: |
+          apt-get update -qq && apt-get install -y -qq openssh-client
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/qas_key
+          chmod 600 ~/.ssh/qas_key
+          ssh-keyscan -H 10.11.0.11 >> ~/.ssh/known_hosts 2>/dev/null
+          scp -i ~/.ssh/qas_key -o StrictHostKeyChecking=no /tmp/sgd_deploy.zip ${{ secrets.QAS_USER }}@10.11.0.11:/tmp/
+          scp -i ~/.ssh/qas_key -o StrictHostKeyChecking=no ${{ github.workspace }}/scripts/extract_qas.py ${{ secrets.QAS_USER }}@10.11.0.11:/tmp/
       - name: Extraer + Rebuild + Restart
         uses: appleboy/ssh-action@v1
         with:
