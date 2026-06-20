@@ -87,10 +87,34 @@ Actúa como Tech Lead senior del proyecto COFAR SGD. Realiza el siguiente ritual
 ```powershell
 docker ps --filter "name=sgd-"           # 8 servicios Up
 curl.exe http://localhost:18000/api/v1/health  # {"status":"ok","database":"ok"}
-docker exec sgd-postgres psql -U sgd -d sgd -c "SELECT * FROM verify_clean_state();"
+docker exec sgd-postgres psql -U sgd -d sgd -c "SELECT count(*) as usuarios FROM usuarios;"
 ```
 
 Si nginx da 502: `docker restart sgd-nginx` (recarga DNS tras stop/start).
+
+## Arranque desde cero (BD vacía tras `docker volume prune`)
+
+Si se limpiaron los volúmenes de Docker o la BD está vacía, ejecutar:
+
+```powershell
+# 1. Iniciar Docker Desktop (si estaba apagado)
+
+# 2. Reconstruir imágenes y levantar stack
+docker compose -f deploy/docker-compose.yml --env-file .env up -d --build
+
+# 3. Esperar health checks (~30 seg)
+curl.exe http://localhost:18000/api/v1/health
+
+# 4. Si nginx da 502:
+docker restart sgd-nginx
+
+# 5. UN SOLO COMANDO: restaurar BD completa (sync AD + roles + documentos)
+scripts\seed_full_restore.bat
+
+# 6. Verificar estado
+docker exec sgd-postgres psql -U sgd -d sgd -c "SELECT count(*) FROM usuarios; SELECT count(*) FROM usuario_roles;"
+```
+> El script `seed_full_restore.bat` es idempotente y hace: login admin_local → sync AD (748 usuarios) → import matriz roles (724 usuario_roles) → seed documentos → verificación.
 
 ---
 
