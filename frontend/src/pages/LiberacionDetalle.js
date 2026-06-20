@@ -4,6 +4,7 @@
  */
 import { arbolOutlookDB, gerenciasDB } from '../data/gerencias.js'
 import { tiposDocumentoList } from '../data/documents.js'
+import { apiGet } from '../utils/api.js'
 
 export const page = {
   init() {
@@ -17,6 +18,38 @@ export const page = {
       obsTexto: '',
       showConfirm: false,
       confirmType: '',
+
+      // Procesos (Fase 3)
+      procesosList: [],
+      procesoInput: '',
+      procesoOpen: false,
+      procesoSeleccionado: null,
+
+      async init() {
+        await this._cargarProcesos()
+      },
+
+      async _cargarProcesos() {
+        try {
+          const res = await apiGet('/procesos')
+          if (res.ok) this.procesosList = res.data?.items || []
+        } catch (_) { /* ignore */ }
+      },
+
+      get procesosFiltrados() {
+        const q = (this.procesoInput || '').toLowerCase().trim()
+        if (!q) return this.procesosList
+        return this.procesosList.filter(p =>
+          (p.codigo || '').toLowerCase().includes(q) ||
+          (p.nombre || '').toLowerCase().includes(q)
+        )
+      },
+
+      seleccionarProceso(p) {
+        this.procesoSeleccionado = p
+        this.procesoInput = `${p.codigo} - ${p.nombre}`
+        this.procesoOpen = false
+      },
 
       // Formulario campos dinámicos
       tiposList: tiposDocumentoList,
@@ -126,7 +159,7 @@ export const page = {
   },
 
   template: /* html */`
-<div x-data="libDetallePage" class="animate-fade-in-page max-w-[1100px] mx-auto">
+<div x-data="libDetallePage" x-init="init()" class="animate-fade-in-page max-w-[1100px] mx-auto">
 
   <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
     <div>
@@ -366,6 +399,36 @@ export const page = {
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Selector de Proceso (ETO) - Fase 3 -->
+  <div class="bg-white border border-slate-200 rounded-xl px-5 py-4 shadow-card mb-3.5">
+    <div class="text-[11.5px] font-bold text-slate-600 uppercase tracking-wider mb-3.5 pb-2.5 border-b border-slate-100">Asignación de Proceso</div>
+    <div class="relative">
+      <label class="form-label">Proceso al que corresponde el documento *</label>
+      <input type="text" class="form-input text-xs" x-model="procesoInput"
+             placeholder="Buscar proceso por codigo o nombre..."
+             @focus="procesoOpen=true" @input="procesoOpen=true" @click.stop>
+      <div x-show="procesoOpen && procesosFiltrados.length > 0"
+           class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[200px] overflow-y-auto"
+           style="display:none"
+           :style="(procesoOpen && procesosFiltrados.length > 0) ? 'display:block' : 'display:none'" @click.stop>
+        <template x-for="p in procesosFiltrados" :key="p.id">
+          <button @click="seleccionarProceso(p)" type="button"
+                  class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]">
+            <span class="font-mono font-semibold" x-text="p.codigo"></span>
+            <span class="text-slate-500 ml-2" x-text="p.nombre"></span>
+          </button>
+        </template>
+      </div>
+    </div>
+    <div x-show="procesoSeleccionado" class="mt-2">
+      <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs bg-brand-50 text-brand-700 border border-brand-200">
+        <span class="font-mono font-semibold" x-text="procesoSeleccionado.codigo"></span>
+        <span x-text="procesoSeleccionado.nombre"></span>
+        <span @click="procesoSeleccionado=null;procesoInput=''" class="cursor-pointer opacity-60 hover:opacity-100 ml-1">✕</span>
+      </span>
     </div>
   </div>
 

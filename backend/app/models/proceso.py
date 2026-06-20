@@ -29,6 +29,10 @@ class Proceso(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     # ─── Datos ───
+    # ─── Codigo numerico de 4 digitos (visible en UI, ej: 0001) ───
+    codigo: Mapped[str] = mapped_column(
+        String(4), unique=True, nullable=False,
+    )
     # UNIQUE global: dos procesos no pueden tener el mismo nombre.
     nombre: Mapped[str] = mapped_column(
         String(100), unique=True, nullable=False,
