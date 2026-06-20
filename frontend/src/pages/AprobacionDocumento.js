@@ -42,6 +42,8 @@ export const page = {
       docActualizar: '',          // id del Documento existente que se actualiza
       docsActualizables: [],      // lista de docs filtrados por (area, tipo)
       cargandoDocsActualizables: false,
+      inputDocActualizar: '',     // texto de busqueda para dropdown
+      mostrarDocsActualizables: false,
       // Issue 11.1: el cliente decidio quitar el campo "Analista ETO asignado"
       // del wizard paso 1. analistasEtoList se mantiene porque el paso 3
       // incluye ETOs como posibles revisores/aprobadores.
@@ -57,8 +59,9 @@ export const page = {
       // ─── Paso 1: archivos (drag&drop) ───
       archivoPrincipal: null,
       dropPrincipal: false,
-      formulariosAsociados: [],
+      formulariosAsociados: [],   // [{ id, file, titulo }]
       dropFormularios: false,
+      _dragIdx: null,             // indice del elemento siendo arrastrado
 
       // ─── Paso 2: Difusion ───
       requiereEval: 'si',
@@ -288,6 +291,23 @@ export const page = {
         }
       },
 
+      // R3 item 0.2: filtro de busqueda para docs actualizables
+      get docsActualizablesFiltrados() {
+        const q = (this.inputDocActualizar || '').toLowerCase().trim()
+        if (!q) return this.docsActualizables
+        return this.docsActualizables.filter(d =>
+          (d.codigo_completo || '').toLowerCase().includes(q) ||
+          (d.titulo || '').toLowerCase().includes(q)
+        )
+      },
+
+      seleccionarDocActualizar(d) {
+        this.docActualizar = d.id
+        this.inputDocActualizar = d.codigo_completo + ' — ' + d.titulo
+        this.mostrarDocsActualizables = false
+        this.onDocActualizarChange()
+      },
+
       // R3 item 0.2: al seleccionar un doc a actualizar, autocompletar campos
       onDocActualizarChange() {
         const d = this.docsActualizables.find(x => String(x.id) === String(this.docActualizar))
@@ -327,15 +347,67 @@ export const page = {
       },
 
       // ─── Paso 1: drag&drop de archivos ───
-      agregarFormularios(files) {
-        const nuevosArchivos = Array.from(files)
-        nuevosArchivos.forEach(file => {
-          const existe = this.formulariosAsociados.some(f => f.name === file.name && f.size === file.size)
-          if (!existe) this.formulariosAsociados.push(file)
+      _nextFormId: 1,
+
+      _sanitizarNombre(t) {
+        return (t || '').toUpperCase().replace(/[^A-Z0-9ÁÉÍÓÚÑÜ\s]/g, '').trim().replace(/\s+/g, '_')
+      },
+
+      _getExtension(name) {
+        const i = (name || '').lastIndexOf('.')
+        return i > 0 ? name.slice(i) : ''
+      },
+
+      get formulariosConNombres() {
+        const cod = (this.codigoAuto || '').split('/')[0]
+        const ver = this.versionAuto || '00'
+        if (!cod || cod === '---') return this.formulariosAsociados.map(f => ({ ...f, nombre_codificado: f.file.name }))
+        return this.formulariosAsociados.map((f, i) => {
+          const ext = this._getExtension(f.file.name)
+          const tituloSanitizado = this._sanitizarNombre(f.titulo || '')
+          const corr = String(i + 1).padStart(2, '0')
+          const nombre = tituloSanitizado ? `${cod}-F${corr}_${tituloSanitizado}_V${ver}${ext}` : `${cod}-F${corr}_V${ver}${ext}`
+          return { ...f, nombre_codificado: nombre, correlativo: corr }
         })
       },
+
+      agregarFormularios(files) {
+        const nuevos = Array.from(files)
+        nuevos.forEach(file => {
+          const existe = this.formulariosAsociados.some(f => f.file.name === file.name && f.file.size === file.size)
+          if (!existe) {
+            // Extraer un titulo sugerido del nombre del archivo
+            const nameNoExt = file.name.replace(/\.[^.]+$/, '')
+            const sugerido = nameNoExt.replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim()
+            this.formulariosAsociados.push({ id: this._nextFormId++, file, titulo: sugerido })
+          }
+        })
+      },
+
       removerFormulario(index) {
         this.formulariosAsociados.splice(index, 1)
+      },
+
+      actualizarTituloFormulario(idx, titulo) {
+        if (this.formulariosAsociados[idx]) {
+          this.formulariosAsociados[idx].titulo = titulo
+        }
+      },
+
+      // Drag & drop reorder
+      dragFormularioStart(idx) {
+        this._dragIdx = idx
+      },
+
+      dragFormularioOver(idx) {
+        if (this._dragIdx === null || this._dragIdx === idx) return
+        const item = this.formulariosAsociados.splice(this._dragIdx, 1)[0]
+        this.formulariosAsociados.splice(idx, 0, item)
+        this._dragIdx = idx
+      },
+
+      dragFormularioEnd() {
+        this._dragIdx = null
       },
 
       // ─── Paso 2: chips de difusion ───
@@ -583,25 +655,42 @@ export const page = {
           <option value="ACTUALIZACION">Actualizacion de documento</option>
         </select>
       </div>
-      <!-- R3 item 0.2: selector de documento a actualizar -->
-      <div class="sm:col-span-2" x-show="tipoSolicitud === 'ACTUALIZACION'">
+      <!-- R3 item 0.2: selector de documento a actualizar (searchable) -->
+      <div class="sm:col-span-2 relative" x-show="tipoSolicitud === 'ACTUALIZACION'">
         <label class="form-label">Documento a actualizar *</label>
-        <select class="form-input text-xs" x-model="docActualizar" @change="onDocActualizarChange()"
-                :disabled="!tipodoc || !area || cargandoDocsActualizables">
-          <option value="" x-text="
-            !tipodoc || !area ? 'Seleccione tipo y area primero...' :
-            cargandoDocsActualizables ? 'Cargando documentos...' :
-            docsActualizables.length === 0 ? 'No hay documentos APROBADOS disponibles' :
-            'Seleccionar documento...'
-          "></option>
-          <template x-for="d in docsActualizables" :key="d.id">
-            <option :value="d.id" x-text="d.codigo_completo + ' — ' + d.titulo"></option>
+        <input type="text" class="form-input text-xs" x-model="inputDocActualizar"
+               placeholder="Buscar documento por codigo o titulo..."
+               @focus="mostrarDocsActualizables=true"
+               @input="mostrarDocsActualizables=true"
+               :disabled="!tipodoc || !area || cargandoDocsActualizables"
+               @click.stop>
+        <div x-show="mostrarDocsActualizables && docsActualizablesFiltrados.length > 0"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+             style="display:none"
+             :style="(mostrarDocsActualizables && docsActualizablesFiltrados.length > 0) ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="d in docsActualizablesFiltrados" :key="d.id">
+            <button @click="seleccionarDocActualizar(d)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors">
+              <div class="text-[11px] font-semibold text-slate-800 truncate" x-text="d.codigo_completo"></div>
+              <div class="text-[10px] text-slate-500 truncate" x-text="d.titulo"></div>
+            </button>
           </template>
-        </select>
+        </div>
+        <div x-show="mostrarDocsActualizables && docsActualizablesFiltrados.length === 0 && inputDocActualizar"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl p-3 text-center text-[11px] text-slate-500"
+             style="display:none"
+             :style="(mostrarDocsActualizables && docsActualizablesFiltrados.length === 0 && inputDocActualizar) ? 'display:block' : 'display:none'">
+          Sin resultados.
+        </div>
         <span class="form-hint" x-show="docActualizar">
-          La version nueva sera <span class="font-mono" x-text="(docsActualizables.find(x => String(x.id) === String(docActualizar))?.version || '00')"></span> + 1.
-          El codigo y titulo se completaron automaticamente.
+          Version nueva: <span class="font-mono font-semibold" x-text="(docsActualizables.find(x => String(x.id) === String(docActualizar))?.version || '00')"></span> + 1. Campos autocompletados.
         </span>
+        <!-- Cerrar dropdown al hacer click fuera -->
+        <div x-show="mostrarDocsActualizables" @click="mostrarDocsActualizables=false" class="fixed inset-0 z-10"></div>
       </div>
       <div>
         <label class="form-label">Codigo (automatico)</label>
@@ -671,7 +760,7 @@ export const page = {
       </div>
 
       <div class="mb-2">
-        <label class="form-label">Formularios asociados y adjuntos adicionales</label>
+        <label class="form-label">Formularios asociados y adjuntos adicionales <span class="text-slate-400 font-normal" x-text="'(' + formulariosConNombres.length + ' archivos)'"></span></label>
         <div class="border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all duration-150 mb-3"
              :class="dropFormularios ? 'border-brand-500 bg-blue-50' : 'border-slate-200 bg-slate-50/50'"
              @dragover.prevent="dropFormularios=true"
@@ -687,17 +776,42 @@ export const page = {
         <input type="file" x-ref="fileFormularios" multiple class="hidden"
                accept=".docx,.doc,.xlsx,.xls,.pdf,.pptx,.ppt,.dwg,.png,.jpg,.jpeg"
                @change="agregarFormularios($event.target.files)">
-        <div class="flex flex-col gap-1.5">
-          <template x-for="(file, index) in formulariosAsociados" :key="file.name + file.lastModified">
-            <div class="flex items-center justify-between bg-white border border-slate-200 rounded-lg p-2.5">
-              <div class="flex items-center gap-3 min-w-0">
-                <div class="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-base flex-shrink-0">DOC</div>
-                <div class="truncate">
-                  <div class="text-[11px] font-bold text-slate-700 truncate" x-text="file.name"></div>
-                  <div class="text-[10px] text-slate-400 font-mono" x-text="(file.size/1024).toFixed(1) + ' KB'"></div>
+
+        <!-- Lista de formularios con drag-reorder y titulo editable -->
+        <div class="space-y-2" x-show="formulariosConNombres.length > 0">
+          <template x-for="(f, idx) in formulariosConNombres" :key="f.id">
+            <div class="bg-white border border-slate-200 rounded-lg shadow-sm"
+                 :class="{ 'border-brand-400 ring-2 ring-brand-200': _dragIdx === idx }"
+                 draggable="true"
+                 @dragstart="dragFormularioStart(idx)"
+                 @dragover.prevent="dragFormularioOver(idx)"
+                 @dragend="dragFormularioEnd()">
+              <div class="flex items-start gap-2 p-2.5">
+                <!-- Drag handle -->
+                <div class="mt-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing select-none text-sm" title="Arrastrar para reordenar">⠿</div>
+                <!-- Icono -->
+                <div class="w-8 h-8 rounded bg-slate-100 flex items-center justify-center text-sm flex-shrink-0 mt-0.5">DOCS</div>
+                <!-- Contenido -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span class="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded font-mono shrink-0" x-show="codigoAuto && codigoAuto !== '---'" x-text="codigoAuto.split('/')[0] + '-F' + f.correlativo"></span>
+                    <span x-show="!codigoAuto || codigoAuto === '---'" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-mono shrink-0" x-text="'--F' + f.correlativo"></span>
+                    <span class="text-[10px] text-slate-400 font-mono shrink-0" x-text="'V' + (versionAuto || '00')"></span>
+                    <span class="text-[10px] text-slate-400 truncate" x-text="f.file.name"></span>
+                    <span class="text-[10px] text-slate-300 ml-auto shrink-0" x-text="(f.file.size/1024).toFixed(0) + 'KB'"></span>
+                  </div>
+                  <div class="mt-1.5 flex items-center gap-2">
+                    <input type="text" class="form-input text-[11px] py-1 flex-1 min-w-0"
+                           :value="f.titulo"
+                           @input="actualizarTituloFormulario(idx, $event.target.value)"
+                           placeholder="Escriba el nombre del formulario...">
+                    <button @click="removerFormulario(idx)" class="text-red-400 hover:text-red-600 text-sm shrink-0 px-1 cursor-pointer" title="Eliminar formulario">✕</button>
+                  </div>
+                  <div x-show="f.titulo" class="mt-1">
+                    <span class="text-[9.5px] font-mono text-slate-500 bg-slate-50 px-1.5 py-0.5 rounded truncate block" x-text="f.nombre_codificado"></span>
+                  </div>
                 </div>
               </div>
-              <button @click="removerFormulario(index)" class="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:bg-red-50 hover:text-red-500 cursor-pointer">X</button>
             </div>
           </template>
         </div>
