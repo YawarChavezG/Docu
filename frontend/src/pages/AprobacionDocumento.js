@@ -1110,14 +1110,21 @@ export const page = {
           <div class="text-[10px] text-slate-400 mb-2.5 pb-2 border-b border-slate-100">Marcar una Gerencia selecciona todas sus areas automaticamente</div>
           <template x-for="grupo in arbol" :key="grupo.id">
             <div class="mb-2.5">
-              <label class="flex items-center gap-2 cursor-pointer px-1.5 py-1 rounded-md text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                <input type="checkbox" x-effect="$el.checked=grupo.checked;$el.indeterminate=grupo.indeterminate" @change.stop="togglePadre(grupo)" class="accent-brand-500 w-3.5 h-3.5">
+              <label class="flex items-center gap-2 cursor-pointer px-1.5 py-1 rounded-md text-[11px] font-semibold text-slate-700 hover:bg-slate-50 select-none" @click.stop="togglePadre(grupo)">
+                <span class="w-[15px] h-[15px] rounded-[3px] border-2 flex items-center justify-center text-[9px] font-bold transition-all duration-100 shrink-0"
+                      :class="grupo.checked ? 'bg-brand-500 border-brand-500 text-white' : (grupo.indeterminate ? 'bg-brand-100 border-brand-300 text-brand-600' : 'bg-white border-slate-300 hover:border-brand-400')">
+                  <span x-show="grupo.checked">✓</span>
+                  <span x-show="!grupo.checked && grupo.indeterminate">−</span>
+                </span>
                 <span x-text="grupo.nombre"></span>
               </label>
-              <div class="ml-6 mt-0.5">
+              <div class="ml-7 mt-0.5">
                 <template x-for="hijo in grupo.subs" :key="hijo.id">
-                  <label class="flex items-center gap-2 cursor-pointer px-1.5 py-0.5 rounded-md text-[11.5px] text-slate-600 hover:bg-slate-50">
-                    <input type="checkbox" x-effect="$el.checked=hijo.checked" @change.stop="toggleHijo(grupo, hijo)" class="accent-brand-500 w-3.5 h-3.5">
+                  <label class="flex items-center gap-2 cursor-pointer px-1.5 py-0.5 rounded-md text-[11px] text-slate-600 hover:bg-slate-50 select-none" @click.stop="toggleHijo(grupo, hijo)">
+                    <span class="w-[15px] h-[15px] rounded-[3px] border-2 flex items-center justify-center text-[9px] font-bold transition-all duration-100 shrink-0"
+                          :class="hijo.checked ? 'bg-brand-500 border-brand-500 text-white' : 'bg-white border-slate-300 hover:border-brand-400'">
+                      <span x-show="hijo.checked">✓</span>
+                    </span>
                     <span x-text="hijo.nombre"></span>
                   </label>
                 </template>
