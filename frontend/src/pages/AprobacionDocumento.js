@@ -185,7 +185,7 @@ export const page = {
           if (this._validandoCaratula) return
           this._validandoCaratula = true
           try {
-            const codigo = (this.codigoAuto || '').split('/')[0]
+        const codigo = (this.codigoAuto || '').split(' V')[0]
             const res = await documentos.validarCaratula(
               file, codigo, this.versionAuto || '00', this.titulo,
             )
@@ -445,7 +445,7 @@ export const page = {
       },
 
       get formulariosConNombres() {
-        const cod = (this.codigoAuto || '').split('/')[0]
+        const cod = (this.codigoAuto || '').split(' V')[0]
         const ver = this.versionAuto || '00'
         if (!cod || cod === '---') return this.formulariosAsociados.map(f => ({ ...f, nombre_codificado: f.file.name }))
         return this.formulariosAsociados.map((f, i) => {
@@ -1035,7 +1035,7 @@ export const page = {
                 <!-- Contenido -->
                 <div class="flex-1 min-w-0">
                   <div class="flex items-center gap-2">
-                    <span class="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded font-mono shrink-0" x-show="codigoAuto && codigoAuto !== '---'" x-text="codigoAuto.split('/')[0] + '-F' + f.correlativo"></span>
+                    <span class="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded font-mono shrink-0" x-show="codigoAuto && codigoAuto !== '---'" x-text="codigoAuto.split(' V')[0] + '-F' + f.correlativo"></span>
                     <span x-show="!codigoAuto || codigoAuto === '---'" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-mono shrink-0" x-text="'--F' + f.correlativo"></span>
                     <span x-show="f._extrayendo" class="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin shrink-0"></span>
                     <span class="text-[10px] text-slate-400 font-mono shrink-0" x-text="'V' + (versionAuto || '00')"></span>

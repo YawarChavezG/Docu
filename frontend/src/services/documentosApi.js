@@ -95,7 +95,7 @@ export const bandejas = {
 // ─── Helpers (R3 item 0.1) ───
 export function generarNombreCompleto(codigo, titulo, version) {
   if (!codigo) return ''
-  const cod = String(codigo).split('/')[0]
+  const cod = String(codigo).split(' V')[0]
   const tit = (titulo || '').trim().toUpperCase()
   const ver = version || '00'
   if (!tit) return `${cod} V${ver}`
