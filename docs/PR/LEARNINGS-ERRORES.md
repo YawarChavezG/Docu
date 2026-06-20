@@ -209,6 +209,24 @@
 **Fix:** Escribir CHECK constraints manualmente en la migración, no en el modelo.
 **Referencia:** R2-PLAN §5.2 R3
 
+### D05 — `sa.Enum(name=X)` en migration: si el ENUM ya existe en PG, falla con DuplicateObjectError (crítico para deploy)
+**Error:** Usar `sa.Enum("A","B", name="tipo_existente")` en `op.create_table()` genera `CREATE TYPE tipo_existente AS ENUM(...)`. Si ese tipo ENUM ya fue creado por una migración anterior (ej: `semaforizacion_tarea.tipo_tarea` se creó como ENUM en `drop_modulos_s26`), PostgreSQL lanza `DuplicateObjectError: type already exists`.
+**Síntoma en DES:** El error se oculta porque el entrypoint del backend usa `alembic upgrade head 2>&1 || echo '...'` (el `||` traga el error). Uvicorn arranca igual, el desarrollador nunca ve la falla.
+**Síntoma en QAS:** El entrypoint usa `alembic upgrade head 2>&1 && uvicorn` (el `&&` propaga el error). El backend NO arranca, entra en restart loop, healthcheck falla.
+**Causa raíz:** La asimetría entre DES (`||`) y QAS (`&&`) enmascara errores de migración durante todo el desarrollo. El `sa.Enum()` de SQLAlchemy siempre intenta `CREATE TYPE`, incluso si el tipo ya existe, a menos que se use `create_type=False`.
+**Fix:** NO usar `sa.Enum()` en la columna de la migration. Usar `sa.String(length=50)` y validar el valor en la capa de aplicación (Pydantic). Alternativamente, usar `sa.Enum(name="...", create_type=False)` que evita el CREATE TYPE pero hace que la FK falle si el tipo es ENUM (incompatible varchar vs enum).
+**Prevención:** Antes de cada deploy, ejecutar `docker exec sgd-backend alembic upgrade head` en DES (no confiar en que el backend arranque sin error). Si hay `||` en el entrypoint, el error se oculta.
+**Regla:** `alembic upgrade head` DEBE probarse explícitamente, no confiar en que el startup del backend lo valida.
+**Referencia:** Sesión 39, deploy v1.1.1-qas (fix: remover FK + usar String).
+
+### D06 — Eliminar valores de un enum PostgreSQL (ContextoEstado.AMBOS) sin migrar datos legacy
+**Error:** Se eliminó `ContextoEstado.AMBOS` del enum Python en el modelo `estado.py` (sesión 38), pero los registros existentes en la tabla `estados` con `contexto='AMBOS'` no fueron migrados. Al ejecutar cualquier script que importe el modelo Estado (ej: seed_documentos.py), SQLAlchemy intenta mapear `'AMBOS'` al enum Python y lanza `LookupError: 'AMBOS' is not among the defined enum values`.
+**Síntoma:** `seed_documentos.py` falla con LookupError al hacer el primer query contra la tabla estados.
+**Causa:** La migration `r3_plantillas_table_s37` eliminó `AMBOS` del modelo pero no incluyó un `UPDATE estados SET contexto='PROCESO' WHERE contexto='AMBOS'`. En DES no se detectó porque la BD se refresca con clean_state. En QAS los datos legacy persistieron.
+**Fix:** Antes de eliminar un valor de un enum, migrar los datos existentes: `UPDATE tabla SET columna='nuevo_valor' WHERE columna='valor_eliminado'`. Incluir el UPDATE en la misma migration Alembic.
+**Regla:** Nunca eliminar un valor de un enum SQLAlchemy sin antes actualizar los registros existentes en BD. Siempre incluir data migration en la misma revisión.
+**Referencia:** Sesión 39, deploy v1.1.1-qas.
+
 ### D04 — DROP TABLE con CASCADE rompe seeds que importan la tabla
 **Error:** Se eliminó `usuario_modulos` con CASCADE pero 3 scripts seed la importaban.
 **Síntoma:** ImportError en seeds (B7, P0).
@@ -230,6 +248,14 @@
 **Síntoma:** LDAP bind falla con NXDOMAIN.
 **Fix:** Usar IP directa `172.16.10.17` en `LDAP_SERVER`. Configurar DNS explícito en docker-compose: `dns: [172.16.10.50, 172.16.10.51, 8.8.8.8]`.
 **Referencia:** ADR-013
+
+### X09 — Asimetría DES vs QAS en entrypoint: `||` enmascara errores de `alembic upgrade head`
+**Error:** El entrypoint de DES (`deploy/docker-compose.yml`) usa `alembic upgrade head 2>&1 || echo 'Sin migraciones aún'`. El `||` hace que SIEMPRE continúe, incluso si `alembic upgrade head` falla. El entrypoint de QAS usa `alembic upgrade head 2>&1 && uvicorn` (el `&&` propaga el error). Como consecuencia, errores de migración pasan desapercibidos en DES durante semanas y solo se manifiestan al hacer deploy a QAS.
+**Síntoma:** Error de migration que nunca se vio en DES, bloquea el startup en QAS.
+**Causa raíz:** El `|| echo '...'` fue puesto en la etapa inicial del proyecto (R1, cuando no había migraciones reales) como placeholder. Nunca se actualizó a `&&` cuando las migraciones se volvieron críticas (R2 en adelante).
+**Fix:** Cambiar el entrypoint de DES a `&&` igual que QAS, para que los errores de migración sean fatales en ambos entornos. O mejor: unificar ambos compose en un entrypoint compartido.
+**Regla:** El entrypoint de migraciones DEBE ser idéntico en DES y QAS. Si hay asimetría, los errores de BD solo se detectan en deploy.
+**Referencia:** Sesión 39, deploy v1.1.1-qas.
 
 ### X03 — nginx da 502 Bad Gateway tras docker stop/start del backend
 **Error:** Nginx cachea la IP del backend. Al reiniciar el backend, nginx intenta con la IP vieja.
