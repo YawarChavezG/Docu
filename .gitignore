@@ -98,6 +98,15 @@ docs/PR/RETORNO_ANTERIOR_SESION.md
 # Backups locales de BD (snapshots pg_dump - grandes y efimeros)
 backups/
 
+# Scripts temporales de prueba (Python sueltos)
+tmp_*.py
+tmp_*.xlsx
+tmp_*.docx
+
+# Screenshots de debugging
+docs/PR/screenshots/
+docs/*.docx
+
 # Test artifacts sueltos
 test_served.js
 test_*.js
