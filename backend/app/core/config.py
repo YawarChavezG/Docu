@@ -120,6 +120,7 @@ class Settings(BaseSettings):
     ms_client_id: str = ""
     ms_client_secret: str = ""
     graph_scopes: str = "https://graph.microsoft.com/.default"
+    sharepoint_site_id: str = ""
 
     # ─── SMTP ───
     smtp_enabled: bool = False
