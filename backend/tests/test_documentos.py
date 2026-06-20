@@ -247,7 +247,7 @@ async def test_preview_codigo_creacion(
     assert r.status_code == 200
     data = r.json()
     assert data["codigo"] == "CC-3-001"
-    assert data["codigo_completo"] == "CC-3-001/00"
+    assert data["codigo_completo"] == "CC-3-001 V00"
     assert data["version"] == "00"
     assert data["correlativo_sugerido"] == 1
     assert data["area_sigla"] == "CC"
@@ -345,7 +345,7 @@ async def test_get_documento_existente(
     assert r.status_code == 200
     data = r.json()
     assert data["codigo"] == "CC-3-001"
-    assert data["codigo_completo"] == "CC-3-001/00"
+    assert data["codigo_completo"] == "CC-3-001 V00"
     assert data["titulo"] == "Mi Doc"
     assert data["area"]["sigla"] == "CC"
     assert data["gerencia"]["sigla"] == "CAL"

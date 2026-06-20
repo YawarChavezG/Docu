@@ -380,7 +380,7 @@ async def listar_documentos_actualizables(
         DocumentoListItem(
             id=r.id,
             codigo=r.codigo,
-            codigo_completo=f"{r.codigo}/{r.version}",
+            codigo_completo=formatear_codigo_completo(r.codigo, r.version),
             version=r.version,
             titulo=r.titulo,
             nombre_completo=generar_nombre_completo(r.codigo, r.titulo, r.version),
@@ -576,7 +576,7 @@ async def list_documentos(
         DocumentoListItem(
             id=r.id,
             codigo=r.codigo,
-            codigo_completo=f"{r.codigo}/{r.version}",
+            codigo_completo=formatear_codigo_completo(r.codigo, r.version),
             version=r.version,
             titulo=r.titulo,
             nombre_completo=generar_nombre_completo(r.codigo, r.titulo, r.version),
@@ -766,7 +766,7 @@ async def crear_documento(
         recurso_id=doc.id,
         descripcion=f"Documento {codigo}/{version} creado (titulo='{body.titulo[:50]}')",
         detalles={
-            "codigo_completo": f"{codigo}/{version}",
+            "codigo_completo": formatear_codigo_completo(codigo, version),
             "tipo_solicitud": body.tipo_solicitud,
             "documento_anterior_id": documento_anterior_id,
         },

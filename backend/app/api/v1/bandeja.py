@@ -28,7 +28,7 @@ from app.models.gerencia import Gerencia
 from app.models.tipo_documento import TipoDocumento
 from app.models.usuario import Usuario
 from app.schemas.bandeja import BandejaItem, BandejaResponse
-from app.services.correlativo_service import generar_nombre_completo
+from app.services.correlativo_service import formatear_codigo_completo, generar_nombre_completo
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/bandeja", tags=["bandeja"])
@@ -179,7 +179,7 @@ async def get_bandeja(
         BandejaItem(
             documento_id=r.id,
             codigo=r.codigo,
-            codigo_completo=f"{r.codigo}/{r.version}",
+            codigo_completo=formatear_codigo_completo(r.codigo, r.version),
             version=r.version,
             titulo=r.titulo,
             nombre_completo=generar_nombre_completo(r.codigo, r.titulo, r.version),

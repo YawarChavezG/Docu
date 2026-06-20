@@ -129,13 +129,13 @@ def formatear_codigo(area_sigla: str, tipo_codigo: int, correlativo: int) -> str
 def formatear_codigo_completo(codigo: str, version: str) -> str:
     """
     Genera el codigo de documento CON version (lo que ve el usuario).
-    Formato: {codigo}/{version}
+    Formato: {codigo} V{version}
 
     Ejemplos:
-        formatear_codigo_completo("CC-3-005", "00") -> "CC-3-005/00"
-        formatear_codigo_completo("CC-3-005", "01") -> "CC-3-005/01"
+        formatear_codigo_completo("CC-3-005", "00") -> "CC-3-005 V00"
+        formatear_codigo_completo("CC-3-005", "01") -> "CC-3-005 V01"
     """
-    return f"{codigo}/{version}"
+    return f"{codigo} V{version}"
 
 
 def generar_nombre_completo(codigo: str, titulo: str, version: str) -> str:

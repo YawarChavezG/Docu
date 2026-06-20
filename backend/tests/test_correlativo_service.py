@@ -43,16 +43,16 @@ def test_formatear_codigo_sigla_larga():
 # ════════════════════════════════════════════════════════════════
 
 def test_formatear_codigo_completo_v00():
-    assert formatear_codigo_completo("CC-3-005", "00") == "CC-3-005/00"
+    assert formatear_codigo_completo("CC-3-005", "00") == "CC-3-005 V00"
 
 
 def test_formatear_codigo_completo_v99():
-    assert formatear_codigo_completo("PRO-7-001", "99") == "PRO-7-001/99"
+    assert formatear_codigo_completo("PRO-7-001", "99") == "PRO-7-001 V99"
 
 
 def test_formatear_codigo_completo_con_guion():
     """Codigos con guiones tambien funcionan."""
-    assert formatear_codigo_completo("PROM29402-5-001", "01") == "PROM29402-5-001/01"
+    assert formatear_codigo_completo("PROM29402-5-001", "01") == "PROM29402-5-001 V01"
 
 
 # ════════════════════════════════════════════════════════════════

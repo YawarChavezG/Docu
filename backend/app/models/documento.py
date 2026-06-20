@@ -198,9 +198,9 @@ class Documento(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<Documento {self.codigo}/{self.version} ({self.estatus.value})>"
+        return f"<Documento {self.codigo} V{self.version} ({self.estatus.value})>"
 
     @property
     def codigo_completo(self) -> str:
         """Codigo con version concatenada (formato que ve el usuario)."""
-        return f"{self.codigo}/{self.version}"
+        return f"{self.codigo} V{self.version}"

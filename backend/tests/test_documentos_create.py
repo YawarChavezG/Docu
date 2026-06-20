@@ -61,7 +61,7 @@ async def test_crear_documento_eto_201(client: AsyncClient, seed_catalogos, db_s
     doc = data["documento"]
     assert doc["codigo"] == f"CC-3-001"  # sigla area + tipo + correlativo 001
     assert doc["version"] == "00"
-    assert doc["codigo_completo"] == "CC-3-001/00"
+    assert doc["codigo_completo"] == "CC-3-001 V00"
     assert doc["titulo"] == payload["titulo"]
     assert doc["estatus"] == "EN_ELABORACION"
     assert doc["vigencia"] == "VIGENTE"
