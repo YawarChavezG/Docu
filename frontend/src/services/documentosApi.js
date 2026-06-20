@@ -102,4 +102,9 @@ export function generarNombreCompleto(codigo, titulo, version) {
   return `${cod} ${tit} V${ver}`
 }
 
+// ─── Descarga de editable (dispara descarga del navegador) ───
+export function descargarEditable(documentoId) {
+  window.open(`/api/v1/documentos/${documentoId}/descargar`, '_blank')
+}
+
 export default documentos

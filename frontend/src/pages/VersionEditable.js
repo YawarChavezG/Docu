@@ -4,7 +4,7 @@
  * Sesion 22 (fix 2): autocomplete EN VIVO mientras el usuario escribe.
  * Sesion 25 / Issue 10.1: política de descargas desde BD (no hardcodeada).
  */
-import { documentos } from '../services/documentosApi.js'
+import { documentos, descargarEditable as apiDescargarEditable } from '../services/documentosApi.js'
 import { configGlobal, tiposDocumento } from '../services/parametrizacionApi.js'
 
 export const page = {
@@ -13,6 +13,7 @@ export const page = {
       codBuscar: '',
       cargando: false,
       resultadoEditable: null,
+      resultadoSeleccionado: null,
       descargado: false,
       resultados: [], // para mostrar lista de matches
       mostrarLista: false, // mostrar el dropdown de sugerencias
@@ -140,6 +141,7 @@ export const page = {
 
       // Seleccionar uno de los resultados del dropdown
       seleccionarResultado(match) {
+        this.resultadoSeleccionado = match
         this.resultadoEditable = {
           archivo: match.codigo_completo + '.docx',
           nombre: match.titulo,
@@ -154,9 +156,15 @@ export const page = {
         this.resultados = []
       },
 
-      // Descargar
+      // Descargar (con limite diario)
       descargarEditable() {
+        if (!this.resultadoSeleccionado) {
+          window.toast?.('Seleccione un documento primero', 'warn')
+          return
+        }
+        const id = this.resultadoSeleccionado.id
         this.descargado = true
+        apiDescargarEditable(id)
         window.toast?.('Descargando ' + this.resultadoEditable.archivo + '...', 'success')
       },
 

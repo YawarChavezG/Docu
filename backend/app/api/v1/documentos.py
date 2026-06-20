@@ -1263,6 +1263,58 @@ class LiberarResponse(BaseModel):
     message: str = "Documento liberado a revision"
 
 
+@router.get("/{documento_id}/descargar",
+             summary="Descarga el archivo editable del documento (con limite diario)")
+async def descargar_documento_editable(
+    documento_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Descarga el archivo editable del documento.
+    Valida limite diario de descargas (US-2.01):
+    - 1 descarga/dia/usuario para tipos normales
+    - max_descargas_editables_dia para tipos excluidos (Metodologia, Especificacion)
+    - No permite descargar documentos OBSOLETOS
+    """
+    user = await require_authenticated(request, db)
+
+    doc = (await db.execute(
+        select(Documento)
+        .where(Documento.id == documento_id)
+        .options(
+            selectinload(Documento.tipo_documento),
+            selectinload(Documento.archivos),
+        )
+    )).scalar_one_or_none()
+
+    if not doc or not doc.activo:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    from app.services.descarga_service import puede_descargar, registrar_descarga
+    puede, msg, limite = await puede_descargar(db, user, doc)
+    if not puede:
+        raise HTTPException(status_code=429, detail=msg)
+
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+
+    doc_path = None
+    if doc.archivos:
+        principal = next((a for a in doc.archivos if a.tipo_adjunto.value == "PRINCIPAL"), None)
+        if principal:
+            doc_path = principal.storage_path
+
+    if not doc_path or not Path(doc_path).exists():
+        raise HTTPException(status_code=404, detail="Archivo editable no encontrado en el servidor")
+
+    await registrar_descarga(db, request, user, doc)
+    await db.commit()
+
+    filename = Path(doc_path).name
+    return FileResponse(doc_path, filename=filename, media_type="application/octet-stream")
+
+
 @router.post("/{documento_id}/liberar", response_model=LiberarResponse,
              summary="ETO libera documento (LIBERACION_ETO -> EN_REVISION). R3 item 0.6.")
 async def liberar_documento_endpoint(
