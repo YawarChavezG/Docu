@@ -63,6 +63,7 @@ from app.models.archivo_adjunto import (  # noqa: F401
 from app.models.documento_formulario import (  # noqa: F401
     DocumentoFormulario,
 )
+from app.models.plantilla import Plantilla  # noqa: F401
 
 # ─── R3 Fase 1: Workflow de revision y aprobacion (sesion 37) ───
 # Catalogo: Proceso (PROPUESTA-R3-TABLAS.md §1.5.6).
@@ -128,4 +129,5 @@ __all__ = [
     "DocumentoReemplazo",
     "DocumentoAlcanceDifusion",
     "TareaObservacion",
+    "Plantilla",
 ]

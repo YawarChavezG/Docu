@@ -26,7 +26,13 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.permissions import require_authenticated, require_eto_or_admin
 from app.schemas.plantilla_documental import PlantillaDocumentalOut, PlantillaListResponse
-from app.services.plantilla_manager_service import listar_plantillas, subir_plantilla, renombrar_plantilla, eliminar_plantilla
+from app.services.plantilla_manager_service import (
+    listar_plantillas_db,
+    subir_plantilla_db,
+    renombrar_plantilla_db,
+    eliminar_plantilla_db,
+    listar_plantillas_admin_db,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plantillas-documentales", tags=["Plantillas Documentales"])
@@ -136,9 +142,9 @@ async def list_plantillas(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Lista las plantillas disponibles."""
+    """Lista las plantillas activas disponibles."""
     await require_authenticated(request, db)
-    items = listar_plantillas()
+    items = await listar_plantillas_db(db)
     out = []
     for p in items:
         ext = Path(p["nombre_archivo"]).suffix.lower()
@@ -240,15 +246,14 @@ async def upload_plantilla_admin(
     db: AsyncSession = Depends(get_db),
 ):
     """Sube una nueva plantilla. Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     if not archivo.filename:
         raise HTTPException(400, "Nombre de archivo requerido")
     contenido = await archivo.read()
     if len(contenido) > 50 * 1024 * 1024:
         raise HTTPException(413, "Archivo demasiado grande (max 50MB)")
-    result = subir_plantilla(archivo.filename, contenido, nombre_display, descripcion)
-    await write_audit(db, request, await require_authenticated(request, db),
-                      accion="UPLOAD", recurso="plantilla_documental", recurso_id=None,
+    result = await subir_plantilla_db(db, archivo.filename, contenido, nombre_display, descripcion, user.id)
+    await write_audit(db, request, user, accion="UPLOAD", recurso="plantilla", recurso_id=result["id"],
                       descripcion=f"Plantilla subida: {archivo.filename}")
     await db.commit()
     return result
@@ -262,14 +267,17 @@ async def rename_plantilla_admin(
     db: AsyncSession = Depends(get_db),
 ):
     """Renombra el nombre_display de una plantilla. Requiere ETO o ADMIN."""
-    await require_eto_or_admin(request, db)
+    user = await require_eto_or_admin(request, db)
     nuevo_nombre = payload.get("nombre_display", "").strip()
     nueva_desc = payload.get("descripcion", "").strip()
     if not nuevo_nombre:
         raise HTTPException(422, "nombre_display requerido")
-    result = renombrar_plantilla(nombre_archivo, nuevo_nombre, nueva_desc)
+    result = await renombrar_plantilla_db(db, nombre_archivo, nuevo_nombre, nueva_desc)
     if not result:
         raise HTTPException(404, "Plantilla no encontrada")
+    await write_audit(db, request, user, accion="RENAME", recurso="plantilla", recurso_id=None,
+                      descripcion=f"Plantilla renombrada: {nombre_archivo} -> {nuevo_nombre}")
+    await db.commit()
     return result
 
 
@@ -281,11 +289,21 @@ async def delete_plantilla_admin(
 ):
     """Elimina (desactiva) una plantilla. Requiere ETO o ADMIN."""
     user = await require_eto_or_admin(request, db)
-    ok = eliminar_plantilla(nombre_archivo)
+    ok = await eliminar_plantilla_db(db, nombre_archivo)
     if not ok:
         raise HTTPException(404, "Plantilla no encontrada")
-    await write_audit(db, request, user,
-                      accion="DELETE", recurso="plantilla_documental", recurso_id=None,
+    await write_audit(db, request, user, accion="DELETE", recurso="plantilla", recurso_id=None,
                       descripcion=f"Plantilla eliminada: {nombre_archivo}")
     await db.commit()
     return {"ok": True}
+
+
+@router.get("/admin/list", summary="Lista completa para admin (activas + inactivas)")
+async def list_plantillas_admin(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Lista TODAS las plantillas (activas e inactivas). Solo ETO/ADMIN."""
+    await require_eto_or_admin(request, db)
+    items = await listar_plantillas_admin_db(db)
+    return {"total": len(items), "items": items}

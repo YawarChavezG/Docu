@@ -50,6 +50,7 @@ from app.models.notificacion import Notificacion  # noqa: E402,F401
 from app.models.documento_reemplazo import DocumentoReemplazo  # noqa: E402,F401
 from app.models.documento_alcance_difusion import DocumentoAlcanceDifusion  # noqa: E402,F401
 from app.models.tarea_observacion import TareaObservacion  # noqa: E402,F401
+from app.models.plantilla import Plantilla  # noqa: E402,F401
 
 # ─── Alembic Config ───
 config = context.config
