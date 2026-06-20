@@ -31,9 +31,16 @@ export const page = {
       loading: true,
       filterTipo: '',
       errorMsg: '',
+      descargasCount: 0,
+      cargandoDescargas: false,
+
+      get isETO() {
+        return window.Alpine?.store('auth')?.user?.roles?.includes('ETO') || false
+      },
 
       async init() {
         await this.cargar()
+        if (this.isETO) await this.cargarStatsDescargas()
       },
 
       async cargar() {
@@ -48,6 +55,16 @@ export const page = {
           window.toast?.(this.errorMsg, 'error')
         }
         this.loading = false
+      },
+
+      async cargarStatsDescargas() {
+        this.cargandoDescargas = true
+        try {
+          const { apiGet } = await import('../utils/api.js')
+          const res = await apiGet('/plantillas-documentales/stats/descargas?dias=30')
+          if (res.ok) this.descargasCount = res.data?.total || 0
+        } catch (_) { /* silent */ }
+        this.cargandoDescargas = false
       },
 
       get filtered() {
@@ -87,6 +104,15 @@ export const page = {
       <button @click="cargar()" :disabled="loading" :title="loading ? 'Cargando...' : 'Refrescar'" class="btn btn-sm" style="display:inline-flex;align-items:center;gap:4px">
         <span :style="loading ? 'display:inline-block;animation:spin 0.8s linear infinite' : ''">↻</span> Refrescar
       </button>
+    </div>
+  </div>
+
+  <!-- KPI descargas (solo ETO) -->
+  <div x-show="isETO" class="flex items-center gap-3 mb-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5">
+    <div class="text-xl">📥</div>
+    <div>
+      <div class="text-[22px] font-bold text-slate-800 leading-tight" x-text="cargandoDescargas ? '...' : descargasCount"></div>
+      <div class="text-[11px] text-slate-500">Descargas de plantillas (últimos 30 días)</div>
     </div>
   </div>
 

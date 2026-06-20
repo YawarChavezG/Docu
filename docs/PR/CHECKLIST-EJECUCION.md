@@ -43,7 +43,7 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 1.1 | Nueva estructura de directorios en storage | ⬜ | — | — | `{gerencia}/{area}/{codigo}/V{version}/` |
+| 1.1 | Nueva estructura de directorios en storage | 🔵 EN PROGRESO | — | — | `{gerencia}/{area}/{codigo}/V{version}/` |
 | 1.2 | Contador de descargas de plantillas (métrica) | ⬜ | — | — | Solo KPI, sin límite |
 
 ---

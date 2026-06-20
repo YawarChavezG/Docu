@@ -14,11 +14,12 @@ y recurso=plantilla_documental.
 """
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, Query
 from fastapi.responses import FileResponse
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.audit import write_audit
@@ -159,6 +160,25 @@ async def list_plantillas(
             activo=p.get("activo", True),
         ))
     return PlantillaListResponse(total=len(out), items=out)
+
+
+@router.get("/stats/descargas", summary="Contador de descargas de plantillas (solo ETO/ADMIN)")
+async def stats_descargas_plantillas(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    dias: int = Query(30, ge=1, le=365, description="Ventana de dias hacia atras"),
+):
+    """Retorna cuantas descargas de plantillas hubo en los ultimos N dias."""
+    from app.models.audit_log import AuditLog
+    await require_authenticated(request, db)
+    desde = datetime.now(timezone.utc) - timedelta(days=dias)
+    count = (await db.execute(
+        select(func.count(AuditLog.id))
+        .where(AuditLog.accion == "DOWNLOAD")
+        .where(AuditLog.recurso == "plantilla_documental")
+        .where(AuditLog.created_at >= desde)
+    )).scalar_one() or 0
+    return {"total": count, "dias": dias, "recurso": "plantilla_documental"}
 
 
 @router.get("/{nombre_archivo}/download")
