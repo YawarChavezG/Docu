@@ -43,8 +43,8 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 1.1 | Nueva estructura de directorios en storage | 🔵 EN PROGRESO | — | — | `{gerencia}/{area}/{codigo}/V{version}/` |
-| 1.2 | Contador de descargas de plantillas (métrica) | ⬜ | — | — | Solo KPI, sin límite |
+| 1.1 | Nueva estructura de directorios en storage | ✅ | 2026-06-20 | 54e34fe | `{gerencia}/{area}/{codigo}/V{version}/` |
+| 1.2 | Contador de descargas de plantillas (métrica) | ✅ | 2026-06-20 | 514e3de | KPI visible solo para ETO |
 
 ---
 
