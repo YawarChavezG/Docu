@@ -61,6 +61,20 @@ logs/
 # OS
 .DS_Store
 
+# Temporales / tests
+tmp/
+temp/
+*.tmp
+backups/
+screenshots_sb/
+test_*.json
+test_served.js
+exports_test.xlsx
+cookies_*.txt
+*.dump
+celerybeat-schedule*
+.coverage
+
 # ─── Dev artifacts (outputs de procesos locales, NO se commitean) ───
 # Outputs del backend nativo (.bat) cuando se corre fuera de Docker
 backend.err

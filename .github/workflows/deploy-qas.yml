@@ -1,9 +1,43 @@
+<<<<<<< Updated upstream
 name: Deploy a QAS
 on: push
 jobs:
   ci:
     name: CI - Validar migrations + tests
     if: startsWith(github.ref, 'refs/tags/v')
+=======
+# ════════════════════════════════════════════════════════════════
+# COFAR SGD — CI/CD Pipeline: Deploy a QAS
+#
+# Trigger: push de tag v*-qas
+#
+# Flujo en CI (GitHub Actions, Linux):
+#   1. Crea BD PostgreSQL fresh (servicio Docker)
+#   2. Corre alembic upgrade head (valida migrations)
+#   3. Corre pytest (337+ tests)
+#   4. Corre entrypoint modo CI
+#   5. SCP codigo a QAS + extrae via Python
+#   6. Rebuild imagenes + restart servicios
+#   7. Health check + seeds + validate-qas.sh (38 checks)
+#
+# ════════════════════════════════════════════════════════════════
+name: Deploy a QAS
+
+on:
+  push:
+    tags:
+      - 'v*-qas'
+
+env:
+  PG_USER: sgd
+  PG_PASSWORD: sgd_ci
+  PG_DB: sgd_ci
+
+jobs:
+
+  validate:
+    name: CI - Migraciones + Tests
+>>>>>>> Stashed changes
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -15,8 +49,14 @@ jobs:
         ports:
           - 5432:5432
         options: >-
+<<<<<<< Updated upstream
           --health-cmd pg_isready -U sgd -d sgd_ci
           --health-interval 10s --health-timeout 5s --health-retries 5
+=======
+          --health-cmd pg_isready -U ${{ env.PG_USER }} -d ${{ env.PG_DB }}
+          --health-interval 10s --health-timeout 5s --health-retries 5
+
+>>>>>>> Stashed changes
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,24 +64,49 @@ jobs:
           python-version: '3.12'
       - name: Instalar dependencias
         run: cd backend && pip install -r requirements/base.txt
+<<<<<<< Updated upstream
       - name: Alembic upgrade head
+=======
+
+      - name: Alembic upgrade head (contra PG fresh)
+>>>>>>> Stashed changes
         run: cd backend && alembic upgrade head
         env:
           DATABASE_URL: "postgresql+asyncpg://sgd:sgd_ci@localhost:5432/sgd_ci"
           ENVIRONMENT: ci
           LDAP_ENABLED: 'false'
+<<<<<<< Updated upstream
       - name: Entrypoint modo CI
         run: sudo apt-get update -qq && sudo apt-get install -y -qq netcat-openbsd && cd backend && bash scripts/entrypoint.sh
         env:
           DATABASE_URL: "postgresql+asyncpg://sgd:sgd_ci@localhost:5432/sgd_ci"
           ENVIRONMENT: ci
           LDAP_ENABLED: 'false'
+=======
+
+      - name: Validar alembic head
+        run: |
+          HEAD=$(psql -U ${{ env.PG_USER }} -d ${{ env.PG_DB }} -tA -c "SELECT version_num FROM alembic_version")
+          echo "Alembic head: $HEAD"
+          test "$HEAD" = "r3_plantillas_table_s37"
+        env:
+          PGPASSWORD: ${{ env.PG_PASSWORD }}
+
+      - name: Entrypoint modo CI
+        run: cd backend && bash scripts/entrypoint.sh
+        env:
+          DATABASE_URL: "postgresql+asyncpg://${{ env.PG_USER }}:${{ env.PG_PASSWORD }}@localhost:5432/${{ env.PG_DB }}"
+          ENVIRONMENT: ci
+          LDAP_ENABLED: 'false'
+
+>>>>>>> Stashed changes
       - name: pytest
         run: cd backend && pip install pytest pytest-asyncio httpx && python -m pytest tests/ -q --tb=short
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           ENVIRONMENT: test
           LDAP_ENABLED: 'false'
+<<<<<<< Updated upstream
   cd:
     name: CD - Deploy a QAS
     needs: ci
@@ -52,10 +117,36 @@ jobs:
       - name: Empaquetar
         run: |
           mkdir -p /tmp/sgd_deploy; cp -r ${{ github.workspace }}/backend /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/frontend /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/deploy /tmp/sgd_deploy/; cp -r ${{ github.workspace }}/scripts /tmp/sgd_deploy/; cp ${{ github.workspace }}/.env.example /tmp/sgd_deploy/; rm -rf /tmp/sgd_deploy/backend/{node_modules,.venv,__pycache__,.pytest_cache}; rm -rf /tmp/sgd_deploy/frontend/{node_modules,dist}; cd /tmp && zip -r sgd_deploy.zip sgd_deploy/
+=======
+          
+  deploy:
+    name: CD - Deploy a QAS
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Empaquetar codigo
+        run: |
+          mkdir -p /tmp/sgd_deploy
+          for d in backend frontend deploy scripts; do
+            cp -r ${{ github.workspace }}/$d /tmp/sgd_deploy/
+          done
+          cp ${{ github.workspace }}/.env.example /tmp/sgd_deploy/
+          rm -rf /tmp/sgd_deploy/backend/{node_modules,.venv,__pycache__,.pytest_cache}
+          rm -rf /tmp/sgd_deploy/frontend/{node_modules,dist}
+          cd /tmp && zip -r sgd_deploy.zip sgd_deploy/
+          echo "ZIP: $(du -h /tmp/sgd_deploy.zip | cut -f1)"
+
+>>>>>>> Stashed changes
       - name: SCP a QAS
         run: |
           scp -o StrictHostKeyChecking=no /tmp/sgd_deploy.zip ${{ secrets.QAS_USER }}@${{ secrets.QAS_HOST }}:/tmp/
           scp -o StrictHostKeyChecking=no ${{ github.workspace }}/scripts/extract_qas.py ${{ secrets.QAS_USER }}@${{ secrets.QAS_HOST }}:/tmp/
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
       - name: Extraer + Rebuild + Restart
         uses: appleboy/ssh-action@v1
         with:
@@ -67,12 +158,23 @@ jobs:
             cp -a .env.qas /tmp/env_bak 2>/dev/null; cp -a deploy/nginx/ssl /tmp/ssl_bak 2>/dev/null
             find . -mindepth 1 -not -path './backups' -not -path './backups/*' -delete 2>/dev/null
             python3 /tmp/extract_qas.py
+<<<<<<< Updated upstream
             cp -a /tmp/env_bak .env.qas 2>/dev/null; mkdir -p deploy/nginx/ssl && cp -a /tmp/ssl_bak/. deploy/nginx/ssl/ 2>/dev/null
+=======
+            cp -a /tmp/env_bak .env.qas 2>/dev/null
+            mkdir -p deploy/nginx/ssl && cp -a /tmp/ssl_bak/. deploy/nginx/ssl/ 2>/dev/null
+>>>>>>> Stashed changes
             chmod +x scripts/*.sh 2>/dev/null
             if [ -f deploy/nginx/conf.d/sgd-qas.conf.bk ]; then mv deploy/nginx/conf.d/sgd-qas.conf.bk deploy/nginx/conf.d/sgd-qas.conf; fi
             rm -f /tmp/sgd_deploy.zip /tmp/env_bak
             docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas build --pull backend celery-worker celery-beat frontend 2>&1 | tail -3
+<<<<<<< Updated upstream
             docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas up -d && sleep 15 && docker restart sgd-qas-nginx
+=======
+            docker compose -f deploy/docker-compose.qas.yml --env-file .env.qas up -d
+            sleep 15 && docker restart sgd-qas-nginx
+
+>>>>>>> Stashed changes
       - name: Health check
         uses: appleboy/ssh-action@v1
         with:
@@ -80,7 +182,17 @@ jobs:
           username: ${{ secrets.QAS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+<<<<<<< Updated upstream
             for i in $(seq 1 30); do S=$(curl -kfsS -o /dev/null -w "%{http_code}" https://localhost/api/v1/health 2>/dev/null); [ "$S" = "200" ] && echo "OK ($((i*2))s)" && exit 0; sleep 2; done; exit 1
+=======
+            for i in $(seq 1 30); do
+              S=$(curl -kfsS -o /dev/null -w "%{http_code}" https://localhost/api/v1/health 2>/dev/null)
+              [ "$S" = "200" ] && echo "Health OK ($((i*2))s)" && exit 0
+              sleep 2
+            done
+            exit 1
+
+>>>>>>> Stashed changes
       - name: Seeds + Validacion
         uses: appleboy/ssh-action@v1
         with:
@@ -88,4 +200,10 @@ jobs:
           username: ${{ secrets.QAS_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+<<<<<<< Updated upstream
             cd /opt/sgd; bash scripts/start-stack-qas.sh 2>&1 | tail -3; bash scripts/validate-qas.sh 2>&1 | grep -E "PASS:|FAIL:|WARN:"
+=======
+            cd /opt/sgd
+            bash scripts/start-stack-qas.sh 2>&1 | tail -3
+            bash scripts/validate-qas.sh 2>&1 | grep -E "PASS:|FAIL:|WARN:"
+>>>>>>> Stashed changes
