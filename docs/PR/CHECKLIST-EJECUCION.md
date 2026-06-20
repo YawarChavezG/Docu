@@ -67,8 +67,8 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 3.1 | Columna `codigo` en tabla `procesos` + seed | 🔵 EN PROGRESO | — | — | VARCHAR(4) UNIQUE |
-| 3.2 | Selector de Proceso en LiberacionDetalle.js | ⬜ | — | — | Antes de "Decisión de Liberación" |
+| 3.1 | Columna `codigo` en tabla `procesos` + seed | ✅ | 2026-06-20 | 62a0671 | VARCHAR(4) UNIQUE |
+| 3.2 | Selector de Proceso en LiberacionDetalle.js | ✅ | 2026-06-20 | 62a0671 | Antes de "Decisión de Liberación" |
 
 ---
 
