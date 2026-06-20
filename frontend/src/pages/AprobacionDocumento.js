@@ -326,6 +326,62 @@ export const page = {
         return String(n + 1).padStart(2, '0')
       },
 
+      // ─── Dropdowns custom (estilo searchable) ───
+      dropdownOpen: { tipodoc: false, gerencia: false, area: false, solicitud: false },
+
+      _toggleDropdown(name) {
+        this.dropdownOpen[name] = !this.dropdownOpen[name]
+      },
+
+      _selectDropdown(name, val) {
+        if (name === 'tipodoc') {
+          this.tipodoc = val
+          this.dropdownOpen.tipodoc = false
+          this.onTipodocChange()
+        } else if (name === 'gerencia') {
+          this.gerencia = val
+          this.area = ''
+          this.dropdownOpen.gerencia = false
+          this.onAreaChange()
+        } else if (name === 'area') {
+          this.area = val
+          this.dropdownOpen.area = false
+          this.onAreaChange()
+        } else if (name === 'solicitud') {
+          this.tipoSolicitud = val
+          this.dropdownOpen.solicitud = false
+          this.onTipoSolicitudChange()
+        }
+      },
+
+      _getDisplayVal(name) {
+        if (name === 'tipodoc') {
+          const t = this.tiposList.find(x => String(x.id) === String(this.tipodoc))
+          return t ? `${t.nombre} (${t.codigo})` : 'Seleccionar...'
+        } else if (name === 'gerencia') {
+          const g = this.gerenciasList.find(x => String(x.id) === String(this.gerencia))
+          return g ? `${g.sigla} - ${g.nombre}` : 'Seleccionar...'
+        } else if (name === 'area') {
+          const a = this.areasList.find(x => String(x.id) === String(this.area))
+          return a ? `${a.sigla} - ${a.nombre}` : (!this.gerencia ? 'Seleccione una gerencia primero...' : 'Seleccionar...')
+        } else if (name === 'solicitud') {
+          const labels = { CREACION: 'Creacion de nuevo documento', ACTUALIZACION: 'Actualizacion de documento' }
+          return labels[this.tipoSolicitud] || 'Seleccionar...'
+        }
+        return ''
+      },
+
+      _getDropdownOptions(name) {
+        if (name === 'tipodoc') return this.tiposList.map(t => ({ id: t.id, label: `${t.nombre} (${t.codigo})` }))
+        if (name === 'gerencia') return this.gerenciasList.map(g => ({ id: g.id, label: `${g.sigla} - ${g.nombre}` }))
+        if (name === 'area') return this.areasList.map(a => ({ id: a.id, label: `${a.sigla} - ${a.nombre}` }))
+        if (name === 'solicitud') return [
+          { id: 'CREACION', label: 'Creacion de nuevo documento' },
+          { id: 'ACTUALIZACION', label: 'Actualizacion de documento' },
+        ]
+        return []
+      },
+
       // ─── Watchers implicitos via metodos ───
       // (Llamados desde el template con @change)
       async onTipodocChange() {
@@ -620,40 +676,116 @@ export const page = {
     <div class="section-header">1. Datos del documento y carga de archivo</div>
 
     <div class="form-grid-2 mb-5">
-      <div>
+      <!-- Dropdown Tipo de documento -->
+      <div class="relative">
         <label class="form-label">Tipo de documento *</label>
-        <select class="form-input text-xs" x-model="tipodoc" @change="onTipodocChange()">
-          <option value="">Seleccionar...</option>
-          <template x-for="t in tiposList" :key="t.id">
-            <option :value="t.id" x-text="t.nombre + ' (' + t.codigo + ')'"></option>
+        <div class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="tipodoc ? 'text-slate-800' : 'text-slate-400'"
+             @click.stop="_toggleDropdown('tipodoc')">
+          <span x-text="_getDisplayVal('tipodoc')"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="dropdownOpen.tipodoc ? 'rotate-180' : ''">▼</span>
+        </div>
+        <div x-show="dropdownOpen.tipodoc"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+             style="display:none"
+             :style="dropdownOpen.tipodoc ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="o in _getDropdownOptions('tipodoc')" :key="o.id">
+            <button @click="_selectDropdown('tipodoc', o.id)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]"
+                    :class="String(tipodoc) === String(o.id) ? 'bg-blue-50 font-semibold text-brand-700' : 'text-slate-700'">
+              <span x-text="o.label"></span>
+            </button>
           </template>
-        </select>
+        </div>
+        <div x-show="dropdownOpen.tipodoc" @click="dropdownOpen.tipodoc=false" class="fixed inset-0 z-10"></div>
       </div>
-      <div>
+
+      <!-- Dropdown Gerencia -->
+      <div class="relative">
         <label class="form-label">Gerencia responsable *</label>
-        <select class="form-input text-xs" x-model="gerencia" @change="area=''; onAreaChange()">
-          <option value="">Seleccionar...</option>
-          <template x-for="g in gerenciasList" :key="g.id">
-            <option :value="g.id" x-text="g.sigla + ' - ' + g.nombre"></option>
+        <div class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="gerencia ? 'text-slate-800' : 'text-slate-400'"
+             @click.stop="_toggleDropdown('gerencia')">
+          <span x-text="_getDisplayVal('gerencia')"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="dropdownOpen.gerencia ? 'rotate-180' : ''">▼</span>
+        </div>
+        <div x-show="dropdownOpen.gerencia"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+             style="display:none"
+             :style="dropdownOpen.gerencia ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="o in _getDropdownOptions('gerencia')" :key="o.id">
+            <button @click="_selectDropdown('gerencia', o.id)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]"
+                    :class="String(gerencia) === String(o.id) ? 'bg-blue-50 font-semibold text-brand-700' : 'text-slate-700'">
+              <span x-text="o.label"></span>
+            </button>
           </template>
-        </select>
+        </div>
+        <div x-show="dropdownOpen.gerencia" @click="dropdownOpen.gerencia=false" class="fixed inset-0 z-10"></div>
       </div>
-      <div>
+
+      <!-- Dropdown Area -->
+      <div class="relative">
         <label class="form-label">Area responsable *</label>
-        <select class="form-input text-xs" x-model="area" @change="onAreaChange()" :disabled="!gerencia">
-          <option value="">Seleccione una gerencia primero...</option>
-          <template x-for="a in areasList" :key="a.id">
-            <option :value="a.id" x-text="a.sigla + ' - ' + a.nombre"></option>
+        <div class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="!gerencia ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : (area ? 'text-slate-800' : 'text-slate-400')"
+             @click.stop="gerencia ? _toggleDropdown('area') : null">
+          <span x-text="_getDisplayVal('area')"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="dropdownOpen.area ? 'rotate-180' : ''">▼</span>
+        </div>
+        <div x-show="dropdownOpen.area"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+             style="display:none"
+             :style="dropdownOpen.area ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="o in _getDropdownOptions('area')" :key="o.id">
+            <button @click="_selectDropdown('area', o.id)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]"
+                    :class="String(area) === String(o.id) ? 'bg-blue-50 font-semibold text-brand-700' : 'text-slate-700'">
+              <span x-text="o.label"></span>
+            </button>
           </template>
-        </select>
+        </div>
+        <div x-show="dropdownOpen.area" @click="dropdownOpen.area=false" class="fixed inset-0 z-10"></div>
       </div>
-      <div>
+
+      <!-- Dropdown Tipo de solicitud -->
+      <div class="relative">
         <label class="form-label">Tipo de solicitud *</label>
-        <select class="form-input text-xs" x-model="tipoSolicitud" @change="onTipoSolicitudChange()">
-          <option value="">Seleccionar...</option>
-          <option value="CREACION">Creacion de nuevo documento</option>
-          <option value="ACTUALIZACION">Actualizacion de documento</option>
-        </select>
+        <div class="form-input text-xs flex items-center justify-between cursor-pointer select-none"
+             :class="tipoSolicitud ? 'text-slate-800' : 'text-slate-400'"
+             @click.stop="_toggleDropdown('solicitud')">
+          <span x-text="_getDisplayVal('solicitud')"></span>
+          <span class="text-slate-300 text-[10px] transition-transform" :class="dropdownOpen.solicitud ? 'rotate-180' : ''">▼</span>
+        </div>
+        <div x-show="dropdownOpen.solicitud"
+             x-transition:enter="transition ease-out duration-100"
+             x-transition:enter-start="opacity-0 -translate-y-1"
+             x-transition:enter-end="opacity-100 translate-y-0"
+             class="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-[260px] overflow-y-auto"
+             style="display:none"
+             :style="dropdownOpen.solicitud ? 'display:block' : 'display:none'"
+             @click.stop>
+          <template x-for="o in _getDropdownOptions('solicitud')" :key="o.id">
+            <button @click="_selectDropdown('solicitud', o.id)" type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors text-[11px]"
+                    :class="tipoSolicitud === o.id ? 'bg-blue-50 font-semibold text-brand-700' : 'text-slate-700'">
+              <span x-text="o.label"></span>
+            </button>
+          </template>
+        </div>
+        <div x-show="dropdownOpen.solicitud" @click="dropdownOpen.solicitud=false" class="fixed inset-0 z-10"></div>
       </div>
       <!-- R3 item 0.2: selector de documento a actualizar (searchable) -->
       <div class="sm:col-span-2 relative" x-show="tipoSolicitud === 'ACTUALIZACION'">
@@ -740,7 +872,7 @@ export const page = {
              @dragover.prevent="dropPrincipal=true"
              @dragleave="dropPrincipal=false"
              @drop.prevent="archivoPrincipal=$event.dataTransfer.files[0];dropPrincipal=false"
-             @click="$refs.filePrincipal.click()">
+             @click="document.querySelector('[x-ref=filePrincipal]')?.click()">
           <template x-if="archivoPrincipal">
             <div>
               <div class="text-2xl mb-1.5">DOC</div>
@@ -766,7 +898,7 @@ export const page = {
              @dragover.prevent="dropFormularios=true"
              @dragleave="dropFormularios=false"
              @drop.prevent="agregarFormularios($event.dataTransfer.files); dropFormularios=false"
-             @click="$refs.fileFormularios.click()">
+             @click="document.querySelector('[x-ref=fileFormularios]')?.click()">
           <div class="flex flex-col items-center">
             <div class="text-2xl mb-1">DOCS</div>
             <div class="text-[11.5px] font-semibold text-slate-600">Anadir archivos adicionales</div>
