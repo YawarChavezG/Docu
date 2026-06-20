@@ -34,16 +34,18 @@ class TestLocalStorage:
         with open(path, "rb") as f:
             assert f.read() == b"hello world"
 
-    def test_local_storage_save_generates_uuid(self, tmp_path: Path):
-        """save() genera un nombre con UUID (no usa el nombre original)."""
+    def test_local_storage_save_with_display_name(self, tmp_path: Path):
+        """save() usa el nombre legible proporcionado cuando se pasa subdir."""
         storage = LocalStorage(root=str(tmp_path))
-        path = storage.save(b"x", "mi_archivo_original.docx")
+        path = storage.save(b"x", "CC-5-001 PROCEDIMIENTO DE MUESTREO V00.docx",
+                            subdir="CC/CC/CC-5-001/V00")
 
-        # El path NO debe contener "mi_archivo_original" (es UUID + ext)
+        # El path debe contener la estructura de directorios (platform-independent)
+        assert "CC" in path and "CC-5-001" in path and "V00" in path
+        # El filename debe ser legible (no UUID)
         filename = Path(path).name
-        assert "mi_archivo_original" not in filename
-        # Formato esperado: 32 chars hex (uuid4 sin guiones) + .docx
-        assert re.match(r"^[a-f0-9]{32}\.docx$", filename), f"Nombre inesperado: {filename}"
+        assert filename.startswith("CC-5-001")
+        assert filename.endswith(".docx")
 
     def test_local_storage_save_preserves_extension(self, tmp_path: Path):
         """save() preserva la extension del nombre original (whitelist)."""
@@ -53,15 +55,13 @@ class TestLocalStorage:
             assert path.endswith(f".{ext}"), f"Extension {ext} no preservada: {path}"
 
     def test_local_storage_save_rejects_path_traversal(self, tmp_path: Path):
-        """save() bloquea path traversal en el filename."""
+        """safe_filename() bloquea path traversal en el filename."""
         storage = LocalStorage(root=str(tmp_path))
-        # Aunque el filename tenga path traversal, el nombre guardado NO debe
-        # permitir escribir fuera del root
-        path = storage.save(b"x", "../../../etc/passwd")
+        path = storage.save(b"x", "../../../etc/passwd", subdir="safe/area")
         # El path resultante debe estar DENTRO de tmp_path
         assert str(tmp_path) in path, f"path traversal permitido: {path}"
         # Y no debe contener ".."
-        assert ".." not in Path(path).name
+        assert ".." not in path
 
     def test_local_storage_delete_removes_file(self, tmp_path: Path):
         """delete() elimina el archivo. Idempotente (no falla si no existe)."""
@@ -92,10 +92,10 @@ class TestSharePointStorage:
         """save() NO escribe nada, solo loguea la intencion y devuelve path ficticio."""
         storage = SharePointStorage()
         with caplog.at_level(logging.INFO):
-            path = storage.save(b"contenido", "demo.docx")
+            path = storage.save(b"contenido", "demo.docx", subdir="CC/CC/CC-5-001/V00")
 
         # Path ficticio con el esquema sharepoint://
-        assert path == "sharepoint://demo.docx"
+        assert path == "sharepoint://CC/CC/CC-5-001/V00/demo.docx"
         # Log emitido
         assert any("SharePoint" in rec.message for rec in caplog.records)
         # NO se escribio nada en disco (verificamos que no existe en CWD)
@@ -122,7 +122,7 @@ class TestStorageFactory:
     def test_get_storage_returns_local_by_default(self, tmp_path: Path, monkeypatch):
         """Sin SHAREPOINT_ENABLED, devuelve LocalStorage."""
         monkeypatch.setenv("SHAREPOINT_ENABLED", "false")
-        monkeypatch.setenv("STORAGE_ROOT", str(tmp_path))
+        monkeypatch.setenv("DOCUMENTOS_STORAGE_PATH", str(tmp_path))
         reset_storage_for_tests()
 
         s = get_storage()

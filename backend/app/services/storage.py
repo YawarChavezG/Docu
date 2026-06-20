@@ -24,12 +24,43 @@ Tests (test_storage.py):
 """
 import logging
 import os
-import uuid
+import re
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+# Extensiones permitidas para almacenamiento
+ALLOWED_EXTENSIONS = {'.docx', '.doc', '.xlsx', '.xls', '.pdf', '.pptx', '.ppt', '.png', '.jpg', '.jpeg', '.dwg'}
+
+
+def safe_filename(name: str, max_length: int = 200) -> str:
+    """
+    Sanitiza un nombre de archivo: elimina caracteres peligrosos
+    para el sistema de archivos (path traversal, caracteres especiales).
+    """
+    # Extraer nombre y extensión
+    p = Path(name)
+    stem = p.stem
+    ext = p.suffix.lower()
+
+    # Validar extensión
+    if ext and ext not in ALLOWED_EXTENSIONS:
+        ext = ""
+
+    # Eliminar caracteres peligrosos del stem
+    stem = re.sub(r'[/\\:*?"<>|]', '', stem)
+    # Prevenir path traversal (eliminar ..)
+    stem = stem.replace('..', '')
+    # Recortar largo máximo
+    stem = stem[:max_length]
+
+    safe = stem.strip()
+    if not safe:
+        safe = "documento"
+
+    return f"{safe}{ext}"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -40,10 +71,15 @@ class StorageBackend(ABC):
     """Interfaz abstracta para los backends de almacenamiento."""
 
     @abstractmethod
-    def save(self, file_bytes: bytes, dest_filename: str) -> str:
+    def save(self, file_bytes: bytes, dest_filename: str, subdir: str = "") -> str:
         """
         Persiste los bytes del archivo y devuelve el path interno.
         NO valida tamano ni MIME type (eso lo hace el endpoint).
+
+        Args:
+            file_bytes: contenido del archivo
+            dest_filename: nombre final del archivo (ej: "CC-5-001 PROCEDIMIENTO V00.docx")
+            subdir: subdirectorio relativo (ej: "CC/CC/CC-5-001/V00")
         """
 
     @abstractmethod
@@ -62,42 +98,44 @@ class StorageBackend(ABC):
 class LocalStorage(StorageBackend):
     """
     Persiste archivos en un directorio del filesystem.
-    Default: /app/storage/uploads (volume del contenedor backend).
-    Configurable via env var STORAGE_ROOT o argumento del constructor (para tests).
+    Default: /app/storage/documentos (volume del contenedor backend).
+    Configurable via env var DOCUMENTOS_STORAGE_PATH.
     """
 
     def __init__(self, root: Optional[str] = None) -> None:
-        # F5 (Sesion 24): aceptar tanto STORAGE_ROOT (legacy) como
-        # DOCUMENTOS_STORAGE_PATH (mas descriptivo, default "/app/storage/uploads").
-        env_root = os.getenv("DOCUMENTOS_STORAGE_PATH") or os.getenv("STORAGE_ROOT")
-        self.root = Path(root or env_root or "/app/storage/uploads")
+        env_root = os.getenv("DOCUMENTOS_STORAGE_PATH")
+        self.root = Path(root or env_root or "/app/storage/documentos")
         self.root.mkdir(parents=True, exist_ok=True)
 
-    def _safe_ext(self, dest_filename: str) -> str:
-        """Extrae la extension de manera segura (sin path traversal)."""
-        # Quitar cualquier path que venga en dest_filename (defensa en profundidad)
-        safe_name = Path(dest_filename).name
-        ext = Path(safe_name).suffix.lower()
-        # Whitelist: solo extensiones permitidas (3 chars + .)
-        if ext and len(ext) <= 6 and all(c.isalnum() or c == "." for c in ext):
-            return ext
-        return ""
+    def save(self, file_bytes: bytes, dest_filename: str, subdir: str = "") -> str:
+        """
+        Escribe los bytes en self.root/{subdir}/{dest_filename} con nombre legible.
+        Ej: /app/storage/documentos/CC/CC/CC-5-001/V00/CC-5-001 PROCEDIMIENTO V00.docx
 
-    def _unique_name(self, dest_filename: str) -> str:
-        """Genera nombre unico: {uuid4}.{ext} (evita colisiones y path traversal)."""
-        ext = self._safe_ext(dest_filename)
-        return f"{uuid.uuid4().hex}{ext}"
+        Args:
+            file_bytes: contenido binario del archivo
+            dest_filename: nombre con formato: "{codigo} {TITULO} V{version}.{ext}"
+                           o "{codigo}-F{corr} {TITULO} V{version}.{ext}"
+            subdir: subdirectorio relativo desde root (ej: "CC/CC/CC-5-001/V00")
+        """
+        # Sanitizar nombre de archivo
+        safe_name = safe_filename(dest_filename)
 
-    def save(self, file_bytes: bytes, dest_filename: str) -> str:
-        """Escribe los bytes en self.root con un nombre UUID + extension."""
-        name = self._unique_name(dest_filename)
-        full_path = self.root / name
-        # Crear directorios intermedios si no existen (defensa)
-        full_path.parent.mkdir(parents=True, exist_ok=True)
-        # Escribir en modo binario
+        # Construir directorio de destino
+        target_dir = self.root
+        if subdir:
+            # Sanitizar cada componente del subdir
+            parts = [safe_filename(p) for p in subdir.replace('\\', '/').split('/') if p]
+            for p in parts:
+                target_dir = target_dir / p
+
+        target_dir.mkdir(parents=True, exist_ok=True)
+        full_path = target_dir / safe_name
+
         with open(full_path, "wb") as f:
             f.write(file_bytes)
-        # Devolver path absoluto (lo que se guarda en archivo_adjunto.storage_path)
+
+        logger.info("Archivo guardado: %s (%d bytes)", full_path, len(file_bytes))
         return str(full_path)
 
     def delete(self, path: str) -> None:
@@ -126,21 +164,17 @@ class LocalStorage(StorageBackend):
 
 class SharePointStorage(StorageBackend):
     """
-    Stub para DES. En QAS/PROD implementa Microsoft Graph API.
-
-    No escribe nada: solo loguea la intencion. Esto permite desarrollar
-    el wizard end-to-end en DES sin SharePoint real, y en QAS cambiar
-    un flag (SHAREPOINT_ENABLED=true) para activar la implementacion real.
+    Stub para DES. En QAS/PROD implementa Microsoft Graph API (Fase 9).
     """
 
-    def save(self, file_bytes: bytes, dest_filename: str) -> str:
+    def save(self, file_bytes: bytes, dest_filename: str, subdir: str = "") -> str:
         """Stub: NO escribe. Devuelve un path ficticio sharepoint://."""
         size = len(file_bytes) if file_bytes else 0
         logger.info(
-            "[STUB] SharePoint: subiendo %s (%d bytes) a la biblioteca de documentos",
-            dest_filename, size,
+            "[STUB] SharePoint: subiendo %s (%d bytes) a %s",
+            dest_filename, size, subdir or "(raiz)",
         )
-        return f"sharepoint://{dest_filename}"
+        return f"sharepoint://{subdir}/{dest_filename}" if subdir else f"sharepoint://{dest_filename}"
 
     def delete(self, path: str) -> None:
         """Stub: NO elimina. Solo loguea."""

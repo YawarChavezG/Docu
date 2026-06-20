@@ -991,8 +991,12 @@ async def upload_archivo(
             detail=f"tipo_adjunto invalido. Valores: {[t.value for t in TipoAdjunto]}",
         )
 
-    # 2. Validar documento existe y activo
-    doc = await db.get(Documento, documento_id)
+    # 2. Validar documento existe y activo (con gerencia + area cargadas para storage)
+    doc = (await db.execute(
+        select(Documento)
+        .where(Documento.id == documento_id)
+        .options(selectinload(Documento.gerencia), selectinload(Documento.area))
+    )).scalar_one_or_none()
     if not doc or not doc.activo:
         raise HTTPException(
             status_code=404,
@@ -1071,9 +1075,18 @@ async def upload_archivo(
             detail=f"Limite de archivos alcanzado ({max_count} por documento)",
         )
 
-    # 6. Persistir via storage backend
+    # 6. Persistir via storage backend con estructura de directorios
     storage = get_storage()
-    storage_path = storage.save(file_bytes, archivo.filename or "archivo.bin")
+    gerencia_sigla = doc.gerencia.sigla if doc.gerencia else "XX"
+    area_sigla = doc.area.sigla if doc.area else "XX"
+    subdir = f"{gerencia_sigla}/{area_sigla}/{doc.codigo}/V{doc.version}"
+    titulo_display = (doc.titulo or "").strip().upper()
+    ext = Path(archivo.filename or "archivo.bin").suffix.lower() if archivo.filename else ""
+    if tipo_adjunto_enum == TipoAdjunto.PRINCIPAL:
+        display_name = f"{doc.codigo} {titulo_display} V{doc.version}{ext}"
+    else:
+        display_name = f"{doc.codigo} {titulo_display} V{doc.version}{ext}"
+    storage_path = storage.save(file_bytes, display_name, subdir=subdir)
 
     # Determinar backend usado
     from app.services.storage import LocalStorage, SharePointStorage
