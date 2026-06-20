@@ -69,10 +69,28 @@ from app.services.correlativo_service import (
 )
 from app.services.envio_service import enviar_a_liberacion, liberar_documento
 from app.services.storage import get_storage
+from app.services.titulo_formulario_service import extraer_titulo
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/documentos", tags=["documentos"])
+
+
+# ════════════════════════════════════════════════════════════════
+#  POST /documentos/extraer-titulo-formulario  (extrae titulo del archivo)
+# ════════════════════════════════════════════════════════════════
+
+@router.post("/extraer-titulo-formulario", summary="Extrae titulo de formulario (.xlsx, .docx)")
+async def extraer_titulo_formulario(
+    request: Request,
+    archivo: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Lee el archivo subido (xlsx o docx) y extrae su titulo interno."""
+    await require_authenticated(request, db)
+    contenido = await archivo.read()
+    titulo = extraer_titulo(contenido, archivo.filename or "")
+    return {"titulo": titulo or "", "filename": archivo.filename}
 
 
 # ════════════════════════════════════════════════════════════════

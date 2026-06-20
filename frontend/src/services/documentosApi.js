@@ -72,6 +72,12 @@ export const documentos = {
     formData.append('titulo_esperado', tituloEsperado)
     return apiPost('/documentos/validar-caratula', formData)
   },
+  // Extrae titulo de formulario (.xlsx, .docx)
+  extraerTituloFormulario: (file) => {
+    const formData = new FormData()
+    formData.append('archivo', file)
+    return apiPost('/documentos/extraer-titulo-formulario', formData)
+  },
 }
 
 // ─── Bandejas ───

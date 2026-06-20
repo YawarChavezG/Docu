@@ -11,7 +11,7 @@
  *  - firmarEnviar: POST /documentos (paso 1) + POST /enviar (paso 3) con firma 2FA real
  *  - Paso 1: crear doc via POST antes de pasar a paso 2
  */
-import { documentos, bandejas } from '../services/documentosApi.js'
+import { documentos, bandejas, generarNombreCompleto } from '../services/documentosApi.js'
 import { tiposDocumento, gerencias as gerenciasApi, areas as areasApi, usuarios as usuariosApi, roles as rolesApi, configGlobal } from '../services/parametrizacionApi.js'
 
 export const page = {
@@ -427,17 +427,49 @@ export const page = {
         })
       },
 
+      _extrayendoTitulos: 0,
+
       agregarFormularios(files) {
         const nuevos = Array.from(files)
+        const pendientes = []
         nuevos.forEach(file => {
           const existe = this.formulariosAsociados.some(f => f.file.name === file.name && f.file.size === file.size)
           if (!existe) {
-            // Extraer un titulo sugerido del nombre del archivo
-            const nameNoExt = file.name.replace(/\.[^.]+$/, '')
-            const sugerido = nameNoExt.replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim()
-            this.formulariosAsociados.push({ id: this._nextFormId++, file, titulo: sugerido })
+            const id = this._nextFormId++
+            this.formulariosAsociados.push({ id, file, titulo: '', _extrayendo: true })
+            pendientes.push({ id, file })
           }
         })
+        // Extraer titulos de los archivos via API
+        if (pendientes.length > 0) {
+          this._extrayendoTitulos += pendientes.length
+          pendientes.forEach(async ({ id, file }) => {
+            try {
+              const res = await documentos.extraerTituloFormulario(file)
+              const idx = this.formulariosAsociados.findIndex(f => f.id === id)
+              if (idx !== -1) {
+                if (res.ok && res.data?.titulo) {
+                  this.formulariosAsociados[idx].titulo = res.data.titulo
+                } else {
+                  // Fallback: extraer del nombre del archivo
+                  const nameNoExt = file.name.replace(/\.[^.]+$/, '')
+                  const sugerido = nameNoExt.replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim()
+                  this.formulariosAsociados[idx].titulo = sugerido
+                }
+                this.formulariosAsociados[idx]._extrayendo = false
+              }
+            } catch (e) {
+              const idx = this.formulariosAsociados.findIndex(f => f.id === id)
+              if (idx !== -1) {
+                const nameNoExt = file.name.replace(/\.[^.]+$/, '')
+                this.formulariosAsociados[idx].titulo = nameNoExt.replace(/[_-]/g, ' ').replace(/\s+/g, ' ').trim()
+                this.formulariosAsociados[idx]._extrayendo = false
+              }
+            } finally {
+              this._extrayendoTitulos--
+            }
+          })
+        }
       },
 
       removerFormulario(index) {
@@ -928,6 +960,7 @@ export const page = {
                   <div class="flex items-center gap-2">
                     <span class="text-[10px] font-bold text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded font-mono shrink-0" x-show="codigoAuto && codigoAuto !== '---'" x-text="codigoAuto.split('/')[0] + '-F' + f.correlativo"></span>
                     <span x-show="!codigoAuto || codigoAuto === '---'" class="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-mono shrink-0" x-text="'--F' + f.correlativo"></span>
+                    <span x-show="f._extrayendo" class="w-3 h-3 border-2 border-brand-500 border-t-transparent rounded-full animate-spin shrink-0"></span>
                     <span class="text-[10px] text-slate-400 font-mono shrink-0" x-text="'V' + (versionAuto || '00')"></span>
                     <span class="text-[10px] text-slate-400 truncate" x-text="f.file.name"></span>
                     <span class="text-[10px] text-slate-300 ml-auto shrink-0" x-text="(f.file.size/1024).toFixed(0) + 'KB'"></span>
