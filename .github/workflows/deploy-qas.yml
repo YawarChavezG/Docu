@@ -73,7 +73,7 @@ jobs:
           cd backend
           alembic upgrade head
         env:
-          DATABASE_URL: postgresql+asyncpg://${{ env.PG_USER }}:${{ env.PG_PASSWORD }}@localhost:5432/${{ env.PG_DB }}
+          DATABASE_URL: "postgresql+asyncpg://${{ env.PG_USER }}:${{ env.PG_PASSWORD }}@localhost:5432/${{ env.PG_DB }}"
           ENVIRONMENT: ci
           LDAP_ENABLED: 'false'
 
@@ -93,7 +93,7 @@ jobs:
           cd backend
           bash scripts/entrypoint.sh
         env:
-          DATABASE_URL: postgresql+asyncpg://${{ env.PG_USER }}:${{ env.PG_PASSWORD }}@localhost:5432/${{ env.PG_DB }}
+          DATABASE_URL: "postgresql+asyncpg://${{ env.PG_USER }}:${{ env.PG_PASSWORD }}@localhost:5432/${{ env.PG_DB }}"
           ENVIRONMENT: ci
           LDAP_ENABLED: 'false'
 
@@ -103,7 +103,7 @@ jobs:
           pip install pytest pytest-asyncio httpx
           python -m pytest tests/ -q --tb=short
         env:
-          DATABASE_URL: sqlite+aiosqlite:///:memory:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
           ENVIRONMENT: test
           LDAP_ENABLED: 'false'
 
