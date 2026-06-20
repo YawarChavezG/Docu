@@ -76,24 +76,72 @@ publican en GitHub Container Registry. QAS solo hace `docker pull`.
 
 ## 3. Flujo de trabajo para el desarrollador
 
+Hay 3 opciones. La recomendada es la **Opcion B** (funciona hoy sin GitHub Actions).
+
+### Opcion A: Con CI/CD (recomendado a futuro — requiere configurar GitHub Secrets una vez)
+
 ```
-1. Desarrollo en DES (ramas feature/*)
+1. Desarrollo en DES
        │
-2. Hacer cambios, probar localmente
+2. pytest + entrypoint CI (validacion local)
        │
-3. bash scripts/validate-deploy.sh   ← NUEVO: validacion pre-deploy
+3. git tag vX.Y.Z-qas && git push origin vX.Y.Z-qas
+       │
+4. GitHub Actions ejecuta automaticamente:
+       ├─ validate: BD fresh + alembic + pytest + seeds
+       ├─ build: imagenes Docker a ghcr.io
+       └─ deploy: SSH a QAS → pull + restart + seeds
+       │
+5. QAS actualizado
+```
+
+### Opcion B: Manual con validacion (recomendado HOY)
+
+```
+1. Desarrollo en DES
+       │
+2. cd backend && .venv\Scripts\python -m pytest tests/ -q
+       │
+3. docker exec sgd-backend env ENVIRONMENT=ci bash scripts/entrypoint.sh
+   (Esto corre alembic upgrade head contra la BD real de DES.
+    Si hay error de migration, lo ves AQUI, no en QAS)
        │
 4. git add + git commit + git push
        │
-5. git tag v1.2.0-qas && git push origin v1.2.0-qas
+5. git tag vX.Y.Z-qas && git push origin vX.Y.Z-qas
        │
-6. CI/CD Pipeline se ejecuta automaticamente
-       ├─ validate (5-10 min)
-       ├─ build (5-10 min)
-       └─ deploy (2-5 min)
+6. .\scripts\deploy-qas.bat
+       ├─ Backup BD
+       ├─ Sube codigo
+       ├─ Rebuild imagenes
+       ├─ Restart servicios
+       └─ start-stack-qas.sh (seeds + sync AD)
        │
-7. QAS actualizado sin intervencion manual
+7. ssh qas "bash /opt/sgd/scripts/validate-qas.sh"
+   (38/38 PASS = deploy exitoso)
 ```
+
+### Opcion C: Script todo-en-uno (validate-and-deploy.ps1)
+
+```powershell
+# Solo validar (recomendado antes de commitear)
+.\scripts\validate-and-deploy.ps1
+
+# Validar + crear tag + pushear
+.\scripts\validate-and-deploy.ps1 -Tag v1.2.0-qas
+
+# Validar + tag + deploy completo a QAS
+.\scripts\validate-and-deploy.ps1 -Tag v1.2.0-qas -Deploy
+```
+
+### Checklist del desarrollador
+
+| Que verificar | Como | Ataja errores como... |
+|---|---|---|
+| Tests pasan? | `cd backend && .venv\Scripts\python -m pytest tests/ -q` | Tests rotos |
+| Migraciones funcionales? | `docker exec sgd-backend env ENVIRONMENT=ci bash scripts/entrypoint.sh` | `sa.Enum` conflict, `||` oculto |
+| Entrypoint funciona? | `docker logs sgd-backend \| grep ENTRYPOINT` debe mostrar "Environment: development" | Entrypoint roto |
+| QAS sano post-deploy? | `ssh qas "bash validate-qas.sh"` debe dar 38/38 PASS | Todo lo anterior |
 
 ---
 
