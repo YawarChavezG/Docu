@@ -1,7 +1,7 @@
 # RADIOGRAFÍA TOTAL — COFAR SGD (2026-06-19)
 
 > **Documento único de contexto para cualquier IA o developer.** Captura el estado real de: frontend, backend, BD, Docker, scripts, tests, pendientes, y deuda técnica. Para ser leído ANTES de cualquier sesión de trabajo.
-> **Última actualización:** 2026-06-19 (sesión 36 — **R3 Fase 0 completada, 249/249 tests PASS, rama `r3/workflow-revision-aprobacion`**)
+> **Última actualización:** 2026-06-20 (sesión 39 — **CI/CD pipeline + deploy_qas.py + entrypoint unificado + 340 tests PASS, tag v1.3.0-qas**)
 
 ---
 

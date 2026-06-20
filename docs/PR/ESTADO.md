@@ -1,34 +1,23 @@
 # ESTADO — COFAR SGD (live tracker)
 
 > **Este archivo se actualiza al final de cada sesión de trabajo.**
-> **Última actualización:** 2026-06-20 (sesión 37/38 — **R3 FASE 1 CERRADA + wizard completo US-2.02/2.04 + tabla plantillas en BD + 300/300 tests PASS**)
+> **Última actualización:** 2026-06-20 (sesión 39 — **CI/CD pipeline + deploy_qas.py + GUIA-DEPLOY.md + 340+ tests PASS**)
 
 ## Versión actual
-**v1.1.0-qas (DESPLEGADO EN QAS)** — Sesiones 33-36 ejecutaron deploy, fixes y Fase 0 de R3. **Sesión 37-38**: Fase 1 de R3 (7 tablas workflow) + sub-fix semáforo (7/12/15 naturales) + **300/300 tests PASS**. Además se completaron:
+**v1.3.0-qas (DESPLEGADO EN QAS)** — Sesión 39: CI/CD pipeline con GitHub Actions + deploy script Python + arquitectura profesional de deploy. QAS actualizado con 30 tablas, entrypoint unificado, y validate 38/38 PASS.
 
-**Frontend (Wizard AprobacionDocumento):**
-- US-2.02: Searchable dropdown "Documento a actualizar" (input + filtro)
-- US-2.04: Formularios con drag-reorder, título editable desde contenido del archivo, codificación automática -F01/-F02/-F03
-- Dropdowns visuales custom en todo el wizard (Tipo doc, Gerencia, Area, Solicitud, Eval, Lectura, Reemplazo)
-- Checkboxes custom en árbol de difusión
-- Searchable dropdowns para Revisores y Aprobadores
-- Autocomplete en vivo para Códigos de reemplazo (vía /documentos/buscar)
-- Extracción de título real de .xlsx/.docx al subir formularios (endpoint POST /extraer-titulo-formulario)
+### Logros de la sesión 39
 
-**Administración de Plantillas:**
-- Nueva tabla `plantillas` en BD (soft-delete, audit_log, storage_path, created_by_id)
-- CRUD completo (subir, renombrar, eliminar) desde Parametrización > Restricciones
-- Migración de 8 plantillas del filesystem a BD
-- Interfaz con ConfirmDeleteModal (sin confirm() nativo)
-
-**Infraestructura:**
-- Script `seed_full_restore.bat` (un comando: sync AD + matriz roles + documentos)
-- Documentación de arranque desde BD vacía en INICIO-SESION.md
-- Prueba exitosa de Graph API (SharePoint) desde QAS (subida/descarga/rename/move)
-
-QAS corriendo con tag `v1.1.0-qas`. Pendiente:
-1. **Deploy a QAS v1.1.1-qas**: acumula cambios de sesiones 35-38. Pendiente bumpear tag.
-2. **R3 Fase 2**: servicios core (tarea_service, timeline_service, notificacion_service) + integración con envio_service.
+| Área | Logro |
+|---|---|
+| **CI/CD** | GitHub Actions pipeline funcional (migrations + pytest contra BD fresh en cada tag) |
+| **Deploy script** | `deploy_qas.py` — Python puro, 10 fases, 0 errores de quoting, 2 min deploy |
+| **Entrypoint** | `entrypoint.sh` unificado para DES, QAS y CI (3 modos) |
+| **Secrets GitHub** | `QAS_HOST`, `QAS_USER`, `SSH_PRIVATE_KEY` configurados |
+| **Tests** | 340+ PASS (se agregaron tests de vigencia, plantillas, título formularios) |
+| **Documentación** | `GUIA-DEPLOY.md` — tutorial completo de deploy |
+| **Learnings** | B15, D06, X09 agregados a LEARNINGS-ERRORES.md |
+| **QAS** | 38/38 PASS, 30 tablas, 754 usuarios, 10 documentos, entrypoint unificado |
 
 ## Arranque desde BD vacía
 Si Docker se apaga y se pierden los volúmenes (`docker volume prune`) o la BD está vacía:

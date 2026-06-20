@@ -89,6 +89,8 @@
 - [x] Valores semáforo corregidos: 7/12/15 naturales, LIBERACION=999
 - [x] Contexto AMBAS eliminado del modelo Estado
 
+> **Nota:** Sesión 39 completó la infraestructura de deploy (CI/CD + deploy_qas.py) antes de continuar con Fase 2. Ver `docs/PR/GUIA-DEPLOY.md`.
+
 ## 🟡 Fase 2: Servicios core R3
 
 > **6h / 2 sesiones. Solo Backend.**

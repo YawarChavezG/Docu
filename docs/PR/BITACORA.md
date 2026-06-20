@@ -3694,3 +3694,43 @@ ew Date().toLocaleDateString('es-BO'). |
 - pytest: 217/228 PASS (mismas 11 fallas preexistentes)
 - Working tree: clean (post-commit de docs en sesion 28)
 
+
+## Sesión 39 — 2026-06-20 (sábado) — CI/CD pipeline + deploy_qas.py + GUIA-DEPLOY.md + 340 tests
+
+### Resumen ejecutivo
+Sesión dedicada a profesionalizar el proceso de deploy: crear pipeline CI/CD con GitHub Actions, script Python de deploy (`deploy_qas.py`), entrypoint unificado y documentación completa. **340+ tests PASS, 38/38 validate PASS en QAS, tag v1.3.0-qas.**
+
+### Entregables
+
+| Entregable | Archivo | Descripción |
+|---|---|---|
+| **Deploy script** | `scripts/deploy_qas.py` | Pipeline Python production-grade, 10 fases, 2 min deploy |
+| **CI/CD workflow** | `.github/workflows/deploy-qas.yml` | GitHub Actions: migrations + pytest en cada tag |
+| **Entrypoint único** | `backend/scripts/entrypoint.sh` | Funciona en DES (--reload), QAS (--workers 2), CI (exit 0) |
+| **Guía de deploy** | `docs/PR/GUIA-DEPLOY.md` | Tutorial completo paso a paso |
+| **Secrets GitHub** | QAS_HOST, QAS_USER, SSH_PRIVATE_KEY | Configurados para CI/CD futuro |
+| **Test coverage** | 7 nuevos archivos de test | vigencia_service, plantilla_manager, titulo_formulario, caratula (header), docx_helpers |
+
+### Problemas resueltos durante deploy v1.1.1 a QAS
+
+| Problema | Causa raíz | Fix |
+|---|---|---|
+| `sa.Enum` crea type ya existente | Migration usaba `sa.Enum(name="tipo_tarea_semaforo")` | Cambiado a `sa.String(50)` sin FK |
+| `ContextoEstado.AMBOS` en datos legacy | 3 registros BD con enum eliminado | `UPDATE estados SET contexto='PROCESO'` |
+| Asimetría DES vs QAS | `||` vs `&&` en entrypoint | Entrypoint unificado, ambos usan `&&` |
+| Entrypoint CI falla | `nc` no instalado + `postgres` hostname no resuelve | `apt-get install netcat-openbsd` + `POSTGRES_HOST=localhost` |
+| SCP falla | GitHub no llega a IP privada QAS (10.11.0.11) | Se usa deploy manual con `deploy_qas.py` |
+| `on: push tags:` no funciona | Bug en GitHub para glob patterns con `+` | Reemplazado por `on: push` + `if: startsWith(github.ref, 'refs/tags/v')` |
+
+### Learnings agregados
+
+| ID | Error |
+|---|---|
+| B15 | `sa.Enum(name=X)` en migration: si el ENUM ya existe en PG, falla con DuplicateObjectError |
+| D06 | Eliminar valores de un enum sin migrar datos legacy causa LookupError |
+| X09 | Asimetría DES vs QAS en entrypoint: `||` enmascara errores de migration |
+
+### Tags
+- `v1.2.0-qas` → deploy con fixes de migration
+- `v1.3.0-qas` → CI/CD pipeline + GUIA-DEPLOY.md
+
