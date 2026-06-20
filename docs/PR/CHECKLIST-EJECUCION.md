@@ -55,8 +55,8 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 2.1 | Tabla/conteo diario de descargas | 🔵 EN PROGRESO | — | — | `descargas_contador` o `audit_log` |
-| 2.2 | Validación límite en endpoint + VersionEditable | ⬜ | — | — | 1/día normal, 10/día excepción |
+| 2.1 | Tabla/conteo diario de descargas | ✅ | 2026-06-20 | 4f4c06c | Usa audit_log como contador |
+| 2.2 | Validación límite en endpoint + VersionEditable | ✅ | 2026-06-20 | 4f4c06c | 1/día normal, 10/día excepción + frontend |
 
 ---
 
