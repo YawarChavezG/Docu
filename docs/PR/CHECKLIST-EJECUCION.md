@@ -31,8 +31,8 @@
 | 0.1 | Separador versión: `/` → ` ` V | ✅ | 2026-06-20 | 1df60db | `formatear_codigo_completo()` + displays + tests |
 | 0.2 | Agregar credenciales MS Graph + SMTP al `.env` y `config.py` | ✅ | 2026-06-20 | 0ea4508 | Incluye SHAREPOINT_SITE_ID + fix entrypoint CRLF + POSTGRES_HOST |
 | 0.3 | Ocultar LIBERACION de semaforización UI | ✅ | 2026-06-20 | cca102a | Filtrar en endpoint GET |
-| 0.4 | Filtrar usuarios AUSENTES de dropdowns revisores/aprobadores | 🔵 EN PROGRESO | — | — | Backend + frontend |
-| **0.x** | **CIERRE DE FASE 0** | ⬜ | — | — | pytest + commit + push |
+| 0.4 | Filtrar usuarios AUSENTES de dropdowns revisores/aprobadores | ✅ | 2026-06-20 | 5aad175 | Backend + frontend |
+| **0.x** | **CIERRE DE FASE 0** | ✅ | 2026-06-20 | 5aad175 | 4/4 tareas completadas |
 
 ---
 
