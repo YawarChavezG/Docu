@@ -230,7 +230,7 @@ export const page = {
         if (!this.codigoAuto || this.codigoAuto === '---' || this.codigoAuto === 'Error al calcular') {
           return ''
         }
-        const codigo = (this.codigoAuto || '').split('/')[0]
+        const codigo = (this.codigoAuto || '').split(' V')[0]
         const titulo = (this.titulo || '').trim().toUpperCase()
         const version = this.versionAuto || '00'
         if (!titulo) return `${codigo} V${version}`
