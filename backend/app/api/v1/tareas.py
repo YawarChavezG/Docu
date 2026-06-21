@@ -92,7 +92,10 @@ async def get_tarea(
 ):
     """Detalle de una tarea."""
     await require_authenticated(request, db)
-    t = await db.get(Tarea, tarea_id)
+    t = (await db.execute(
+        select(Tarea).where(Tarea.id == tarea_id)
+        .options(selectinload(Tarea.documento_flujo))
+    )).scalar_one_or_none()
     if not t or not t.activo:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
