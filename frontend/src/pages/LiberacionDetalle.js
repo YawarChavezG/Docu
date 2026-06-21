@@ -1,5 +1,4 @@
 import { apiGet, apiPost, apiPatch } from '../utils/api.js'
-import { arbolOutlookDB } from '../data/gerencias.js'
 
 export const page = {
   init() {
@@ -53,7 +52,14 @@ export const page = {
         })
         return chips
       },
-      removerChipChip(idx) { this.chipsDifusion.splice(idx, 1) },
+      get chipsDifusion() {
+        const chips = []
+        this.arbol.forEach(g => {
+          if (g.checked && !g.indeterminate) chips.push({ id: g.id, nombre: g.nombre })
+          else g.subs.forEach(s => { if (s.checked) chips.push({ id: s.id, nombre: s.nombre }) })
+        })
+        return chips
+      },
 
       addRevisor() { this.revisores.push({ id: Date.now(), nombre: '' }) },
       removeRevisor(i) { if (this.revisores.length > 1) this.revisores.splice(i, 1) },
@@ -116,6 +122,35 @@ export const page = {
         this.editRequiereEval = f.requiere_evaluacion ? 'Si' : 'No'
         this.editRequiereLectura = f.requiere_control_lectura ? 'Si' : 'No'
 
+        const idsDifusion = new Set(f.alcance_difusion_ids || [])
+
+        try {
+          const [gerRes, areasRes] = await Promise.all([
+            apiGet('/gerencias'),
+            apiGet('/areas'),
+          ])
+          const gerencias = (gerRes.ok ? gerRes.data?.items || [] : [])
+          const areas = (areasRes.ok ? areasRes.data?.items || [] : [])
+
+          this.arbol = gerencias.map(g => ({
+            id: g.id, nombre: g.nombre + ' (' + g.sigla + ')', sigla: g.sigla,
+            checked: idsDifusion.has(g.id),
+            indeterminate: false,
+            subs: areas.filter(a => a.gerencia_id === g.id).map(a => ({
+              id: a.id, nombre: a.nombre + ' (' + a.sigla + ')', sigla: a.sigla,
+              checked: idsDifusion.has(a.id),
+            })),
+          }))
+
+          this.arbol.forEach(g => {
+            if (g.subs.some(s => s.checked) && !g.subs.every(s => s.checked)) {
+              g.indeterminate = true; g.checked = false
+            }
+          })
+        } catch (_) {
+          this.arbol = []
+        }
+
         const userIds = [...new Set([...(f.revisor_ids || []), ...(f.aprobador_ids || [])])]
         this._usuariosLookup = {}
         try {
@@ -130,11 +165,6 @@ export const page = {
         this.aprobadores = (f.aprobador_ids || []).map((id, i) => {
           const u = this._usuariosLookup[id]; return { id: i + 1, user_id: id, nombre: u ? u.nombre_completo + ' (' + u.username + ')' : 'Usuario ' + id }
         })
-
-        this.arbol = JSON.parse(JSON.stringify(arbolOutlookDB)).map(g => ({
-          ...g, checked: true, indeterminate: false,
-          subs: g.subs.map((s, i) => ({ ...s, checked: i < 3 })),
-        }))
       },
 
       get procesosFiltrados() {
