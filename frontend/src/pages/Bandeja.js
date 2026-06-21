@@ -48,8 +48,8 @@ export const page = {
         return new Date().toLocaleDateString('es-BO')
       },
 
-      async init() {
-        await this.cargarTareas()
+      init() {
+        this.cargarTareas()
       },
 
       async cargarTareas() {
@@ -88,7 +88,7 @@ export const page = {
   },
 
   template: /* html */ `
-<div x-data="bandeja" x-init="init()" style="animation:fadeIn 0.35s ease-out both">
+<div x-data="bandeja" style="animation:fadeIn 0.35s ease-out both">
 
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
     <div>
