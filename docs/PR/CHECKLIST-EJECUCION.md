@@ -107,7 +107,7 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 6.1 | Refactor LiberacionDetalle.js | ⬜ | — | — | Datos reales + SharePoint (pendiente) |
+| 6.1 | Refactor LiberacionDetalle.js | ✅ | 2026-06-20 | 3bf3d3d | Datos reales desde API + fix backend |
 | 6.2 | Refactor Bandeja.js | ✅ | 2026-06-20 | b642e86 | Tareas reales desde GET /tareas |
 | 6.3 | Refactor Revision.js | ⬜ | — | — | Timeline real + botones (pendiente) |
 | 6.4 | Refactor AprobacionFinal.js | ⬜ | — | — | Consumir API real (pendiente) |
