@@ -12,7 +12,7 @@ from fastapi.responses import JSONResponse
 
 from app import __version__
 from app.core.config import settings
-from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias, areas, bandeja, configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados, audit_log, roles, semaforizacion_tarea, documentos, ausencias, plantillas_documentales, procesos, bitacora
+from app.api.v1 import auth, health, admin_impersonate, usuarios, gerencias, areas, bandeja, configuracion_global, feriados, email_templates, matriz_enrutamiento_eto, tipos_documento, estados, audit_log, roles, semaforizacion_tarea, documentos, ausencias, plantillas_documentales, procesos, bitacora, tareas, notificaciones
 from app.middleware.csrf import CSRFMiddleware
 
 # ─── Timezone (Bolivia = UTC-4) ───
@@ -124,6 +124,8 @@ app.include_router(ausencias.router, prefix=settings.api_v1_prefix, tags=["Ausen
 app.include_router(plantillas_documentales.router, prefix=settings.api_v1_prefix, tags=["Plantillas Documentales"])
 app.include_router(procesos.router, prefix=settings.api_v1_prefix, tags=["Procesos"])
 app.include_router(bitacora.router, prefix=settings.api_v1_prefix, tags=["Bitacora"])
+app.include_router(tareas.router, prefix=settings.api_v1_prefix, tags=["Tareas"])
+app.include_router(notificaciones.router, prefix=settings.api_v1_prefix, tags=["Notificaciones"])
 
 
 # ─── Root ───
