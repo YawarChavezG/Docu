@@ -107,12 +107,12 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 6.1 | Refactor LiberacionDetalle.js | ⬜ | — | — | Datos reales + SharePoint |
-| 6.2 | Refactor Bandeja.js | ⬜ | — | — | Tareas reales vs mock |
-| 6.3 | Refactor Revision.js | ⬜ | — | — | Timeline real + botones |
-| 6.4 | Refactor AprobacionFinal.js | ⬜ | — | — | Consumir API real |
-| 6.5 | Refactor Correccion.js | ⬜ | — | — | Bypass directo |
-| 6.6 | Refactor notificaciones.js store | ⬜ | — | — | API real vs mock |
+| 6.1 | Refactor LiberacionDetalle.js | ⬜ | — | — | Datos reales + SharePoint (pendiente) |
+| 6.2 | Refactor Bandeja.js | ✅ | 2026-06-20 | b642e86 | Tareas reales desde GET /tareas |
+| 6.3 | Refactor Revision.js | ⬜ | — | — | Timeline real + botones (pendiente) |
+| 6.4 | Refactor AprobacionFinal.js | ⬜ | — | — | Consumir API real (pendiente) |
+| 6.5 | Refactor Correccion.js | ⬜ | — | — | Bypass directo (pendiente) |
+| 6.6 | Refactor notificaciones.js store | ⬜ | — | — | API real vs mock (pendiente) |
 
 ---
 
