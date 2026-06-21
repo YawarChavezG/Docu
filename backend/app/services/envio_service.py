@@ -280,6 +280,18 @@ async def enviar_a_liberacion(
     )
     db.add(firma_ok)
 
+    # ─── 9b. Registrar nodo en timeline (Fase 4) ───
+    from app.services.timeline_service import escribir_bitacora
+    await escribir_bitacora(
+        db=db,
+        documento_flujo_id=flujo.id,
+        usuario=user,
+        accion="CREADO",
+        estado_origen="EN_ELABORACION",
+        estado_destino="LIBERACION_ETO",
+        observacion=f"Documento {doc.codigo_completo} creado por {user.nombre_completo}",
+    )
+
     # ─── 10. Commit atomico (un solo commit para todo) ───
     # Si algo falla despues, SQLAlchemy hace rollback automatico al salir
     # del context manager o al lanzar una excepcion.
@@ -414,6 +426,18 @@ async def liberar_documento(
         motivo_fallo=None,
     )
     db.add(firma_ok)
+
+    # Timeline: ETO libera el documento (Fase 4)
+    from app.services.timeline_service import escribir_bitacora
+    await escribir_bitacora(
+        db=db,
+        documento_flujo_id=flujo.id if flujo else 0,
+        usuario=user,
+        accion="LIBERADO_ETO",
+        estado_origen="LIBERACION_ETO",
+        estado_destino="EN_REVISION",
+        observacion=f"Documento {doc.codigo_completo} liberado por ETO {user.nombre_completo}",
+    )
 
     await db.commit()
     await db.refresh(doc)
