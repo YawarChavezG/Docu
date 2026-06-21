@@ -93,10 +93,10 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 5.1 | Crear `tarea_service.py` | ⬜ | — | — | CRUD + propagación |
-| 5.2 | Endpoints REST de tareas | ⬜ | — | — | POST aprobar/rechazar/reasignar |
-| 5.3 | Endpoints de notificaciones | ⬜ | — | — | GET count, POST leer |
-| 5.4 | Integrar `envio_service.py` con tareas | ⬜ | — | — | Fan-out al liberar |
+| 5.1 | Crear `tarea_service.py` | ✅ | 2026-06-20 | fa00691 | crear/completar/rechazar + propagación |
+| 5.2 | Endpoints REST de tareas | ✅ | 2026-06-20 | fa00691 | GET list, GET by id, POST aprobar/rechazar/reasignar |
+| 5.3 | Endpoints de notificaciones | ✅ | 2026-06-20 | fa00691 | GET list, GET count, POST leer |
+| 5.4 | Integrar `envio_service.py` con tareas | ✅ | 2026-06-20 | fa00691 | Fan-out REVISION al liberar ETO |
 
 ---
 
