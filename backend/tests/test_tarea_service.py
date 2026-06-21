@@ -205,3 +205,84 @@ class TestTareaService:
         with pytest.raises(HTTPException) as excinfo:
             await completar_tarea(db_session, mock_request, seed_catalogos["eto"], t.id, "pass")
         assert excinfo.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_completar_tarea_otro_usuario_403(self, db_session, flujo_test, seed_catalogos, monkeypatch):
+        """Completar tarea de otro usuario da 403."""
+        flujo, doc = flujo_test
+        t = await crear_tarea(db_session, documento_flujo_id=flujo.id,
+                              usuario_id=seed_catalogos["eto"].id,
+                              tipo_tarea="REVISION")
+        await db_session.flush()
+
+        from unittest.mock import Mock
+        mock_request = Mock()
+        mock_request.client.host = "127.0.0.1"
+
+        from fastapi import HTTPException
+        otro_user = seed_catalogos["admin"]
+        with pytest.raises(HTTPException) as excinfo:
+            await completar_tarea(db_session, mock_request, otro_user, t.id, "pass")
+        assert excinfo.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_reasignar_tarea_ok(self, db_session, flujo_test, seed_catalogos):
+        """Reasignar tarea marca original REASIGNADA y crea nueva."""
+        flujo, doc = flujo_test
+        t = await crear_tarea(db_session, documento_flujo_id=flujo.id,
+                              usuario_id=seed_catalogos["eto"].id,
+                              tipo_tarea="REVISION")
+        await db_session.flush()
+
+        from app.services.tarea_service import reasignar_tarea
+        from unittest.mock import Mock
+        mock_request = Mock()
+        mock_request.client.host = "127.0.0.1"
+        mock_request.headers = {"user-agent": "test"}
+
+        nuevo_user = seed_catalogos["admin"]
+        nueva = await reasignar_tarea(
+            db_session, mock_request, seed_catalogos["eto"],
+            t.id, nuevo_user.id, "Delegado asignado por vacaciones"
+        )
+        await db_session.flush()
+
+        assert t.estado == "REASIGNADO"
+        assert nueva.id != t.id
+        assert nueva.usuario_id == nuevo_user.id
+        assert nueva.estado == "PENDIENTE"
+        assert nueva.delegado_origen_id == seed_catalogos["eto"].id
+
+    @pytest.mark.asyncio
+    async def test_notificacion_tipo_invalido(self, db_session):
+        """Tipo de notificacion invalido lanza ValueError."""
+        from app.services.notificacion_service import crear_notificacion
+        with pytest.raises(ValueError) as excinfo:
+            await crear_notificacion(
+                db_session,
+                usuario_destino_id=1,
+                titulo="Test",
+                mensaje="Test",
+                tipo_notificacion="INVALIDO",
+            )
+        assert "invalido" in str(excinfo.value).lower()
+
+    @pytest.mark.asyncio
+    async def test_listar_notificaciones_paginado(self, db_session, seed_catalogos):
+        """Listar notificaciones con paginacion."""
+        from app.services.notificacion_service import listar_notificaciones
+        for i in range(5):
+            from app.services.notificacion_service import crear_notificacion
+            await crear_notificacion(
+                db_session,
+                usuario_destino_id=seed_catalogos["eto"].id,
+                titulo=f"N{i}", mensaje=f"M{i}",
+                tipo_notificacion="SISTEMA",
+            )
+
+        rows, total = await listar_notificaciones(
+            db_session, seed_catalogos["eto"].id,
+            limit=3, offset=0,
+        )
+        assert total == 5
+        assert len(rows) == 3
