@@ -69,11 +69,14 @@ async def list_tareas(
     for t in rows:
         codigo_completo = ""
         titulo_doc = ""
+        doc_id = None
         if t.documento_flujo:
             codigo_completo = f"{t.documento_flujo.codigo_snapshot} V{t.documento_flujo.version_snapshot}"
             titulo_doc = t.documento_flujo.titulo or ""
+            doc_id = t.documento_flujo.documento_id
         items.append(TareaOut(
             id=t.id, documento_flujo_id=t.documento_flujo_id,
+            documento_id=doc_id,
             usuario_id=t.usuario_id, tipo_tarea=t.tipo_tarea,
             estado=t.estado, fecha_asignacion=t.fecha_asignacion,
             fecha_vencimiento=t.fecha_vencimiento,
@@ -101,12 +104,15 @@ async def get_tarea(
 
     codigo_completo = ""
     titulo_doc = ""
+    doc_id = None
     if t.documento_flujo:
         codigo_completo = f"{t.documento_flujo.codigo_snapshot} V{t.documento_flujo.version_snapshot}"
         titulo_doc = t.documento_flujo.titulo or ""
+        doc_id = t.documento_flujo.documento_id
 
     return TareaOut(
         id=t.id, documento_flujo_id=t.documento_flujo_id,
+        documento_id=doc_id,
         usuario_id=t.usuario_id, tipo_tarea=t.tipo_tarea,
         estado=t.estado, fecha_asignacion=t.fecha_asignacion,
         fecha_vencimiento=t.fecha_vencimiento,

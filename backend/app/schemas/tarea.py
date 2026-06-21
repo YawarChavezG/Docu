@@ -10,6 +10,7 @@ from pydantic import BaseModel
 class TareaOut(BaseModel):
     id: int
     documento_flujo_id: int
+    documento_id: Optional[int] = None
     usuario_id: int
     tipo_tarea: str
     estado: str
