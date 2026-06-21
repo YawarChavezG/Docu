@@ -419,6 +419,7 @@ async def get_documento(
             selectinload(Documento.area),
             selectinload(Documento.tipo_documento),
             selectinload(Documento.flujos),
+            selectinload(Documento.archivos),
         )
     )
     result = await db.execute(stmt)
@@ -476,11 +477,23 @@ async def get_documento(
                 requiere_control_lectura=f.requiere_control_lectura if hasattr(f, 'requiere_control_lectura') else False,
                 revisor_ids=list(f.revisor_ids) if f.revisor_ids else [],
                 aprobador_ids=list(f.aprobador_ids) if f.aprobador_ids else [],
+                alcance_difusion_ids=list(f.alcance_difusion_ids) if f.alcance_difusion_ids else [],
             )
             for f in (doc.flujos or [])
         ],
+        archivos=[
+            ArchivoAdjuntoOut(
+                id=a.id, documento_id=a.documento_id,
+                nombre_original=a.nombre_original, nombre_storage=a.nombre_storage,
+                mime_type=a.mime_type, tamano_bytes=a.tamano_bytes,
+                tipo_adjunto=a.tipo_adjunto.value if hasattr(a.tipo_adjunto, "value") else str(a.tipo_adjunto),
+                storage_backend=a.storage_backend.value if hasattr(a.storage_backend, "value") else str(a.storage_backend),
+                storage_path=a.storage_path, created_at=a.created_at,
+            )
+            for a in (doc.archivos or [])
+        ],
     )
-
+    
 
 # ════════════════════════════════════════════════════════════════
 #  GET /documentos  (lista paginada con filtros)

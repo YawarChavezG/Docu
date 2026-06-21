@@ -96,6 +96,22 @@ class DocumentoFlujoBasico(BaseModel):
     requiere_control_lectura: bool = False
     revisor_ids: list[int] = []
     aprobador_ids: list[int] = []
+    alcance_difusion_ids: list[int] = []
+
+
+class ArchivoAdjuntoOut(BaseModel):
+    """Respuesta de POST /documentos/{id}/archivos."""
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    documento_id: int
+    nombre_original: str
+    nombre_storage: str
+    mime_type: str
+    tamano_bytes: int
+    tipo_adjunto: str
+    storage_backend: str
+    storage_path: str
+    created_at: Optional[datetime] = None
 
 
 class DocumentoOut(BaseModel):
@@ -123,6 +139,7 @@ class DocumentoOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     flujos: List[DocumentoFlujoBasico] = []
+    archivos: List[ArchivoAdjuntoOut] = []
 
 
 # ─── List paginado ───
@@ -219,6 +236,15 @@ class DocumentoCreateResponse(BaseModel):
     message: str = "Documento creado exitosamente"
 
 
+class EnviarResponse(BaseModel):
+    """Respuesta del POST /documentos/{id}/enviar."""
+    ok: bool
+    documento_id: int
+    flujo_id: int
+    estatus: str
+    message: str = "Solicitud enviada a liberacion"
+
+
 class EnviarRequest(BaseModel):
     """Body para POST /documentos/{id}/enviar (firma 2FA + transicion a EN_REVISION)."""
     password: str = Field(..., min_length=1, description="Password del usuario para 2FA")
@@ -233,34 +259,6 @@ class EnviarRequest(BaseModel):
     # R3 item 0.2: solo si tipo_solicitud=ACTUALIZACION. Apunta al Documento
     # que se esta actualizando (sirve para trazabilidad + version_anterior+1).
     documento_actualizado_id: Optional[int] = Field(None, gt=0)
-
-
-class EnviarResponse(BaseModel):
-    """Respuesta del POST /documentos/{id}/enviar."""
-    ok: bool
-    documento_id: int
-    flujo_id: int
-    estatus: str
-    message: str = "Solicitud enviada a liberacion"
-
-
-# ════════════════════════════════════════════════════════════════
-#  Archivo adjunto (output) — Sesion 22 R2 FASE 2
-# ════════════════════════════════════════════════════════════════
-
-class ArchivoAdjuntoOut(BaseModel):
-    """Respuesta de POST /documentos/{id}/archivos."""
-    model_config = ConfigDict(from_attributes=True)
-    id: int
-    documento_id: int
-    nombre_original: str
-    nombre_storage: str
-    mime_type: str
-    tamano_bytes: int
-    tipo_adjunto: str
-    storage_backend: str
-    storage_path: str
-    created_at: datetime
 
 
 class ArchivoUploadResponse(BaseModel):
