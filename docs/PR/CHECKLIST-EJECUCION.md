@@ -79,10 +79,10 @@
 
 | # | Tarea | Estado | Fecha | Commit | Notas |
 |---|-------|--------|-------|--------|-------|
-| 4.1 | Crear `timeline_service.py` | ⬜ | — | — | Append-only |
-| 4.2 | Integrar timeline en cada etapa del flujo | ⬜ | — | — | Wizard, liberación, aprobación, etc. |
-| 4.3 | Endpoint GET /bitacora | ⬜ | — | — | Para el frontend |
-| 4.4 | Refactor timeline visual en Revision.js | ⬜ | — | — | Datos reales vs mock |
+| 4.1 | Crear `timeline_service.py` | ✅ | 2026-06-20 | cded343 | Append-only con COLOR_MAP |
+| 4.2 | Integrar timeline en cada etapa del flujo | ✅ | 2026-06-20 | cded343 | CREADO + LIBERADO_ETO integrados |
+| 4.3 | Endpoint GET /bitacora | ✅ | 2026-06-20 | cded343 | Orden DESC, con usuario_nombre |
+| 4.4 | Refactor timeline visual en Revision.js | ⏳ PENDIENTE | — | — | Se hará en Fase 6 (frontend) |
 
 ---
 
