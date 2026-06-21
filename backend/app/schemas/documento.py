@@ -87,6 +87,15 @@ class DocumentoFlujoBasico(BaseModel):
     fecha_solicitud: datetime
     estado_actual_id: int
     elaborador_id: Optional[int] = None
+    documento_actualizado_id: Optional[int] = None
+    version_snapshot: Optional[str] = None
+    cargo_elaborador: Optional[str] = None
+    justificacion: Optional[str] = None
+    tiempo_vigencia_anos: Optional[int] = None
+    requiere_evaluacion: bool = False
+    requiere_control_lectura: bool = False
+    revisor_ids: list[int] = []
+    aprobador_ids: list[int] = []
 
 
 class DocumentoOut(BaseModel):

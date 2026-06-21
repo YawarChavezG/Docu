@@ -98,7 +98,7 @@ export const page = {
         finally { this.cargando = false }
       },
 
-      _poblarFormulario() {
+      async _poblarFormulario() {
         const f = this.flujoActual
         const d = this.documento
         if (!f || !d) return
@@ -108,15 +108,29 @@ export const page = {
         this.editCodigo = d.codigo || ''
         this.editTitulo = d.titulo || ''
         this.editVersion = d.version || '00'
-        this.elaboradorNombre = 'Pendiente'
-        this.elaboradorCargo = 'Pendiente'
+        this.elaboradorNombre = f.cargo_elaborador || 'Pendiente'
+        this.elaboradorCargo = f.cargo_elaborador || 'Pendiente'
         this.fechaApertura = f.fecha_solicitud ? new Date(f.fecha_solicitud).toLocaleDateString('es-BO') : ''
         this.editJustificacion = f.justificacion || ''
         this.editVigencia = f.tiempo_vigencia_anos ? f.tiempo_vigencia_anos + ' años' : 'Indefinido'
         this.editRequiereEval = f.requiere_evaluacion ? 'Si' : 'No'
         this.editRequiereLectura = f.requiere_control_lectura ? 'Si' : 'No'
-        this.revisores = (f.revisor_ids || []).map((id, i) => ({ id: i + 1, nombre: 'Revisor ID ' + id }))
-        this.aprobadores = (f.aprobador_ids || []).map((id, i) => ({ id: i + 1, nombre: 'Aprobador ID ' + id }))
+
+        const userIds = [...new Set([...(f.revisor_ids || []), ...(f.aprobador_ids || [])])]
+        this._usuariosLookup = {}
+        try {
+          const results = await Promise.all(userIds.map(id =>
+            apiGet('/usuarios/' + id).then(r => r.ok ? r.data : null).catch(() => null)
+          ))
+          results.forEach(u => { if (u) this._usuariosLookup[u.id] = u })
+        } catch (_) {}
+        this.revisores = (f.revisor_ids || []).map((id, i) => {
+          const u = this._usuariosLookup[id]; return { id: i + 1, user_id: id, nombre: u ? u.nombre_completo + ' (' + u.username + ')' : 'Usuario ' + id }
+        })
+        this.aprobadores = (f.aprobador_ids || []).map((id, i) => {
+          const u = this._usuariosLookup[id]; return { id: i + 1, user_id: id, nombre: u ? u.nombre_completo + ' (' + u.username + ')' : 'Usuario ' + id }
+        })
+
         this.arbol = JSON.parse(JSON.stringify(arbolOutlookDB)).map(g => ({
           ...g, checked: true, indeterminate: false,
           subs: g.subs.map((s, i) => ({ ...s, checked: i < 3 })),
@@ -302,9 +316,19 @@ export const page = {
       <div class="bg-white border border-slate-200 rounded-xl p-3.5 shadow-card">
         <div class="text-[11px] font-bold text-slate-600 mb-2.5">Archivos cargados por el solicitante</div>
         <div class="flex flex-col gap-2">
-          <div class="flex items-center gap-2.5 p-2 px-3 bg-slate-50 border border-slate-200 rounded-lg">
-            <span class="text-xl">📄</span>
-            <div><div class="text-xs font-semibold" x-text="(tarea?.codigo_completo || 'doc') + '.docx'"></div><div class="text-[10px] text-brand-500">Documento Principal (Word)</div></div>
+          <div class="flex items-center gap-2.5 p-2 px-3 bg-slate-50 border border-slate-200 rounded-lg justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="text-xl">📄</span>
+              <div><div class="text-xs font-semibold" x-text="(tarea?.codigo_completo || 'doc') + '.docx'"></div><div class="text-[10px] text-brand-500">Documento Principal (Word)</div></div>
+            </div>
+            <div @click="window.toast('🔗 Abriendo documento en SharePoint (Office 365)...','info')" class="text-[11px] text-brand-500 border border-blue-200 px-2 py-1 rounded cursor-pointer hover:bg-blue-50 flex items-center gap-1">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Abrir en SharePoint
+            </div>
+          </div>
+          <div class="flex items-center gap-2.5 p-2 px-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+            <span class="text-xl">📊</span>
+            <div><div class="text-xs font-semibold" x-text="(tarea?.codigo_completo || 'doc') + '-F01' + '.xlsx'"></div><div class="text-[10px] text-emerald-600">Formulario (Excel)</div></div>
           </div>
         </div>
       </div>

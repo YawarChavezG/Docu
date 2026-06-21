@@ -468,6 +468,14 @@ async def get_documento(
                 fecha_solicitud=f.fecha_solicitud,
                 estado_actual_id=f.estado_actual_id,
                 elaborador_id=f.elaborador_id,
+                version_snapshot=f.version_snapshot,
+                cargo_elaborador=f.cargo_elaborador,
+                justificacion=f.justificacion,
+                tiempo_vigencia_anos=f.tiempo_vigencia_anos,
+                requiere_evaluacion=f.requiere_evaluacion if hasattr(f, 'requiere_evaluacion') else False,
+                requiere_control_lectura=f.requiere_control_lectura if hasattr(f, 'requiere_control_lectura') else False,
+                revisor_ids=list(f.revisor_ids) if f.revisor_ids else [],
+                aprobador_ids=list(f.aprobador_ids) if f.aprobador_ids else [],
             )
             for f in (doc.flujos or [])
         ],
@@ -941,12 +949,20 @@ async def update_documento(
                 fecha_solicitud=f.fecha_solicitud,
                 estado_actual_id=f.estado_actual_id,
                 elaborador_id=f.elaborador_id,
+                version_snapshot=f.version_snapshot,
+                cargo_elaborador=f.cargo_elaborador,
+                justificacion=f.justificacion,
+                tiempo_vigencia_anos=f.tiempo_vigencia_anos,
+                requiere_evaluacion=f.requiere_evaluacion if hasattr(f, 'requiere_evaluacion') else False,
+                requiere_control_lectura=f.requiere_control_lectura if hasattr(f, 'requiere_control_lectura') else False,
+                revisor_ids=list(f.revisor_ids) if f.revisor_ids else [],
+                aprobador_ids=list(f.aprobador_ids) if f.aprobador_ids else [],
             )
             for f in (doc.flujos or [])
         ],
     )
-
-
+    
+    
 # ════════════════════════════════════════════════════════════════
 #  POST /documentos/{id}/archivos  (upload con validacion MIME/tamano)
 #  Sesion 22 R2 - FASE 2
