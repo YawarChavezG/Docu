@@ -439,6 +439,19 @@ async def liberar_documento(
         observacion=f"Documento {doc.codigo_completo} liberado por ETO {user.nombre_completo}",
     )
 
+    # Fan-out: crear tareas REVISION por cada revisor (R3 Fase 2)
+    from app.services.tarea_service import crear_tarea
+    revisores_ids_para_tareas = []
+    if flujo and flujo.revisor_ids:
+        revisores_ids_para_tareas = flujo.revisor_ids
+    for rid in revisores_ids_para_tareas:
+        await crear_tarea(
+            db=db,
+            documento_flujo_id=flujo.id,
+            usuario_id=rid,
+            tipo_tarea="REVISION",
+        )
+
     await db.commit()
     await db.refresh(doc)
 
